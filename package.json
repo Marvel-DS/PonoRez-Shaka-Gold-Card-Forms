@@ -1,0 +1,23 @@
+{
+  "name": "01_sgc-forms",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tailwindcss -i ./assets/css/tailwind.css -o ./assets/css/main.css --watch",
+    "build": "tailwindcss -i ./assets/css/tailwind.css -o ./assets/css/main.css --minify"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.13",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.13"
+  },
+  "description": "",
+  "dependencies": {
+    "@fontsource/inter": "^5.2.7",
+    "@fontsource/poppins": "^5.2.6"
+  }
+}

@@ -1,0 +1,38 @@
+# Node / frontend artifacts
+node_modules/
+assets/dist/
+
+# Build outputs copied to public
+public/assets/css/
+public/assets/js/
+public/assets/images/
+public/assets/fonts/
+
+# PHP composer vendors (reinstall via composer install)
+vendor/
+
+# Supplier-specific data (keep template only)
+suppliers/*
+!suppliers/supplier-slug/
+!suppliers/index.php
+suppliers/supplier-slug/*
+!suppliers/supplier-slug/supplier.config
+!suppliers/supplier-slug/activity-slug.config
+!suppliers/supplier-slug/images/
+suppliers/supplier-slug/images/*
+!suppliers/supplier-slug/images/logo-supplier-slug.png
+!suppliers/supplier-slug/images/activity-slug-01.jpg
+!suppliers/supplier-slug/images/activity-slug-02.jpg
+
+# OS / editor noise
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Playwright / test output
+playwright-report/
+playwright/.cache/
+
+# Misc
+.env
