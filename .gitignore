@@ -1,6 +1,8 @@
 # Node / frontend artifacts
-node_modules/
+_oldApp
 assets/dist/
+node_modules/
+resources/
 
 # Build outputs copied to public
 public/assets/css/
