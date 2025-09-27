@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "tailwindcss -i ./assets/css/tailwind.css -o ./assets/css/main.css --watch",
-    "build": "tailwindcss -i ./assets/css/tailwind.css -o ./assets/css/main.css --minify"
+    "dev": "tailwindcss -i ./assets/css/tailwind.css -o ./public/assets/css/main.css --watch & vite --watch",
+    "build": "tailwindcss -i ./assets/css/tailwind.css -o ./public/assets/css/main.css --minify && vite build",
+    "lint": "eslint \"assets/js/**/*.js\"",
+    "format": "prettier --write \"assets/js/**/*.js\"",
+    "test": "playwright test"
   },
   "keywords": [],
   "author": "",
@@ -13,7 +16,13 @@
     "@tailwindcss/cli": "^4.1.13",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.13"
+    "tailwindcss": "^4.1.13",
+    "vite": "^5.4.0",
+    "eslint": "^9.9.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "prettier": "^3.3.3",
+    "@playwright/test": "^1.48.0"
   },
   "description": "",
   "dependencies": {
