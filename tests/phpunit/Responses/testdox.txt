@@ -1,0 +1,27 @@
+PHPUnit 10.5.57 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.3.14
+Configuration: /Volumes/wpMarvel/_PonoRez/08_Internal Apps/01_SGC Forms/phpunit.xml
+
+.........                                                           9 / 9 (100%)
+
+Time: 00:00.006, Memory: 8.00 MB
+
+Availability (PonoRez\SGCForms\Tests\Services\Availability)
+ ✔ Fetch calendar returns hydrated cached payload
+ ✔ Fetch calendar caches soap response
+ ✔ Fetch calendar seeds fallback on soap fault
+
+Get Guest Types Controller (PonoRez\SGCForms\Tests\Controllers\GetGuestTypesController)
+ ✔ Placeholder
+
+Guest Types (PonoRez\SGCForms\Tests\Services\GuestTypes)
+ ✔ Fetch returns cached data when available
+ ✔ Fetch caches soap response on miss
+ ✔ Fetch normalizes soap object response
+ ✔ Fetch returns config when soap throws
+
+Reservation (PonoRez\SGCForms\Tests\Services\Reservation)
+ ✔ Placeholder
+
+OK (9 tests, 83 assertions)

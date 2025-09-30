@@ -1,0 +1,266 @@
+import { resolveApiUrl } from '../core/config.js';
+import { requestJson } from '../core/api-client.js';
+import { getState, setState, subscribe } from '../core/store.js';
+import { qs, qsa, clearChildren, toggleHidden, createElement } from '../utility/dom.js';
+import { formatDateLong } from '../utility/formating.js';
+import { pluralize } from '../utility/strings.js';
+import { showError } from './alerts.js';
+
+let availabilityPanel;
+let timeslotList;
+let summaryBanner;
+let loadingState;
+let emptyState;
+
+let fetchTimer;
+let controller;
+let lastSignature = null;
+
+function mapCalendar(calendar = []) {
+    return calendar.reduce((accumulator, entry) => {
+        if (!entry || !entry.date) {
+            return accumulator;
+        }
+
+        accumulator.push({
+            date: String(entry.date),
+            status: String(entry.status || 'unknown').toLowerCase(),
+        });
+
+        return accumulator;
+    }, []);
+}
+
+function mapTimeslots(timeslots = []) {
+    return timeslots.reduce((accumulator, slot) => {
+        if (!slot || slot.id === undefined) {
+            return accumulator;
+        }
+
+        const id = String(slot.id);
+        const label = slot.label ? String(slot.label) : id;
+        const available = slot.available !== undefined && slot.available !== null
+            ? Number(slot.available)
+            : null;
+
+        accumulator.push({ id, label, available });
+        return accumulator;
+    }, []);
+}
+
+function buildAvailabilityUrl() {
+    const state = getState();
+    const base = resolveApiUrl('availability');
+    if (!base) {
+        return null;
+    }
+
+    const url = new URL(base);
+    if (state.selectedDate) {
+        url.searchParams.set('date', state.selectedDate);
+    }
+
+    return url.toString();
+}
+
+function setLoading(isLoading) {
+    setState((current) => ({
+        loading: { ...current.loading, availability: isLoading },
+    }));
+}
+
+function describeAvailability(timeslot) {
+    if (timeslot.available === null || timeslot.available === undefined) {
+        return 'Availability will be confirmed during checkout.';
+    }
+
+    if (timeslot.available <= 0) {
+        return 'Sold out';
+    }
+
+    if (timeslot.available <= 4) {
+        return `${timeslot.available} ${pluralize('spot', timeslot.available)} left`;
+    }
+
+    return `${timeslot.available} seats available`;
+}
+
+function renderTimeslots(state) {
+    if (!availabilityPanel || !timeslotList) {
+        return;
+    }
+
+    const { timeslots, selectedTimeslotId } = state;
+    const isLoading = state.loading?.availability;
+    const hasTimeslots = Array.isArray(timeslots) && timeslots.length > 0;
+
+    toggleHidden(loadingState, !isLoading);
+    toggleHidden(emptyState, isLoading || hasTimeslots);
+    toggleHidden(timeslotList, isLoading || !hasTimeslots);
+
+    if (!hasTimeslots) {
+        clearChildren(timeslotList);
+    }
+
+    if (hasTimeslots) {
+        clearChildren(timeslotList);
+
+        timeslots.forEach((timeslot) => {
+            const item = createElement('li', { className: 'flex items-stretch' });
+
+            const label = createElement('label', {
+                className: 'flex w-full items-center justify-between gap-4 px-4 py-3',
+                attributes: { 'data-timeslot-id': timeslot.id },
+            });
+
+            const radioWrapper = createElement('div', { className: 'flex items-center gap-3' });
+            const radio = createElement('input', {
+                attributes: {
+                    type: 'radio',
+                    name: 'timeslotId',
+                    value: timeslot.id,
+                    class: 'h-4 w-4 border-slate-300 text-blue-600 focus:ring-blue-500',
+                    'aria-label': `Select ${timeslot.label}`,
+                },
+            });
+
+            if (timeslot.id === selectedTimeslotId) {
+                radio.checked = true;
+            }
+
+            if (timeslot.available !== null && timeslot.available <= 0) {
+                radio.disabled = true;
+            }
+
+            const labelText = createElement('span', {
+                className: 'text-sm font-medium text-slate-900',
+                text: timeslot.label,
+            });
+
+            radioWrapper.appendChild(radio);
+            radioWrapper.appendChild(labelText);
+
+            const availabilityText = createElement('span', {
+                className: 'text-xs text-slate-500',
+                text: describeAvailability(timeslot),
+            });
+
+            label.appendChild(radioWrapper);
+            label.appendChild(availabilityText);
+            item.appendChild(label);
+
+            timeslotList.appendChild(item);
+        });
+    }
+
+    if (summaryBanner) {
+        const selected = (state.timeslots || []).find((slot) => slot.id === state.selectedTimeslotId);
+        const readableDate = formatDateLong(state.selectedDate, state.currency?.locale || 'en-US');
+
+        if (selected) {
+            summaryBanner.textContent = `Selected departure: ${selected.label} on ${readableDate}`;
+        } else if (hasTimeslots) {
+            summaryBanner.textContent = 'Pick a departure time to continue.';
+        } else {
+            summaryBanner.textContent = 'Select a date to load available timeslots.';
+        }
+    }
+}
+
+async function fetchAvailability() {
+    const state = getState();
+    const signature = JSON.stringify({
+        date: state.selectedDate,
+        guestCounts: state.guestCounts,
+    });
+
+    if (signature === lastSignature) {
+        return;
+    }
+
+    lastSignature = signature;
+
+    const url = buildAvailabilityUrl();
+    if (!url) {
+        return;
+    }
+
+    if (controller) {
+        controller.abort();
+    }
+
+    controller = new AbortController();
+    setLoading(true);
+
+    try {
+        const payload = await requestJson(url, { signal: controller.signal });
+        const calendarDays = mapCalendar(payload.calendar);
+        const timeslots = mapTimeslots(payload.timeslots);
+
+        setState((current) => {
+            const availableIds = timeslots.map((slot) => slot.id);
+            let selectedTimeslotId = current.selectedTimeslotId;
+
+            if (!selectedTimeslotId || !availableIds.includes(selectedTimeslotId)) {
+                const firstAvailable = timeslots.find((slot) => slot.available === null || slot.available > 0);
+                selectedTimeslotId = firstAvailable ? firstAvailable.id : null;
+            }
+
+            return {
+                calendarDays,
+                timeslots,
+                availabilityMetadata: payload.metadata || {},
+                selectedTimeslotId,
+                loading: { ...current.loading, availability: false },
+            };
+        });
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            return;
+        }
+        console.error('Availability request failed', error);
+        showError(error.message || 'Unable to load availability.');
+        setState((current) => ({
+            loading: { ...current.loading, availability: false },
+        }));
+    }
+}
+
+function scheduleFetch() {
+    window.clearTimeout(fetchTimer);
+    fetchTimer = window.setTimeout(fetchAvailability, 300);
+}
+
+function handleTimeslotChange(event) {
+    const target = event.target;
+    if (!target || target.name !== 'timeslotId') {
+        return;
+    }
+
+    setState({ selectedTimeslotId: target.value });
+}
+
+export function initAvailability() {
+    availabilityPanel = qs('[data-component="timeslots"]');
+    if (!availabilityPanel) {
+        return;
+    }
+
+    timeslotList = qs('[data-timeslot-list]', availabilityPanel);
+    summaryBanner = qs('[data-state="summary"]', availabilityPanel);
+    loadingState = qs('[data-state="loading"]', availabilityPanel);
+    emptyState = qs('[data-state="empty"]', availabilityPanel);
+
+    if (timeslotList) {
+        timeslotList.addEventListener('change', handleTimeslotChange);
+    }
+
+    subscribe((state) => {
+        renderTimeslots(state);
+        scheduleFetch();
+    });
+
+    scheduleFetch();
+}
+
+export default initAvailability;

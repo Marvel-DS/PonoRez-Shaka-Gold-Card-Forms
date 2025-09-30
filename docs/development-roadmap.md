@@ -5,34 +5,34 @@ This roadmap outlines the sequential task list for modernizing the booking appli
 ---
 
 ## Sprint 0 – Foundations _(Week 1)_
-1. Initialize Git repository (if not already tracked) and create a project-specific `.gitignore` covering Node/Tailwind artefacts (`node_modules`, `assets/dist`), cache directories, and macOS files.
-2. Remove obsolete runtime code from `_oldApp/` (retain for reference only) and verify `docs/project-structure.md` matches the repository.
-3. Configure PHP autoloading via Composer (`composer dump-autoload`); ensure `PonoRez\SGCForms\` maps to `controller/`.
-4. Install Node dependencies; configure Tailwind/Vite build scripts in `package.json`.
-5. Implement `controller/Setup.php` to load `.env`, configs, autoloaders, and logging defaults.
-6. Update all entry points (`index.php`, `public/index.php`, each file in `api/`) to require `Setup.php`.
-7. Render a minimal page using `partials/layout/form-basic.php` and `partials/form/component-button.php` to verify bootstrap + asset pipeline.
-8. Run smoke tests: ensure `npm run build` (or equivalent) and `composer dump-autoload` succeed.
+1. [Done] Initialize Git repository (if not already tracked) and create a project-specific `.gitignore` covering Node/Tailwind artefacts (`node_modules`, `assets/dist`), cache directories, and macOS files.
+2. [Done] Remove obsolete runtime code from `_oldApp/` (retain for reference only) and verify `docs/project-structure.md` matches the repository.
+3. [Done] Configure PHP autoloading via Composer (`composer dump-autoload`); ensure `PonoRez\SGCForms\` maps to `controller/`.
+4. [Done] Install Node dependencies; configure Tailwind/Vite build scripts in `package.json`.
+5. [Done] Implement `controller/Setup.php` to load `.env`, configs, autoloaders, and logging defaults.
+6. [In progress] Update all entry points (`index.php`, `public/index.php`, each file in `api/`) to require `Setup.php`.
+7. [Done] Render a minimal page using `partials/layout/form-basic.php` and `partials/form/component-button.php` to verify bootstrap + asset pipeline.
+8. [Done] Run smoke tests: ensure `npm run build` (or equivalent) and `composer dump-autoload` succeed.
 
 ## Sprint 1 – Core Data Services _(Weeks 2–3)_
-1. Build `controller/Services/SoapClientBuilder.php` with authentication, WSDL selection, and logging hooks.
-2. Implement `controller/Cache` layer (`FileCache`, `CacheInterface`, `CacheKeyGenerator`, `NullCache`).
-3. Create DTOs needed for guest types and availability (`GuestType`, `GuestTypeCollection`, `AvailabilityDay`, `AvailabilityCalendar`, `Timeslot`).
-4. Implement `GuestTypeService` using SOAP + cache, returning DTOs.
-5. Implement `AvailabilityService` (dates + timeslots) using DTOs.
-6. Add PHPUnit tests for both services (`tests/phpunit/Services/GuestTypesTest.php`, `AvailabilityTest.php`) using data from `tests/phpunit/Responses`.
-7. Build `Support/RequestValidator.php`, `ResponseFormatter.php`, `ErrorManager.php`, and `LogManager.php` utilities.
-8. Wire `api/get-guest-types.php` and `api/get-availability.php` to new services; verify JSON responses locally.
-9. Update `healthcheck.php` to call both services.
+1. [Done] Build `controller/Services/SoapClientBuilder.php` with authentication, WSDL selection, and logging hooks.
+2. [Done] Implement `controller/Cache` layer (`FileCache`, `CacheInterface`, `CacheKeyGenerator`, `NullCache`).
+3. [Done] Create DTOs needed for guest types and availability (`GuestType`, `GuestTypeCollection`, `AvailabilityDay`, `AvailabilityCalendar`, `Timeslot`).
+4. [Done] Implement `GuestTypeService` using SOAP + cache, returning DTOs.
+5. [Done] Implement `AvailabilityService` (dates + timeslots) using DTOs.
+6. [Done] Add PHPUnit tests for both services (`tests/phpunit/Services/GuestTypesTest.php`, `AvailabilityTest.php`) using data from `tests/phpunit/Responses`.
+7. [Done] Build `Support/RequestValidator.php`, `ResponseFormatter.php`, `ErrorManager.php`, and `LogManager.php` utilities.
+8. [Done] Wire `api/get-guest-types.php` and `api/get-availability.php` to new services; verify JSON responses locally.
+9. [Done] Update `healthcheck.php` to call both services.
 
 ## Sprint 2 – Transportation, Upgrades, Checkout _(Week 4)_
-1. Extend DTO set (`TransportationRoute`, `TransportationSet`, `Upgrade`, `UpgradeCollection`, `CheckoutInitRequest`, `CheckoutInitResponse`).
-2. Implement `TransportationService` with supplier/activity overrides.
-3. Implement `UpgradeService` for upgrades metadata.
-4. Implement `CheckoutInitService` for checkout handoff and add PHPUnit coverage (`ReservationTest.php`).
-5. Wire `api/get-transportation.php`, `api/get-upgrades.php`, and `api/init-checkout.php` to their services.
-6. Update Playwright fixtures (if needed) to include transport/upgrade scenarios.
-7. Smoke-test all API endpoints with `curl`/Postman.
+1. [Done] Extend DTO set (`TransportationRoute`, `TransportationSet`, `Upgrade`, `UpgradeCollection`, `CheckoutInitRequest`, `CheckoutInitResponse`).
+2. [Done] Implement `TransportationService` with supplier/activity overrides.
+3. [Done] Implement `UpgradeService` for upgrades metadata.
+4. [Done] Implement `CheckoutInitService` for checkout handoff and add PHPUnit coverage (`ReservationTest.php`).
+5. [Done] Wire `api/get-transportation.php`, `api/get-upgrades.php`, and `api/init-checkout.php` to their services.
+6. [Done] Update Playwright fixtures (if needed) to include transport/upgrade scenarios.
+7. [Done] Smoke-test all API endpoints with `curl`/Postman`. (See `scripts/smoke-test.sh` for automated checks.)
 
 ## Sprint 3 – Form Rendering & Data Hydration _(Week 5)_
 1. Render supplier/activity branding via `partials/layout/branding.php`; confirm Tailwind variables update.

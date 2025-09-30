@@ -1,0 +1,8 @@
+
+Running 3 tests using 3 workers
+
+  ✓  3 tests/playwright/calendar.spec.ts:5:7 › Availability fixtures › include multi-day calendar with sold-out status (80ms)
+  ✓  2 tests/playwright/transportation.spec.ts:5:7 › Transportation fixtures › exposes mandatory shuttle route and optional choices (85ms)
+  ✓  1 tests/playwright/booking-flow.spec.ts:12:7 › Booking flow fixtures › cover end-to-end data contract (109ms)
+
+  3 passed (713ms)

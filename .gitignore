@@ -27,10 +27,10 @@ suppliers/supplier-slug/images/*
 !suppliers/supplier-slug/images/activity-slug-02.jpg
 
 # OS / editor noise
-.DS_Store
-.idea/
-.vscode/
-*.log
+**/.DS_Store
+**/.idea/
+**/.vscode/
+**/*.log
 
 # Playwright / test output
 playwright-report/
