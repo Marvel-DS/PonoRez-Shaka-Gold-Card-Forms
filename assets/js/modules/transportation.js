@@ -1,4 +1,4 @@
-import { getState, setState, subscribe } from '../core/store.js';
+import { setState, subscribe } from '../core/store.js';
 import { qs, qsa } from '../utility/dom.js';
 
 let root;

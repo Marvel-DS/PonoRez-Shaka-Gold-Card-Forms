@@ -1,7 +1,7 @@
 import { resolveApiUrl } from '../core/config.js';
 import { requestJson } from '../core/api-client.js';
 import { getState, setState, subscribe } from '../core/store.js';
-import { qs, qsa, clearChildren, toggleHidden, createElement } from '../utility/dom.js';
+import { qs, clearChildren, toggleHidden, createElement } from '../utility/dom.js';
 import { formatDateLong } from '../utility/formating.js';
 import { pluralize } from '../utility/strings.js';
 import { showError } from './alerts.js';
@@ -15,6 +15,21 @@ let emptyState;
 let fetchTimer;
 let controller;
 let lastSignature = null;
+
+function isLastDayOfMonth(isoDate) {
+    if (typeof isoDate !== 'string' || isoDate.length < 10) {
+        return false;
+    }
+
+    const date = new Date(`${isoDate}T00:00:00`);
+    if (Number.isNaN(date.getTime())) {
+        return false;
+    }
+
+    const nextDay = new Date(date);
+    nextDay.setDate(date.getDate() + 1);
+    return nextDay.getDate() === 1;
+}
 
 function mapCalendar(calendar = []) {
     return calendar.reduce((accumulator, entry) => {
@@ -58,6 +73,20 @@ function buildAvailabilityUrl() {
     const url = new URL(base);
     if (state.selectedDate) {
         url.searchParams.set('date', state.selectedDate);
+    }
+
+    if (state.visibleMonth) {
+        url.searchParams.set('month', state.visibleMonth);
+    }
+
+    const activityIds = state.bootstrap?.activity?.ids;
+    if (Array.isArray(activityIds) && activityIds.length > 0) {
+        url.searchParams.set('activityIds', JSON.stringify(activityIds));
+    }
+
+    const guestCounts = state.guestCounts || {};
+    if (Object.keys(guestCounts).length > 0) {
+        url.searchParams.set('guestCounts', JSON.stringify(guestCounts));
     }
 
     return url.toString();
@@ -196,6 +225,7 @@ async function fetchAvailability() {
         const payload = await requestJson(url, { signal: controller.signal });
         const calendarDays = mapCalendar(payload.calendar);
         const timeslots = mapTimeslots(payload.timeslots);
+        const metadata = payload.metadata || {};
 
         setState((current) => {
             const availableIds = timeslots.map((slot) => slot.id);
@@ -206,14 +236,41 @@ async function fetchAvailability() {
                 selectedTimeslotId = firstAvailable ? firstAvailable.id : null;
             }
 
-            return {
+            const updates = {
                 calendarDays,
                 timeslots,
-                availabilityMetadata: payload.metadata || {},
+                availabilityMetadata: metadata,
                 selectedTimeslotId,
                 loading: { ...current.loading, availability: false },
             };
+
+            const firstAvailableDate = typeof metadata.firstAvailableDate === 'string' && metadata.firstAvailableDate !== ''
+                ? metadata.firstAvailableDate
+                : null;
+            const selectedStatus = typeof metadata.selectedDateStatus === 'string'
+                ? metadata.selectedDateStatus.toLowerCase()
+                : '';
+            const envCurrentDate = current.bootstrap?.environment?.currentDate;
+
+            const shouldAdvanceToFirstAvailable = Boolean(
+                firstAvailableDate
+                && envCurrentDate
+                && current.selectedDate === envCurrentDate
+                && isLastDayOfMonth(envCurrentDate)
+                && !['available', 'limited'].includes(selectedStatus)
+            );
+
+            if (shouldAdvanceToFirstAvailable) {
+                updates.selectedDate = firstAvailableDate;
+                updates.visibleMonth = firstAvailableDate.slice(0, 7);
+                updates.selectedTimeslotId = null;
+                updates.timeslots = [];
+                updates.calendarDays = [];
+            }
+
+            return updates;
         });
+
     } catch (error) {
         if (error.name === 'AbortError') {
             return;

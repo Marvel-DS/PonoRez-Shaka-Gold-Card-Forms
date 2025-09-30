@@ -128,6 +128,15 @@ $bootstrapData = [
     'activity' => [
         'slug' => $activitySlug,
         'id' => $activityConfig['activityId'] ?? null,
+        'ids' => array_values(array_map(
+            static fn ($value) => is_numeric($value) ? (int) $value : $value,
+            array_filter(
+                is_array($activityConfig['activityIds'] ?? null)
+                    ? $activityConfig['activityIds']
+                    : [$activityConfig['activityId'] ?? null],
+                static fn ($value) => $value !== null && $value !== ''
+            )
+        )),
         'displayName' => $activityConfig['displayName']
             ?? $activityConfig['activityTitle']
             ?? ucfirst(str_replace('-', ' ', $activitySlug)),

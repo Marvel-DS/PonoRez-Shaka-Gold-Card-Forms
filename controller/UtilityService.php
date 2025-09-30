@@ -114,6 +114,27 @@ final class UtilityService
         return $config;
     }
 
+    public static function getReservationBaseUrl(): string
+    {
+        $wsdl = self::getSoapWsdl();
+        $parts = parse_url($wsdl);
+
+        if ($parts === false || !isset($parts['scheme'], $parts['host'])) {
+            throw new RuntimeException('Unable to derive reservation base URL from soapWsdl.');
+        }
+
+        $host = $parts['host'];
+        if (isset($parts['port'])) {
+            $host .= ':' . $parts['port'];
+        }
+
+        $path = $parts['path'] ?? '/';
+        $path = preg_replace('#/services/.*$#', '/', $path) ?? '/';
+        $path = rtrim($path, '/') . '/';
+
+        return sprintf('%s://%s%s', $parts['scheme'], $host, $path);
+    }
+
     public static function supplierDirectory(string $supplierSlug): string
     {
         return rtrim(self::projectRoot() . self::SUPPLIERS_PATH, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $supplierSlug;

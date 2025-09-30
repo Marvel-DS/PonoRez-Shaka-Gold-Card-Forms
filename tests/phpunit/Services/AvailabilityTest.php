@@ -5,201 +5,157 @@ declare(strict_types=1);
 namespace PonoRez\SGCForms\Tests\Services;
 
 use PHPUnit\Framework\TestCase;
-use PonoRez\SGCForms\Cache\CacheInterface;
-use PonoRez\SGCForms\DTO\AvailabilityCalendar;
 use PonoRez\SGCForms\DTO\AvailabilityDay;
 use PonoRez\SGCForms\DTO\Timeslot;
 use PonoRez\SGCForms\Services\AvailabilityService;
 use PonoRez\SGCForms\Services\SoapClientFactory;
 use RuntimeException;
 use SoapClient;
-use SoapFault;
-use stdClass;
-use Throwable;
 
 final class AvailabilityTest extends TestCase
 {
     private const SUPPLIER_SLUG = 'supplier-slug';
     private const ACTIVITY_SLUG = 'activity-slug';
-    private const START_DATE = '2024-01-01';
 
-    public function testFetchCalendarReturnsHydratedCachedPayload(): void
+    public function testFetchCalendarBuildsAvailabilityFromHttp(): void
     {
-        $cacheKey = 'availability:supplier-slug:activity-slug:2024-01-01';
-        $cachedPayload = [
-            'calendar' => [
-                ['date' => '2024-01-01', 'status' => 'available'],
-                ['date' => '2024-01-02', 'status' => 'sold-out'],
-            ],
-            'timeslots' => [
-                ['id' => 'am', 'label' => 'Morning', 'available' => 5],
-                ['id' => 'pm', 'label' => 'Afternoon', 'available' => null],
+        $seats = [];
+        $extended = [];
+        for ($day = 1; $day <= 31; $day++) {
+            $seats['d' . $day] = 10;
+            $extended['d' . $day] = ['aids' => [369]];
+        }
+
+        $httpResponse = json_encode([
+            'yearmonth_2024_3' => $seats,
+            'yearmonth_2024_3_ex' => $extended,
+        ], JSON_THROW_ON_ERROR);
+
+        $capturedParams = null;
+        $httpFetcher = function (string $url, array $params) use (&$capturedParams, $httpResponse): string {
+            $capturedParams = $params;
+            return $httpResponse;
+        };
+
+        $handlers = [
+            'getActivityTimeslots' => static fn () => [
+                'timeslots' => [
+                    ['id' => '730', 'label' => '7:30 AM Departure', 'available' => 10],
+                    ['id' => '1230', 'label' => '12:30 PM Departure', 'available' => 6],
+                ],
             ],
         ];
 
-        $cache = new AvailabilityCacheSpy([$cacheKey => $cachedPayload]);
-        $builder = new AvailabilityStubSoapClientFactory();
+        $client = new AvailabilityRecordingSoapClient($handlers);
+        $factory = new AvailabilityStubSoapClientFactory($client);
 
-        $service = new AvailabilityService($cache, $builder);
-        $result = $service->fetchCalendar(self::SUPPLIER_SLUG, self::ACTIVITY_SLUG, self::START_DATE);
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-03-15',
+            ['345' => 2],
+            [369],
+            '2024-03'
+        );
 
-        self::assertSame(0, $builder->buildCount, 'SOAP client should not be built on cache hit.');
-        self::assertArrayHasKey('calendar', $result);
-        self::assertArrayHasKey('timeslots', $result);
-        self::assertInstanceOf(AvailabilityCalendar::class, $result['calendar']);
-        self::assertCount(2, $result['calendar']);
-        self::assertContainsOnlyInstancesOf(AvailabilityDay::class, $result['calendar']->all());
+        self::assertSame('COMMON_AVAILABILITYCHECKJSON', $capturedParams['action']);
+        self::assertSame('369', $capturedParams['activityid']);
+        self::assertSame('2024_3', $capturedParams['year_months']);
+        self::assertNotEmpty($capturedParams['minavailability']);
 
-        self::assertIsArray($result['timeslots']);
-        self::assertCount(2, $result['timeslots']);
-        self::assertContainsOnlyInstancesOf(Timeslot::class, $result['timeslots']);
+        $calendar = $result['calendar'];
+        self::assertSame(31, $calendar->count());
+        foreach ($calendar->all() as $day) {
+            self::assertInstanceOf(AvailabilityDay::class, $day);
+            self::assertSame('available', $day->getStatus());
+        }
 
-        $morning = $result['timeslots'][0];
-        self::assertSame('am', $morning->getId());
-        self::assertSame('Morning', $morning->getLabel());
-        self::assertSame(5, $morning->getAvailable());
+        $timeslots = $result['timeslots'];
+        self::assertCount(2, $timeslots);
+        self::assertContainsOnlyInstancesOf(Timeslot::class, $timeslots);
+        self::assertSame('730', $timeslots[0]->getId());
 
-        $afternoon = $result['timeslots'][1];
-        self::assertNull($afternoon->getAvailable());
+        $metadata = $result['metadata'];
+        self::assertSame('ponorez-json', $metadata['source']);
+        self::assertSame(2, $metadata['requestedSeats']);
+        self::assertSame('available', $metadata['selectedDateStatus']);
+        self::assertSame('available', $metadata['timeslotStatus']);
+        self::assertSame('2024-03-01', $metadata['firstAvailableDate']);
+        self::assertSame('verified', $metadata['certificateVerification']);
+
+        self::assertNotEmpty($client->calls);
     }
 
-    public function testFetchCalendarCachesSoapResponse(): void
+    public function testFetchCalendarMarksLimitedWhenSeatCountLow(): void
     {
-        $primary = new stdClass();
-        $primary->date = '2024-01-01';
-        $primary->status = 'Available';
+        $seats = [];
+        for ($day = 1; $day <= 30; $day++) {
+            $seats['d' . $day] = 3;
+        }
 
-        $secondary = new stdClass();
-        $secondary->date = '2024-01-02';
-        $secondary->status = 'SoldOut';
+        $httpResponse = json_encode([
+            'yearmonth_2024_4' => $seats,
+            'yearmonth_2024_4_ex' => [],
+        ], JSON_THROW_ON_ERROR);
 
-        $response = new stdClass();
-        $response->return = [$primary, $secondary];
+        $httpFetcher = fn () => $httpResponse;
 
-        $client = new AvailabilityRecordingSoapClient($response);
+        $client = new AvailabilityRecordingSoapClient([
+            'getActivityTimeslots' => static fn () => ['timeslots' => []],
+        ]);
         $factory = new AvailabilityStubSoapClientFactory($client);
-        $cache = new AvailabilityCacheSpy();
 
-        $service = new AvailabilityService($cache, $factory);
-        $result = $service->fetchCalendar(self::SUPPLIER_SLUG, self::ACTIVITY_SLUG, self::START_DATE);
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-04-10',
+            ['345' => 2],
+            [369],
+            '2024-04'
+        );
 
-        self::assertSame(1, $factory->buildCount);
-        self::assertCount(1, $client->calls);
-
-        [$method, $arguments] = $client->calls[0];
-        self::assertSame('getActivityAvailableDates', $method);
-        $this->assertPayloadMatches($arguments);
-
-        self::assertArrayHasKey('calendar', $result);
-        self::assertArrayHasKey('timeslots', $result);
-        self::assertSame([
-            'fallback' => false,
-            'source' => 'soap',
-        ], $result['metadata']);
-        self::assertInstanceOf(AvailabilityCalendar::class, $result['calendar']);
-        self::assertCount(2, $result['calendar']);
-        self::assertSame('available', $result['calendar']->all()[0]->getStatus());
-        self::assertSame('soldout', $result['calendar']->all()[1]->getStatus());
-        self::assertSame([], $result['timeslots']);
-
-        self::assertNotEmpty($cache->setCalls);
-        $write = $cache->setCalls[0];
-        self::assertSame('availability:supplier-slug:activity-slug:2024-01-01', $write['key']);
-        self::assertSame(300, $write['ttl']);
-        self::assertEquals([
-            'calendar' => [
-                ['date' => '2024-01-01', 'status' => 'available'],
-                ['date' => '2024-01-02', 'status' => 'soldout'],
-            ],
-            'timeslots' => [],
-            'metadata' => [
-                'fallback' => false,
-                'source' => 'soap',
-            ],
-        ], $write['value']);
-    }
-
-    public function testFetchCalendarSeedsFallbackOnSoapFault(): void
-    {
-        $fault = new SoapFault('Server', 'Failure');
-        $client = new AvailabilityRecordingSoapClient(null, $fault);
-        $factory = new AvailabilityStubSoapClientFactory($client);
-        $cache = new AvailabilityCacheSpy();
-
-        $service = new AvailabilityService($cache, $factory);
-        $result = $service->fetchCalendar(self::SUPPLIER_SLUG, self::ACTIVITY_SLUG, self::START_DATE);
-
-        self::assertCount(15, $result['calendar']);
         foreach ($result['calendar']->all() as $day) {
-            self::assertSame('unknown', $day->getStatus());
+            self::assertSame('limited', $day->getStatus());
         }
+
+        self::assertSame('unavailable', $result['metadata']['timeslotStatus']);
+        self::assertSame('verified', $result['metadata']['certificateVerification']);
+    }
+
+    public function testFetchCalendarMarksSoldOutWhenSeatsZero(): void
+    {
+        $seats = [];
+        for ($day = 1; $day <= 31; $day++) {
+            $seats['d' . $day] = 0;
+        }
+
+        $httpResponse = json_encode([
+            'yearmonth_2024_5' => $seats,
+            'yearmonth_2024_5_ex' => [],
+        ], JSON_THROW_ON_ERROR);
+
+        $httpFetcher = fn () => $httpResponse;
+
+        $client = new AvailabilityRecordingSoapClient([]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-05-05'
+        );
+
+        foreach ($result['calendar']->all() as $day) {
+            self::assertSame('sold_out', $day->getStatus());
+        }
+
         self::assertSame([], $result['timeslots']);
-        self::assertSame([
-            'fallback' => true,
-            'source' => 'fallback',
-            'error' => 'Failure',
-        ], $result['metadata']);
-        self::assertNotEmpty($cache->setCalls);
-    }
-
-    /**
-     * @param list<array> $arguments
-     */
-    private function assertPayloadMatches(array $arguments): void
-    {
-        self::assertCount(1, $arguments);
-        $payload = $arguments[0];
-        self::assertSame([
-            'serviceLogin' => [
-                'username' => 'apiUsername',
-                'password' => 'apiPassword',
-            ],
-            'supplierId' => 123,
-            'activityId' => 369,
-            'startDate' => self::START_DATE,
-        ], $payload);
-    }
-}
-
-final class AvailabilityCacheSpy implements CacheInterface
-{
-    /** @var array<string, mixed> */
-    private array $primedValues;
-
-    /** @var array<string, mixed> */
-    private array $store = [];
-
-    /** @var list<array{key:string,value:mixed,ttl:int}> */
-    public array $setCalls = [];
-
-    /** @param array<string, mixed> $primedValues */
-    public function __construct(array $primedValues = [])
-    {
-        $this->primedValues = $primedValues;
-    }
-
-    public function get(string $key, mixed $default = null): mixed
-    {
-        if (array_key_exists($key, $this->store)) {
-            return $this->store[$key];
-        }
-
-        return $this->primedValues[$key] ?? $default;
-    }
-
-    public function set(string $key, mixed $value, int $ttl = 0): void
-    {
-        $this->store[$key] = $value;
-        $this->setCalls[] = [
-            'key' => $key,
-            'value' => $value,
-            'ttl' => $ttl,
-        ];
-    }
-
-    public function delete(string $key): void
-    {
-        unset($this->primedValues[$key], $this->store[$key]);
+        self::assertSame('unavailable', $result['metadata']['timeslotStatus']);
+        self::assertSame('verified', $result['metadata']['certificateVerification']);
+        self::assertSame([], $client->calls);
     }
 }
 
@@ -207,40 +163,42 @@ final class AvailabilityStubSoapClientFactory implements SoapClientFactory
 {
     public int $buildCount = 0;
 
-    public function __construct(private ?SoapClient $client = null)
+    public function __construct(private SoapClient $client)
     {
     }
 
     public function build(): SoapClient
     {
         $this->buildCount++;
-
-        if ($this->client === null) {
-            throw new RuntimeException('No SoapClient stub provided.');
-        }
-
         return $this->client;
     }
 }
 
 final class AvailabilityRecordingSoapClient extends SoapClient
 {
+    /** @var array<string, callable> */
+    private array $handlers;
+
     /** @var list<array{0:string,1:array}> */
     public array $calls = [];
 
-    public function __construct(private mixed $response, private ?Throwable $throwable = null)
+    /**
+     * @param array<string, callable> $handlers
+     */
+    public function __construct(array $handlers)
     {
-        // Intentionally skip parent constructor call.
+        $this->handlers = $handlers;
+        // Skip parent constructor; only dynamic dispatch is needed for tests.
     }
 
     public function __soapCall(string $name, array $arguments, ?array $options = null, mixed $inputHeaders = null, mixed &$outputHeaders = null): mixed
     {
         $this->calls[] = [$name, $arguments];
 
-        if ($this->throwable !== null) {
-            throw $this->throwable;
+        if (isset($this->handlers[$name])) {
+            return ($this->handlers[$name])($arguments);
         }
 
-        return $this->response;
+        throw new RuntimeException(sprintf('Unexpected SOAP call to "%s".', $name));
     }
 }
