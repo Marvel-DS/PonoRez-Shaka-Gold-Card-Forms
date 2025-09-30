@@ -28,9 +28,9 @@ for ($index = 0; $index < 42; $index++) {
 $weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 ?>
 <section class="space-y-6" data-component="calendar">
-    <header class="space-y-1">
+    <header>
         <h2 class="text-lg font-semibold text-slate-900"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></h2>
-        <p class="text-sm text-slate-600">Select a travel date to see available departure times.</p>
+        <p class="text-sm text-slate-600">Select a date to see available departure/start times.</p>
     </header>
 
     <div class="relative rounded-xl border border-slate-200 p-5 shadow-xs" data-calendar>
@@ -56,13 +56,13 @@ $weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             </button>
         </div>
 
-        <div class="mt-6 grid grid-cols-7 gap-1 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <div class="mt-6 grid grid-cols-7 gap-0 md:gap-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
             <?php foreach ($weekdayLabels as $weekday): ?>
                 <span><?= htmlspecialchars($weekday, ENT_QUOTES, 'UTF-8') ?></span>
             <?php endforeach; ?>
         </div>
 
-        <div class="mt-4 grid grid-cols-7 gap-1" role="grid" aria-label="Available dates">
+        <div class="mt-4 grid grid-cols-7 gap-0 md:gap-3" role="grid" aria-label="Available dates">
             <?php foreach ($weeks as $week): ?>
                 <?php foreach ($week as $day): ?>
                     <?php
@@ -92,7 +92,7 @@ $weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     </div>
 
     <?php if ($calendarEndpoint): ?>
-        <p class="text-xs text-slate-400">
+        <p class="text-xs text-slate-400 hidden">
             Developer note: API response preview &mdash;
             <a class="text-blue-600 underline decoration-dotted" href="<?= htmlspecialchars($calendarEndpoint, ENT_QUOTES, 'UTF-8') ?>">
                 <?= htmlspecialchars($calendarEndpoint, ENT_QUOTES, 'UTF-8') ?>
