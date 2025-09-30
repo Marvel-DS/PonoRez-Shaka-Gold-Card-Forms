@@ -34,7 +34,7 @@ $weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     </header>
 
     <div class="relative rounded-xl border border-slate-200 p-5 shadow-xs" data-calendar>
-        <div class="absolute inset-0 z-10 hidden items-center justify-center rounded-xl bg-white/80" data-calendar-loading>
+        <div class="absolute inset-0 z-10 hidden items-center justify-center rounded-xl bg-white" data-calendar-loading>
             <div class="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
         </div>
 

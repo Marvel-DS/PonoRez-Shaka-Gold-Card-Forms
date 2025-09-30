@@ -11,15 +11,23 @@ $min = $guestConfig['min'] ?? [];
 $max = $guestConfig['max'] ?? [];
 $ids = $guestConfig['ids'] ?? [];
 
+$defaultGuestRange = 9;
+
 $guestTypes = [];
 foreach ($ids as $id) {
     $stringId = (string) $id;
+    $minValue = isset($min[$stringId]) ? max(0, (int) $min[$stringId]) : 0;
+    $maxCandidate = isset($max[$stringId]) ? max(0, (int) $max[$stringId]) : 0;
+    $fallbackMax = $minValue + $defaultGuestRange;
+    $maxValue = $maxCandidate > $minValue ? $maxCandidate : $fallbackMax;
+
     $guestTypes[] = [
         'id' => $stringId,
         'label' => $labels[$stringId] ?? $stringId,
         'description' => $descriptions[$stringId] ?? null,
-        'min' => isset($min[$stringId]) ? max(0, (int) $min[$stringId]) : 0,
-        'max' => isset($max[$stringId]) ? max(0, (int) $max[$stringId]) : 0,
+        'min' => $minValue,
+        'max' => max($maxValue, $minValue),
+        'fallbackMax' => $fallbackMax,
     ];
 }
 
@@ -35,14 +43,16 @@ $label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people ar
         <?php foreach ($guestTypes as $guestType): ?>
             <?php
                 $minValue = $guestType['min'];
-                $maxValue = $guestType['max'] > $minValue ? $guestType['max'] : $minValue;
+                $maxValue = max($guestType['max'], $minValue);
+                $fallbackMax = max($guestType['fallbackMax'], $minValue);
                 $selectId = sprintf('guest-count-%s', preg_replace('/[^a-zA-Z0-9_-]/', '', $guestType['id']));
                 $description = $guestType['description'];
             ?>
             <div class="flex flex-wrap items-center justify-between gap-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
                  data-guest-type="<?= htmlspecialchars($guestType['id'], ENT_QUOTES, 'UTF-8') ?>"
                  data-min="<?= $minValue ?>"
-                 data-max="<?= $maxValue ?>">
+                 data-max="<?= $maxValue ?>"
+                 data-fallback-max="<?= $fallbackMax ?>">
                 <div class="flex items-center gap-4 min-w-0">
                     <div class="relative">
                         <label class="sr-only" for="<?= htmlspecialchars($selectId, ENT_QUOTES, 'UTF-8') ?>">

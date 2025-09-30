@@ -11,6 +11,7 @@ let controller;
 let lastSignature = null;
 
 const FETCH_DEBOUNCE_MS = 250;
+const DEFAULT_GUEST_RANGE = 9;
 
 function normaliseGuestTypeConfig(rawConfig) {
     const safeObject = (value) => (value && typeof value === 'object' ? value : {});
@@ -316,9 +317,24 @@ function syncFromState(state) {
                 : Number(container.dataset.max ?? min);
 
         const boundedMin = Number.isFinite(min) ? Math.max(0, Math.floor(min)) : 0;
-        let boundedMax = Number.isFinite(max) ? Math.max(boundedMin, Math.floor(max)) : boundedMin;
-        if (boundedMax < boundedMin) {
+
+        const previousMax = Number(container.dataset.max);
+        const fallbackAttribute = Number(container.dataset.fallbackMax);
+        const fallbackMax = Number.isFinite(fallbackAttribute)
+            ? Math.max(boundedMin, Math.floor(fallbackAttribute))
+            : Number.isFinite(previousMax)
+                ? Math.max(boundedMin, Math.floor(previousMax))
+                : boundedMin + DEFAULT_GUEST_RANGE;
+
+        let boundedMax;
+        if (Number.isFinite(max)) {
+            boundedMax = Math.max(boundedMin, Math.floor(max));
+        } else {
             boundedMax = boundedMin;
+        }
+
+        if (boundedMax <= boundedMin) {
+            boundedMax = fallbackMax > boundedMin ? fallbackMax : boundedMin + DEFAULT_GUEST_RANGE;
         }
 
         buildSelectOptions(select, boundedMin, boundedMax);
@@ -332,6 +348,7 @@ function syncFromState(state) {
 
         container.dataset.min = String(boundedMin);
         container.dataset.max = String(boundedMax);
+        container.dataset.fallbackMax = String(Math.max(boundedMax, fallbackMax));
 
         if (labelElement) {
             labelElement.textContent = labelText;
