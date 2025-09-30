@@ -27,10 +27,10 @@ for ($index = 0; $index < 42; $index++) {
 
 $weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 ?>
-<section class="space-y-6" data-component="calendar">
+<section class="space-y-3" data-component="calendar">
     <header>
-        <h2 class="text-lg font-semibold text-slate-900"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></h2>
-        <p class="text-sm text-slate-600">Select a date to see available departure/start times.</p>
+        <h2 class="text-lg font-semibold text-slate-900 mb-0"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></h2>
+        <p class="text-sm text-slate-600 mb-0">Select a date to see available departure/start times.</p>
     </header>
 
     <div class="relative rounded-xl border border-slate-200 p-5 shadow-xs" data-calendar>
