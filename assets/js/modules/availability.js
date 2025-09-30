@@ -15,6 +15,7 @@ let emptyState;
 let fetchTimer;
 let controller;
 let lastSignature = null;
+let lastVisibleMonth;
 
 function isLastDayOfMonth(isoDate) {
     if (typeof isoDate !== 'string' || isoDate.length < 10) {
@@ -283,8 +284,14 @@ async function fetchAvailability() {
     }
 }
 
-function scheduleFetch() {
+function scheduleFetch({ immediate = false } = {}) {
     window.clearTimeout(fetchTimer);
+
+    if (immediate) {
+        fetchAvailability();
+        return;
+    }
+
     fetchTimer = window.setTimeout(fetchAvailability, 300);
 }
 
@@ -313,10 +320,16 @@ export function initAvailability() {
     }
 
     subscribe((state) => {
+        const visibleMonthChanged = lastVisibleMonth && state.visibleMonth !== lastVisibleMonth;
+
         renderTimeslots(state);
-        scheduleFetch();
+
+        lastVisibleMonth = state.visibleMonth;
+
+        scheduleFetch({ immediate: Boolean(visibleMonthChanged) });
     });
 
+    lastVisibleMonth = getState().visibleMonth;
     scheduleFetch();
 }
 
