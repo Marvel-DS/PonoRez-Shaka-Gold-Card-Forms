@@ -67,7 +67,7 @@ $label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people ar
                             <?php endfor; ?>
                         </select>
                         <span aria-hidden="true" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-100">
-                            <?php include dirname(__DIR__) . '/../assets/icons/outline/chevron-up-down.svg'; ?>
+                            <?php include dirname(__DIR__, 2) . '/assets/icons/outline/chevron-up-down.svg'; ?>
                         </span>
                     </div>
                     <div class="min-w-0 space-y-0">
