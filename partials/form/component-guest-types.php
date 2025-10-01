@@ -28,7 +28,7 @@ foreach ($ids as $id) {
         'description' => $descriptions[$stringId] ?? null,
         'min' => $minValue,
         'max' => max($maxValue, $minValue),
-        'fallbackMax' => $fallbackMax,
+        'fallbackMax' => max($fallbackMax, $maxValue, $minValue),
         'control' => $controlType,
     ];
 }
@@ -46,22 +46,21 @@ $label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people ar
             <?php
                 $minValue = $guestType['min'];
                 $maxValue = max($guestType['max'], $minValue);
-                $fallbackMax = max($guestType['fallbackMax'], $minValue);
+                $fallbackMax = max($guestType['fallbackMax'], $maxValue);
                 $sanitisedId = preg_replace('/[^a-zA-Z0-9_-]/', '', $guestType['id']);
                 $selectId = sprintf('guest-count-%s', $sanitisedId);
                 $checkboxId = sprintf('guest-toggle-%s', $sanitisedId);
                 $labelId = sprintf('guest-label-%s', $sanitisedId);
                 $description = $guestType['description'];
             ?>
-            <?php $isCheckbox = $guestType['control'] === 'checkbox'; ?>
-            <div class="<?= $isCheckbox ? 'flex flex-wrap items-center justify-between' : 'flex flex-wrap items-center justify-between gap-6 pe-3 rounded-xl border border-slate-200 shadow-xs' ?>"
+            <div class="<?= $guestType['control'] === 'checkbox' ? 'flex flex-wrap items-center justify-between' : 'flex flex-wrap items-center justify-between gap-6 pe-3 rounded-xl border border-slate-200 shadow-xs' ?>"
                  data-guest-type="<?= htmlspecialchars($guestType['id'], ENT_QUOTES, 'UTF-8') ?>"
                  data-min="<?= $minValue ?>"
                  data-max="<?= $maxValue ?>"
                  data-fallback-max="<?= $fallbackMax ?>">
-                <div class="flex items-center <?= $isCheckbox ? 'gap-2' : 'gap-4' ?> min-w-0">
+                <div class="flex items-center <?= $guestType['control'] === 'checkbox' ? 'gap-2' : 'gap-4' ?> min-w-0">
                     <div class="relative">
-                        <?php if ($isCheckbox): ?>
+                        <?php if ($guestType['control'] === 'checkbox'): ?>
                             <input type="hidden"
                                    name="guestCounts[<?= htmlspecialchars($guestType['id'], ENT_QUOTES, 'UTF-8') ?>]"
                                    value="<?= $minValue ?>"
@@ -99,13 +98,13 @@ $label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people ar
                     </div>
                     <div class="min-w-0 space-y-0">
                         <p class="font-medium -mb-0.5" id="<?= htmlspecialchars($labelId, ENT_QUOTES, 'UTF-8') ?>" data-guest-label><?= htmlspecialchars($guestType['label'], ENT_QUOTES, 'UTF-8') ?></p>
-                        <?php if (!$isCheckbox): ?>
+                        <?php if ($guestType['control'] !== 'checkbox'): ?>
                             <p class="text-xs text-slate-500 mb-0<?= $description === null || $description === '' ? ' hidden' : '' ?>"
                                data-guest-description><?= htmlspecialchars((string) $description, ENT_QUOTES, 'UTF-8') ?></p>
                         <?php endif; ?>
                     </div>
                 </div>
-                <?php if (!$isCheckbox): ?>
+                <?php if ($guestType['control'] !== 'checkbox'): ?>
                     <div class="text-right">
                         <p class="text-sm font-normal text-slate-900 mb-0" data-guest-price>--</p>
                     </div>

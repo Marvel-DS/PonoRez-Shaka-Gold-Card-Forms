@@ -13,6 +13,54 @@ let lastSignature = null;
 const FETCH_DEBOUNCE_MS = 250;
 const DEFAULT_GUEST_RANGE = 10;
 
+function resolveGuestRange({
+    min,
+    max,
+    fallbackMax,
+    hasExplicitMax,
+    defaultRange,
+}) {
+    const safeDefaultRange = Number.isFinite(defaultRange) && defaultRange > 0
+        ? Math.max(1, Math.floor(defaultRange))
+        : DEFAULT_GUEST_RANGE;
+
+    const boundedMin = Number.isFinite(min) ? Math.max(0, Math.floor(min)) : 0;
+
+    const fallbackFloor = Number.isFinite(fallbackMax) ? Math.floor(fallbackMax) : Number.NaN;
+    const fallbackBaseline = Number.isFinite(fallbackFloor)
+        ? fallbackFloor
+        : boundedMin + safeDefaultRange;
+
+    const resolvedFallbackMax = fallbackBaseline > boundedMin
+        ? fallbackBaseline
+        : boundedMin + safeDefaultRange;
+
+    let boundedMax;
+    if (Number.isFinite(max)) {
+        const explicitMax = Math.floor(max);
+        boundedMax = explicitMax >= boundedMin ? explicitMax : resolvedFallbackMax;
+    } else {
+        boundedMax = resolvedFallbackMax;
+    }
+
+    if (!hasExplicitMax && boundedMax === boundedMin) {
+        boundedMax = resolvedFallbackMax;
+    }
+
+    if (!Number.isFinite(boundedMax) || boundedMax < boundedMin) {
+        boundedMax = Math.max(boundedMin, resolvedFallbackMax);
+    }
+
+    const safeMax = Math.max(boundedMin, boundedMax);
+    const safeFallbackMax = Math.max(resolvedFallbackMax, safeMax);
+
+    return {
+        min: boundedMin,
+        max: safeMax,
+        fallbackMax: safeFallbackMax,
+    };
+}
+
 function normaliseGuestTypeConfig(rawConfig) {
     const safeObject = (value) => (value && typeof value === 'object' ? value : {});
 
@@ -356,42 +404,21 @@ function syncFromState(state) {
             : config.max[id] !== undefined ? Number(config.max[id])
                 : Number(container.dataset.max ?? min);
 
-        const boundedMin = Number.isFinite(min) ? Math.max(0, Math.floor(min)) : 0;
-
         const previousMax = Number(container.dataset.max);
         const fallbackAttribute = Number(container.dataset.fallbackMax);
-        const fallbackBase = Number.isFinite(fallbackAttribute)
-            ? Math.floor(fallbackAttribute)
+        const fallbackCandidate = Number.isFinite(fallbackAttribute)
+            ? fallbackAttribute
             : Number.isFinite(previousMax)
-                ? Math.floor(previousMax)
-                : boundedMin + DEFAULT_GUEST_RANGE;
+                ? previousMax
+                : Number.NaN;
 
-        const resolvedFallbackMax = (() => {
-            if (Number.isFinite(fallbackBase) && fallbackBase > boundedMin) {
-                return fallbackBase;
-            }
-            return boundedMin + DEFAULT_GUEST_RANGE;
-        })();
-
-        let boundedMax;
-        if (Number.isFinite(max)) {
-            const explicitMax = Math.floor(max);
-            if (explicitMax < boundedMin) {
-                boundedMax = resolvedFallbackMax;
-            } else {
-                boundedMax = explicitMax;
-            }
-        } else {
-            boundedMax = resolvedFallbackMax;
-        }
-
-        if (!hasExplicitMax && boundedMax === boundedMin) {
-            boundedMax = resolvedFallbackMax;
-        }
-
-        if (!Number.isFinite(boundedMax) || boundedMax < boundedMin) {
-            boundedMax = Math.max(boundedMin, resolvedFallbackMax);
-        }
+        const { min: boundedMin, max: boundedMax, fallbackMax } = resolveGuestRange({
+            min,
+            max,
+            fallbackMax: fallbackCandidate,
+            hasExplicitMax,
+            defaultRange: DEFAULT_GUEST_RANGE,
+        });
 
         buildSelectOptions(select, boundedMin, boundedMax);
 
@@ -420,7 +447,7 @@ function syncFromState(state) {
 
         container.dataset.min = String(boundedMin);
         container.dataset.max = String(boundedMax);
-        container.dataset.fallbackMax = String(Math.max(boundedMax, resolvedFallbackMax));
+        container.dataset.fallbackMax = String(Math.max(fallbackMax, boundedMax));
 
         if (labelElement) {
             labelElement.textContent = labelText;
