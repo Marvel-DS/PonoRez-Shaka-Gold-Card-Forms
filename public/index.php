@@ -146,6 +146,21 @@ $bootstrapData = [
         'transportation' => $activityConfig['transportation'] ?? [],
         'upgrades' => $activityConfig['upgrades'] ?? [],
         'privateActivity' => filter_var($activityConfig['privateActivity'] ?? false, FILTER_VALIDATE_BOOLEAN),
+        'departureLabels' => array_reduce(
+            array_keys($activityConfig['departureLabels'] ?? []),
+            static function (array $carry, $key) use ($activityConfig): array {
+                $stringKey = (string) $key;
+                $label = $activityConfig['departureLabels'][$key];
+
+                if ($stringKey === '' || $label === null) {
+                    return $carry;
+                }
+
+                $carry[$stringKey] = (string) $label;
+                return $carry;
+            },
+            []
+        ),
         'currency' => [
             'code' => strtoupper((string) ($activityConfig['currency']['code'] ?? 'USD')),
             'symbol' => $activityConfig['currency']['symbol'] ?? '$',

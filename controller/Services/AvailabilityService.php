@@ -149,6 +149,10 @@ final class AvailabilityService
 
         $requestedSeats = $this->calculateRequestedSeats($guestCounts, $activityConfig);
 
+        $extendedAvailability = $this->buildExtendedAvailabilityIndex($monthData);
+        $selectedDateKey = $selectedDay->format('Y-m-d');
+        $availableActivityIdsForSelectedDate = $extendedAvailability[$selectedDateKey] ?? [];
+
         $timeslots = $this->fetchTimeslotsForDate(
             $this->soapClientBuilder->build(),
             $supplierConfig,
@@ -157,7 +161,9 @@ final class AvailabilityService
             $guestCounts
         );
 
-        $timeslotStatus = $timeslots === [] ? 'unavailable' : 'available';
+        $timeslotStatus = ($timeslots === [] && $availableActivityIdsForSelectedDate === [])
+            ? 'unavailable'
+            : 'available';
 
         return [
             'calendar' => $calendar,
@@ -170,8 +176,59 @@ final class AvailabilityService
             'selectedDateStatus' => $selectedDayStatus,
             'month' => $viewMonthKey,
             'certificateVerification' => $this->certificateVerificationDisabled ? 'disabled' : 'verified',
+            'extended' => $extendedAvailability,
         ], static fn ($value) => $value !== null),
         ];
+    }
+
+    private function buildExtendedAvailabilityIndex(array $monthData): array
+    {
+        $index = [];
+
+        foreach ($monthData as $monthKey => $data) {
+            if (!is_array($data) || !isset($data['extended']) || !is_array($data['extended'])) {
+                continue;
+            }
+
+            try {
+                $monthDate = new DateTimeImmutable($monthKey . '-01');
+            } catch (\Exception) {
+                continue;
+            }
+
+            $year = (int) $monthDate->format('Y');
+            $month = (int) $monthDate->format('m');
+
+            foreach ($data['extended'] as $dayKey => $entry) {
+                if (preg_match('/^d(\d{1,2})$/', (string) $dayKey, $matches) !== 1) {
+                    continue;
+                }
+
+                $day = (int) $matches[1];
+
+                $ids = [];
+                if (isset($entry['aids']) && is_array($entry['aids'])) {
+                    $ids = array_values(array_filter(
+                        array_map(
+                            static fn ($value) => is_numeric($value) ? (int) $value : null,
+                            $entry['aids']
+                        ),
+                        static fn ($value) => $value !== null
+                    ));
+                }
+
+                $indexKey = sprintf('%04d-%02d-%02d', $year, $month, $day);
+
+                if ($ids === []) {
+                    $index[$indexKey] = [];
+                    continue;
+                }
+
+                $index[$indexKey] = $ids;
+            }
+        }
+
+        return $index;
     }
 
     /**

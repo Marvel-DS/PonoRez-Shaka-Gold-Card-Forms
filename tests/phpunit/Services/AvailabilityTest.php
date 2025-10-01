@@ -83,6 +83,7 @@ final class AvailabilityTest extends TestCase
         self::assertSame('available', $metadata['timeslotStatus']);
         self::assertSame('2024-03-01', $metadata['firstAvailableDate']);
         self::assertSame('verified', $metadata['certificateVerification']);
+        self::assertSame([369], $metadata['extended']['2024-03-15']);
 
         self::assertNotEmpty($client->calls);
     }
@@ -158,6 +159,43 @@ final class AvailabilityTest extends TestCase
         self::assertSame('unavailable', $result['metadata']['timeslotStatus']);
         self::assertSame('verified', $result['metadata']['certificateVerification']);
         self::assertNotEmpty($client->calls);
+    }
+
+    public function testFetchCalendarTreatsExtendedAvailabilityAsTimeslotSignal(): void
+    {
+        $seats = [];
+        $extended = [];
+        for ($day = 1; $day <= 31; $day++) {
+            $seats['d' . $day] = 5;
+            if ($day === 12) {
+                $extended['d' . $day] = ['aids' => [369, 555]];
+            }
+        }
+
+        $httpResponse = json_encode([
+            'yearmonth_2024_7' => $seats,
+            'yearmonth_2024_7_ex' => $extended,
+        ], JSON_THROW_ON_ERROR);
+
+        $httpFetcher = fn () => $httpResponse;
+
+        $client = new AvailabilityRecordingSoapClient([
+            'getActivityTimeslots' => static fn () => ['timeslots' => []],
+        ]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-07-12',
+            ['345' => 2],
+            [369, 555]
+        );
+
+        self::assertSame('available', $result['metadata']['timeslotStatus']);
+        self::assertSame([369, 555], $result['metadata']['extended']['2024-07-12']);
+        self::assertSame([], $result['timeslots']);
     }
 
     public function testFetchCalendarReturnsTimeslotsEvenWhenCalendarShowsSoldOut(): void

@@ -17,6 +17,120 @@ let controller;
 let lastSignature = null;
 let lastVisibleMonth;
 
+function normaliseId(value) {
+    if (value === null || value === undefined) {
+        return null;
+    }
+
+    const stringValue = String(value).trim();
+    return stringValue === '' ? null : stringValue;
+}
+
+function getConfiguredActivityOrder(state) {
+    const ids = state.bootstrap?.activity?.ids;
+    if (!Array.isArray(ids)) {
+        return [];
+    }
+
+    return ids
+        .map((id) => normaliseId(id))
+        .filter((id) => id !== null);
+}
+
+function getDepartureLabelMap(state) {
+    const labels = state.bootstrap?.activity?.departureLabels;
+    if (!labels || typeof labels !== 'object') {
+        return {};
+    }
+
+    return Object.entries(labels).reduce((accumulator, [key, value]) => {
+        const normalisedKey = normaliseId(key);
+        if (normalisedKey === null) {
+            return accumulator;
+        }
+
+        accumulator[normalisedKey] = value !== undefined && value !== null ? String(value) : `Departure ${normalisedKey}`;
+        return accumulator;
+    }, {});
+}
+
+function getAvailableIdsFromMetadata(metadata, date) {
+    if (!metadata || typeof metadata !== 'object' || !date) {
+        return [];
+    }
+
+    const extended = metadata.extended;
+    if (!extended || typeof extended !== 'object') {
+        return [];
+    }
+
+    const entry = extended[date];
+    if (!Array.isArray(entry)) {
+        return [];
+    }
+
+    return entry
+        .map((id) => normaliseId(id))
+        .filter((id) => id !== null);
+}
+
+function deriveTimeslotsFromSources(state, payloadTimeslots, metadata) {
+    if (Array.isArray(payloadTimeslots) && payloadTimeslots.length > 0) {
+        const availableIds = getAvailableIdsFromMetadata(metadata, state.selectedDate);
+        if (availableIds.length === 0) {
+            return payloadTimeslots;
+        }
+
+        const availableSet = new Set(availableIds);
+        const filtered = payloadTimeslots.filter((slot) => availableSet.has(slot.id));
+        if (filtered.length > 0) {
+            return filtered;
+        }
+
+        return payloadTimeslots;
+    }
+
+    const availableIds = getAvailableIdsFromMetadata(metadata, state.selectedDate);
+    if (availableIds.length === 0) {
+        return [];
+    }
+
+    const uniqueIds = Array.from(new Set(availableIds));
+    const order = getConfiguredActivityOrder(state);
+    const orderIndex = new Map();
+    order.forEach((id, index) => {
+        if (!orderIndex.has(id)) {
+            orderIndex.set(id, index);
+        }
+    });
+
+    const labels = getDepartureLabelMap(state);
+
+    uniqueIds.sort((a, b) => {
+        const orderA = orderIndex.has(a) ? orderIndex.get(a) : Number.POSITIVE_INFINITY;
+        const orderB = orderIndex.has(b) ? orderIndex.get(b) : Number.POSITIVE_INFINITY;
+
+        if (orderA !== orderB) {
+            return orderA - orderB;
+        }
+
+        const numericA = Number.parseInt(a, 10);
+        const numericB = Number.parseInt(b, 10);
+
+        if (Number.isFinite(numericA) && Number.isFinite(numericB) && numericA !== numericB) {
+            return numericA - numericB;
+        }
+
+        return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    });
+
+    return uniqueIds.map((id) => ({
+        id,
+        label: labels[id] || `Departure ${id}`,
+        available: null,
+    }));
+}
+
 function isLastDayOfMonth(isoDate) {
     if (typeof isoDate !== 'string' || isoDate.length < 10) {
         return false;
@@ -225,21 +339,22 @@ async function fetchAvailability() {
     try {
         const payload = await requestJson(url, { signal: controller.signal });
         const calendarDays = mapCalendar(payload.calendar);
-        const timeslots = mapTimeslots(payload.timeslots);
+        const payloadTimeslots = mapTimeslots(payload.timeslots);
         const metadata = payload.metadata || {};
 
         setState((current) => {
-            const availableIds = timeslots.map((slot) => slot.id);
+            const derivedTimeslots = deriveTimeslotsFromSources(current, payloadTimeslots, metadata);
+            const availableIds = derivedTimeslots.map((slot) => slot.id);
             let selectedTimeslotId = current.selectedTimeslotId;
 
             if (!selectedTimeslotId || !availableIds.includes(selectedTimeslotId)) {
-                const firstAvailable = timeslots.find((slot) => slot.available === null || slot.available > 0);
+                const firstAvailable = derivedTimeslots.find((slot) => slot.available === null || slot.available > 0);
                 selectedTimeslotId = firstAvailable ? firstAvailable.id : null;
             }
 
             const updates = {
                 calendarDays,
-                timeslots,
+                timeslots: derivedTimeslots,
                 availabilityMetadata: metadata,
                 selectedTimeslotId,
                 loading: { ...current.loading, availability: false },
