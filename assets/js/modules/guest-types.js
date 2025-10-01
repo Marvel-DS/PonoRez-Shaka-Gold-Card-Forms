@@ -360,25 +360,37 @@ function syncFromState(state) {
 
         const previousMax = Number(container.dataset.max);
         const fallbackAttribute = Number(container.dataset.fallbackMax);
-        const fallbackMax = Number.isFinite(fallbackAttribute)
-            ? Math.max(boundedMin, Math.floor(fallbackAttribute))
+        const fallbackBase = Number.isFinite(fallbackAttribute)
+            ? Math.floor(fallbackAttribute)
             : Number.isFinite(previousMax)
-                ? Math.max(boundedMin, Math.floor(previousMax))
+                ? Math.floor(previousMax)
                 : boundedMin + DEFAULT_GUEST_RANGE;
+
+        const resolvedFallbackMax = (() => {
+            if (Number.isFinite(fallbackBase) && fallbackBase > boundedMin) {
+                return fallbackBase;
+            }
+            return boundedMin + DEFAULT_GUEST_RANGE;
+        })();
 
         let boundedMax;
         if (Number.isFinite(max)) {
-            boundedMax = Math.max(boundedMin, Math.floor(max));
+            const explicitMax = Math.floor(max);
+            if (explicitMax < boundedMin) {
+                boundedMax = resolvedFallbackMax;
+            } else {
+                boundedMax = explicitMax;
+            }
         } else {
-            boundedMax = boundedMin;
-        }
-
-        if (boundedMax < boundedMin) {
-            boundedMax = boundedMin;
+            boundedMax = resolvedFallbackMax;
         }
 
         if (!hasExplicitMax && boundedMax === boundedMin) {
-            boundedMax = fallbackMax > boundedMin ? fallbackMax : boundedMin + DEFAULT_GUEST_RANGE;
+            boundedMax = resolvedFallbackMax;
+        }
+
+        if (!Number.isFinite(boundedMax) || boundedMax < boundedMin) {
+            boundedMax = Math.max(boundedMin, resolvedFallbackMax);
         }
 
         buildSelectOptions(select, boundedMin, boundedMax);
@@ -408,7 +420,7 @@ function syncFromState(state) {
 
         container.dataset.min = String(boundedMin);
         container.dataset.max = String(boundedMax);
-        container.dataset.fallbackMax = String(Math.max(boundedMax, fallbackMax));
+        container.dataset.fallbackMax = String(Math.max(boundedMax, resolvedFallbackMax));
 
         if (labelElement) {
             labelElement.textContent = labelText;
