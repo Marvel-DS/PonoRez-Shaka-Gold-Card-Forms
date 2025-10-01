@@ -148,20 +148,16 @@ final class AvailabilityService
         }
 
         $requestedSeats = $this->calculateRequestedSeats($guestCounts, $activityConfig);
-        $timeslots = [];
-        $timeslotStatus = 'unavailable';
 
-        if (in_array($selectedDayStatus, ['available', 'limited'], true)) {
-            $timeslots = $this->fetchTimeslotsForDate(
-                $this->soapClientBuilder->build(),
-                $supplierConfig,
-                $activityIds,
-                $selectedDay->format('Y-m-d'),
-                $guestCounts
-            );
+        $timeslots = $this->fetchTimeslotsForDate(
+            $this->soapClientBuilder->build(),
+            $supplierConfig,
+            $activityIds,
+            $selectedDay->format('Y-m-d'),
+            $guestCounts
+        );
 
-            $timeslotStatus = $timeslots === [] ? 'unavailable' : 'available';
-        }
+        $timeslotStatus = $timeslots === [] ? 'unavailable' : 'available';
 
         return [
             'calendar' => $calendar,

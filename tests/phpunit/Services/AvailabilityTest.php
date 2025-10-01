@@ -138,7 +138,9 @@ final class AvailabilityTest extends TestCase
 
         $httpFetcher = fn () => $httpResponse;
 
-        $client = new AvailabilityRecordingSoapClient([]);
+        $client = new AvailabilityRecordingSoapClient([
+            'getActivityTimeslots' => static fn () => ['timeslots' => []],
+        ]);
         $factory = new AvailabilityStubSoapClientFactory($client);
 
         $service = new AvailabilityService($factory, $httpFetcher);
@@ -155,7 +157,48 @@ final class AvailabilityTest extends TestCase
         self::assertSame([], $result['timeslots']);
         self::assertSame('unavailable', $result['metadata']['timeslotStatus']);
         self::assertSame('verified', $result['metadata']['certificateVerification']);
-        self::assertSame([], $client->calls);
+        self::assertNotEmpty($client->calls);
+    }
+
+    public function testFetchCalendarReturnsTimeslotsEvenWhenCalendarShowsSoldOut(): void
+    {
+        $seats = [];
+        for ($day = 1; $day <= 31; $day++) {
+            $seats['d' . $day] = 0;
+        }
+
+        $httpResponse = json_encode([
+            'yearmonth_2024_6' => $seats,
+            'yearmonth_2024_6_ex' => [],
+        ], JSON_THROW_ON_ERROR);
+
+        $httpFetcher = fn () => $httpResponse;
+
+        $client = new AvailabilityRecordingSoapClient([
+            'getActivityTimeslots' => static fn () => [
+                'timeslots' => [
+                    ['id' => '900', 'label' => '9:00 AM Departure', 'available' => 6],
+                    ['id' => '1300', 'label' => '1:00 PM Departure', 'available' => 2],
+                ],
+            ],
+        ]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-06-15',
+            ['345' => 2]
+        );
+
+        self::assertSame('sold_out', $result['metadata']['selectedDateStatus']);
+        self::assertSame('available', $result['metadata']['timeslotStatus']);
+
+        $timeslots = $result['timeslots'];
+        self::assertCount(2, $timeslots);
+        self::assertSame('900', $timeslots[0]->getId());
+        self::assertSame('1300', $timeslots[1]->getId());
     }
 }
 
