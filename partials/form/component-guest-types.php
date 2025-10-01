@@ -66,8 +66,13 @@ $label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people ar
                                 <option value="<?= $value ?>"<?= $value === $minValue ? ' selected' : '' ?>><?= $value ?></option>
                             <?php endfor; ?>
                         </select>
-                        <span aria-hidden="true" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-100">
-                            <?php include dirname(__DIR__, 2) . '/assets/icons/outline/chevron-up-down.svg'; ?>
+                        <span aria-hidden="true" class="pointer-events-none absolute inset-y-0 right-2 flex items-center text-sm text-blue-50">
+                            <?php
+                                $chevronIcon = file_get_contents(dirname(__DIR__, 2) . '/assets/icons/outline/chevron-up-down.svg');
+                                if ($chevronIcon !== false) {
+                                    echo str_replace('<svg', '<svg class="h-4 w-4"', $chevronIcon);
+                                }
+                            ?>
                         </span>
                     </div>
                     <div class="min-w-0 space-y-0">
