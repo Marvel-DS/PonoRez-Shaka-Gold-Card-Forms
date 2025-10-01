@@ -11,7 +11,7 @@ $min = $guestConfig['min'] ?? [];
 $max = $guestConfig['max'] ?? [];
 $ids = $guestConfig['ids'] ?? [];
 
-$defaultGuestRange = 9;
+$defaultGuestRange = 10;
 
 $guestTypes = [];
 foreach ($ids as $id) {
