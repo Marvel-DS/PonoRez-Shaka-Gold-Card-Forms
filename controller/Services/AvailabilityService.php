@@ -15,6 +15,7 @@ use PonoRez\SGCForms\UtilityService;
 use RuntimeException;
 use SoapClient;
 use SoapFault;
+use stdClass;
 
 final class AvailabilityService
 {
@@ -576,7 +577,7 @@ final class AvailabilityService
     private function looksLikeTimeslotRow(array $row): bool
     {
         $hasIdentifier = isset($row['id']) || isset($row['timeslotId']) || isset($row['time']) || isset($row['departureTime']);
-        $hasLabel = isset($row['label']) || isset($row['time']) || isset($row['departure']) || isset($row['departureTime']);
+        $hasLabel = isset($row['label']) || isset($row['time']) || isset($row['departure']) || isset($row['departureTime']) || $this->extractTimeslotDetailsValue($row, 'times') !== null;
 
         return $hasIdentifier && $hasLabel;
     }
@@ -588,7 +589,8 @@ final class AvailabilityService
             return null;
         }
 
-        $label = (string) ($row['label'] ?? $row['time'] ?? $row['departure'] ?? $row['departureTime'] ?? $id);
+        $detailsLabel = $this->extractTimeslotDetailsValue($row, 'times');
+        $label = (string) (($row['label'] ?? $detailsLabel ?? $row['time'] ?? $row['departure'] ?? $row['departureTime']) ?? $id);
 
         $available = null;
         foreach (['available', 'availability', 'availableSpots', 'availableSeats', 'remaining'] as $key) {
@@ -599,6 +601,29 @@ final class AvailabilityService
         }
 
         return new Timeslot($id, $label, $available);
+    }
+
+    private function extractTimeslotDetailsValue(array $row, string $key): ?string
+    {
+        $details = $row['details'] ?? null;
+        if ($details instanceof stdClass) {
+            $details = (array) $details;
+        }
+
+        if (!is_array($details) || !array_key_exists($key, $details)) {
+            return null;
+        }
+
+        $value = $details[$key];
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_scalar($value)) {
+            $value = (string) $value;
+        }
+
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     private function defaultHttpFetch(string $url, array $params): string
