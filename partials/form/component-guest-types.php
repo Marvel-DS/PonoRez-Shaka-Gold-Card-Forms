@@ -53,14 +53,15 @@ $label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people ar
                 $labelId = sprintf('guest-label-%s', $sanitisedId);
                 $description = $guestType['description'];
             ?>
-            <div class="flex flex-wrap items-center justify-between gap-6 pe-3 rounded-xl border border-slate-200 shadow-xs"
-                 data-guest-type="<?= htmlspecialchars($guestType['id'], ENT_QUOTES, 'UTF-8') ?>"
-                 data-min="<?= $minValue ?>"
-                 data-max="<?= $maxValue ?>"
-                 data-fallback-max="<?= $fallbackMax ?>">
-                <div class="flex items-center gap-4 min-w-0">
-                    <div class="relative">
-                        <?php if ($guestType['control'] === 'checkbox'): ?>
+            <?php $isCheckboxControl = $guestType['control'] === 'checkbox'; ?>
+            <?php if ($isCheckboxControl && $minValue === 1 && $maxValue === 1): ?>
+                <div class="flex flex-wrap items-center justify-between"
+                     data-guest-type="<?= htmlspecialchars($guestType['id'], ENT_QUOTES, 'UTF-8') ?>"
+                     data-min="<?= $minValue ?>"
+                     data-max="<?= $maxValue ?>"
+                     data-fallback-max="<?= $fallbackMax ?>">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <div class="relative">
                             <input type="hidden"
                                    name="guestCounts[<?= htmlspecialchars($guestType['id'], ENT_QUOTES, 'UTF-8') ?>]"
                                    value="<?= $minValue ?>"
@@ -74,7 +75,18 @@ $label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people ar
                                    data-unchecked-value="0"
                                    value="<?= $minValue ?>"
                                    checked>
-                        <?php else: ?>
+                        </div>
+                        <p class="font-medium mb-0" id="<?= htmlspecialchars($labelId, ENT_QUOTES, 'UTF-8') ?>" data-guest-label><?= htmlspecialchars($guestType['label'], ENT_QUOTES, 'UTF-8') ?></p>
+                    </div>
+                </div>
+            <?php else: ?>
+                <div class="flex flex-wrap items-center justify-between gap-6 pe-3 rounded-xl border border-slate-200 shadow-xs"
+                     data-guest-type="<?= htmlspecialchars($guestType['id'], ENT_QUOTES, 'UTF-8') ?>"
+                     data-min="<?= $minValue ?>"
+                     data-max="<?= $maxValue ?>"
+                     data-fallback-max="<?= $fallbackMax ?>">
+                    <div class="flex items-center gap-4 min-w-0">
+                        <div class="relative">
                             <label class="sr-only" for="<?= htmlspecialchars($selectId, ENT_QUOTES, 'UTF-8') ?>">
                                 <?= htmlspecialchars(sprintf('Guest count for %s', $guestType['label']), ENT_QUOTES, 'UTF-8') ?>
                             </label>
@@ -94,18 +106,18 @@ $label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people ar
                                     }
                                 ?>
                             </span>
-                        <?php endif; ?>
+                        </div>
+                        <div class="min-w-0 space-y-0">
+                            <p class="font-medium -mb-0.5" id="<?= htmlspecialchars($labelId, ENT_QUOTES, 'UTF-8') ?>" data-guest-label><?= htmlspecialchars($guestType['label'], ENT_QUOTES, 'UTF-8') ?></p>
+                            <p class="text-xs text-slate-500 mb-0<?= $description === null || $description === '' ? ' hidden' : '' ?>"
+                               data-guest-description><?= htmlspecialchars((string) $description, ENT_QUOTES, 'UTF-8') ?></p>
+                        </div>
                     </div>
-                    <div class="min-w-0 space-y-0">
-                        <p class="font-medium -mb-0.5" id="<?= htmlspecialchars($labelId, ENT_QUOTES, 'UTF-8') ?>" data-guest-label><?= htmlspecialchars($guestType['label'], ENT_QUOTES, 'UTF-8') ?></p>
-                        <p class="text-xs text-slate-500 mb-0<?= $description === null || $description === '' ? ' hidden' : '' ?>"
-                           data-guest-description><?= htmlspecialchars((string) $description, ENT_QUOTES, 'UTF-8') ?></p>
+                    <div class="text-right">
+                        <p class="text-sm font-normal text-slate-900 mb-0" data-guest-price>--</p>
                     </div>
                 </div>
-                <div class="text-right">
-                    <p class="text-sm font-normal text-slate-900 mb-0" data-guest-price>--</p>
-                </div>
-            </div>
+            <?php endif; ?>
         <?php endforeach; ?>
     </div>
 </section>
