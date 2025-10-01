@@ -198,6 +198,48 @@ final class AvailabilityTest extends TestCase
         self::assertSame([], $result['timeslots']);
     }
 
+    public function testFetchCalendarUsesDetailsTimesForTimeslotLabel(): void
+    {
+        $seats = [];
+        for ($day = 1; $day <= 31; $day++) {
+            $seats['d' . $day] = 10;
+        }
+
+        $httpResponse = json_encode([
+            'yearmonth_2024_8' => $seats,
+            'yearmonth_2024_8_ex' => [],
+        ], JSON_THROW_ON_ERROR);
+
+        $httpFetcher = fn () => $httpResponse;
+
+        $client = new AvailabilityRecordingSoapClient([
+            'getActivityTimeslots' => static fn () => [
+                'timeslots' => [
+                    [
+                        'id' => '5260',
+                        'details' => ['times' => '8:00am Check In'],
+                        'available' => 12,
+                    ],
+                ],
+            ],
+        ]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-08-15',
+            ['345' => 2],
+            [369]
+        );
+
+        $timeslots = $result['timeslots'];
+        self::assertCount(1, $timeslots);
+        self::assertSame('5260', $timeslots[0]->getId());
+        self::assertSame('8:00am Check In', $timeslots[0]->getLabel());
+    }
+
     public function testFetchCalendarReturnsTimeslotsEvenWhenCalendarShowsSoldOut(): void
     {
         $seats = [];
