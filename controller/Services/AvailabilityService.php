@@ -591,6 +591,7 @@ final class AvailabilityService
 
         $detailsLabel = $this->extractTimeslotDetailsValue($row, 'times');
         $label = (string) (($detailsLabel ?? $row['label'] ?? $row['time'] ?? $row['departure'] ?? $row['departureTime']) ?? $id);
+        $details = $this->normalizeTimeslotDetails($row['details'] ?? null);
 
         $available = null;
         foreach (['available', 'availability', 'availableSpots', 'availableSeats', 'remaining'] as $key) {
@@ -600,7 +601,7 @@ final class AvailabilityService
             }
         }
 
-        return new Timeslot($id, $label, $available);
+        return new Timeslot($id, $label, $available, $details);
     }
 
     private function extractTimeslotDetailsValue(array $row, string $key): ?string
@@ -615,6 +616,35 @@ final class AvailabilityService
         }
 
         return $this->stringifyTimeslotDetailValue($details[$key]);
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    private function normalizeTimeslotDetails(mixed $details): array
+    {
+        if ($details instanceof stdClass) {
+            $details = (array) $details;
+        }
+
+        if (!is_array($details) || $details === []) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($details as $key => $value) {
+            $stringKey = is_string($key) || is_int($key) ? (string) $key : null;
+            if ($stringKey === null || $stringKey === '') {
+                continue;
+            }
+
+            $stringValue = $this->stringifyTimeslotDetailValue($value);
+            if ($stringValue !== null) {
+                $normalized[$stringKey] = $stringValue;
+            }
+        }
+
+        return $normalized;
     }
 
     private function stringifyTimeslotDetailValue(mixed $value): ?string

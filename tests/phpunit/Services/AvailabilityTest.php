@@ -238,6 +238,7 @@ final class AvailabilityTest extends TestCase
         self::assertCount(1, $timeslots);
         self::assertSame('5260', $timeslots[0]->getId());
         self::assertSame('8:00am Check In', $timeslots[0]->getLabel());
+        self::assertSame(['times' => '8:00am Check In'], $timeslots[0]->getDetails());
     }
 
     public function testFetchCalendarUsesNestedDetailsTimesForTimeslotLabel(): void
@@ -286,6 +287,7 @@ final class AvailabilityTest extends TestCase
         self::assertCount(1, $timeslots);
         self::assertSame('5260', $timeslots[0]->getId());
         self::assertSame('8:00am Check In', $timeslots[0]->getLabel());
+        self::assertSame(['times' => '8:00am Check In'], $timeslots[0]->getDetails());
     }
 
     public function testFetchCalendarReturnsTimeslotsEvenWhenCalendarShowsSoldOut(): void

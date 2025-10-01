@@ -162,6 +162,31 @@ function mapCalendar(calendar = []) {
     }, []);
 }
 
+function normaliseTimeslotDetails(details) {
+    if (!details || typeof details !== 'object') {
+        return {};
+    }
+
+    return Object.entries(details).reduce((accumulator, [key, value]) => {
+        if (value === null || value === undefined) {
+            return accumulator;
+        }
+
+        const stringKey = String(key);
+        if (stringKey === '') {
+            return accumulator;
+        }
+
+        const stringValue = String(value);
+        if (stringValue === '') {
+            return accumulator;
+        }
+
+        accumulator[stringKey] = stringValue;
+        return accumulator;
+    }, {});
+}
+
 function mapTimeslots(timeslots = []) {
     return timeslots.reduce((accumulator, slot) => {
         if (!slot || slot.id === undefined) {
@@ -173,8 +198,9 @@ function mapTimeslots(timeslots = []) {
         const available = slot.available !== undefined && slot.available !== null
             ? Number(slot.available)
             : null;
+        const details = normaliseTimeslotDetails(slot.details);
 
-        accumulator.push({ id, label, available });
+        accumulator.push({ id, label, available, details });
         return accumulator;
     }, []);
 }
