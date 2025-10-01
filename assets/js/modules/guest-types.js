@@ -11,7 +11,7 @@ let controller;
 let lastSignature = null;
 
 const FETCH_DEBOUNCE_MS = 250;
-const DEFAULT_GUEST_RANGE = 9;
+const DEFAULT_GUEST_RANGE = 10;
 
 function normaliseGuestTypeConfig(rawConfig) {
     const safeObject = (value) => (value && typeof value === 'object' ? value : {});
@@ -273,6 +273,43 @@ function handleSelectChange(event, container) {
     updateGuestCount(id, bounded);
 }
 
+function handleCheckboxChange(event, container) {
+    const checkbox = event.currentTarget;
+    if (!checkbox || !container) {
+        return;
+    }
+
+    const id = container.dataset.guestType;
+    if (!id) {
+        return;
+    }
+
+    const minRaw = Number(container.dataset.min ?? 0);
+    const min = Number.isFinite(minRaw) ? minRaw : 0;
+    const maxRaw = container.dataset.max !== undefined ? Number(container.dataset.max) : Number.POSITIVE_INFINITY;
+    const max = Number.isFinite(maxRaw) ? maxRaw : Number.POSITIVE_INFINITY;
+
+    const checkedValueRaw = Number(checkbox.dataset.checkedValue ?? 1);
+    const uncheckedValueRaw = Number(checkbox.dataset.uncheckedValue ?? 0);
+    const checkedValue = Number.isFinite(checkedValueRaw) ? checkedValueRaw : 1;
+    const uncheckedValue = Number.isFinite(uncheckedValueRaw) ? uncheckedValueRaw : 0;
+
+    const value = checkbox.checked ? checkedValue : uncheckedValue;
+    const bounded = ensureWithinBounds(value, min, max);
+
+    const shouldCheck = bounded === checkedValue;
+    if (checkbox.checked !== shouldCheck) {
+        checkbox.checked = shouldCheck;
+    }
+
+    const hiddenInput = qs('[data-guest-checkbox-input]', container);
+    if (hiddenInput) {
+        hiddenInput.value = String(bounded);
+    }
+
+    updateGuestCount(id, bounded);
+}
+
 function syncFromState(state) {
     if (!root) {
         return;
@@ -291,6 +328,8 @@ function syncFromState(state) {
         }
 
         const select = qs('[data-guest-select]', container);
+        const checkbox = qs('[data-guest-checkbox]', container);
+        const checkboxInput = qs('[data-guest-checkbox-input]', container);
         const labelElement = qs('[data-guest-label]', container);
         const descriptionElement = qs('[data-guest-description]', container);
         const priceElement = qs('[data-guest-price]', container);
@@ -312,6 +351,7 @@ function syncFromState(state) {
             : config.min[id] !== undefined ? Number(config.min[id])
                 : Number(container.dataset.min ?? 0);
 
+        const hasExplicitMax = (detail && detail.max !== undefined) || (config.max[id] !== undefined);
         const max = detail && detail.max !== undefined ? Number(detail.max)
             : config.max[id] !== undefined ? Number(config.max[id])
                 : Number(container.dataset.max ?? min);
@@ -333,7 +373,11 @@ function syncFromState(state) {
             boundedMax = boundedMin;
         }
 
-        if (boundedMax <= boundedMin) {
+        if (boundedMax < boundedMin) {
+            boundedMax = boundedMin;
+        }
+
+        if (!hasExplicitMax && boundedMax === boundedMin) {
             boundedMax = fallbackMax > boundedMin ? fallbackMax : boundedMin + DEFAULT_GUEST_RANGE;
         }
 
@@ -344,6 +388,22 @@ function syncFromState(state) {
 
         if (select && Number(select.value) !== boundedValue) {
             select.value = String(boundedValue);
+        }
+
+        if (checkbox) {
+            const checkedValueRaw = Number(checkbox.dataset.checkedValue ?? boundedMin);
+            const checkedValue = Number.isFinite(checkedValueRaw) ? checkedValueRaw : boundedMin;
+
+            checkbox.checked = boundedValue === checkedValue;
+            checkbox.value = String(checkedValue);
+
+            if (checkboxInput) {
+                checkboxInput.value = String(boundedValue);
+            }
+
+            if (boundedMin === boundedMax) {
+                checkbox.indeterminate = false;
+            }
         }
 
         container.dataset.min = String(boundedMin);
@@ -390,6 +450,11 @@ export function initGuestTypes() {
         if (select) {
             select.addEventListener('change', (event) => handleSelectChange(event, container));
         }
+
+        const checkbox = qs('[data-guest-checkbox]', container);
+        if (checkbox) {
+            checkbox.addEventListener('change', (event) => handleCheckboxChange(event, container));
+        }
     });
 
     subscribe((state) => {
@@ -408,10 +473,31 @@ export function initGuestTypes() {
     const initialCounts = qsa('[data-guest-type]', root).reduce((accumulator, container) => {
         const id = container.dataset.guestType;
         const select = qs('[data-guest-select]', container);
-        if (!id || !select) {
+        const checkbox = qs('[data-guest-checkbox]', container);
+        const checkboxInput = qs('[data-guest-checkbox-input]', container);
+
+        if (!id) {
             return accumulator;
         }
-        accumulator[id] = Number(select.value || 0);
+
+        if (select) {
+            accumulator[id] = Number(select.value || 0);
+            return accumulator;
+        }
+
+        if (checkboxInput) {
+            accumulator[id] = Number(checkboxInput.value || 0);
+            return accumulator;
+        }
+
+        if (checkbox) {
+            const checkedValueRaw = Number(checkbox.dataset.checkedValue ?? 1);
+            const uncheckedValueRaw = Number(checkbox.dataset.uncheckedValue ?? 0);
+            const checkedValue = Number.isFinite(checkedValueRaw) ? checkedValueRaw : 1;
+            const uncheckedValue = Number.isFinite(uncheckedValueRaw) ? uncheckedValueRaw : 0;
+            accumulator[id] = checkbox.checked ? checkedValue : uncheckedValue;
+        }
+
         return accumulator;
     }, {});
 
