@@ -71,13 +71,13 @@ $label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people ar
                         </span>
                     </div>
                     <div class="min-w-0 space-y-0">
-                        <p class="font-medium mb-0" data-guest-label><?= htmlspecialchars($guestType['label'], ENT_QUOTES, 'UTF-8') ?></p>
+                        <p class="font-medium -mb-0.5" data-guest-label><?= htmlspecialchars($guestType['label'], ENT_QUOTES, 'UTF-8') ?></p>
                         <p class="text-xs text-slate-500 mb-0<?= $description === null || $description === '' ? ' hidden' : '' ?>"
                            data-guest-description><?= htmlspecialchars((string) $description, ENT_QUOTES, 'UTF-8') ?></p>
                     </div>
                 </div>
                 <div class="text-right">
-                    <p class="text-sm font-semibold text-slate-900" data-guest-price>--</p>
+                    <p class="text-sm font-normal text-slate-900 mb-0" data-guest-price>--</p>
                 </div>
             </div>
         <?php endforeach; ?>
