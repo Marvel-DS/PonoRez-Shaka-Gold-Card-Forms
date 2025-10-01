@@ -334,6 +334,7 @@ function syncFromState(state) {
         const labelElement = qs('[data-guest-label]', container);
         const descriptionElement = qs('[data-guest-description]', container);
         const priceElement = qs('[data-guest-price]', container);
+        const priceSpinner = qs('[data-guest-price-spinner]', container);
 
         const detail = detailMap.get(id) || null;
 
@@ -416,16 +417,33 @@ function syncFromState(state) {
             }
         }
 
+        const hasDetail = Boolean(detail);
+        const hasLoadedGuestDetails = Array.isArray(details) && details.length > 0;
+        const isLoadingPrices = Boolean(state.loading && state.loading.guestTypes);
+
         if (priceElement) {
-            if (!detail || detail.price === null || detail.price === undefined || Number.isNaN(Number(detail.price))) {
-                priceElement.textContent = 'Price available at checkout';
-            } else if (Number(detail.price) === 0) {
-                priceElement.textContent = 'Included';
+            const shouldShowSpinner = isLoadingPrices || (!hasDetail && !hasLoadedGuestDetails);
+
+            if (priceSpinner) {
+                priceSpinner.classList.toggle('hidden', !shouldShowSpinner);
+            }
+
+            if (shouldShowSpinner) {
+                priceElement.textContent = '';
+                priceElement.classList.add('hidden');
             } else {
-                priceElement.textContent = formatCurrency(Number(detail.price), {
-                    currency: currencyCode,
-                    locale: currencyLocale,
-                });
+                priceElement.classList.remove('hidden');
+
+                if (!hasDetail || detail.price === null || detail.price === undefined || Number.isNaN(Number(detail.price))) {
+                    priceElement.textContent = 'Price available at checkout';
+                } else if (Number(detail.price) === 0) {
+                    priceElement.textContent = 'Included';
+                } else {
+                    priceElement.textContent = formatCurrency(Number(detail.price), {
+                        currency: currencyCode,
+                        locale: currencyLocale,
+                    });
+                }
             }
         }
     });

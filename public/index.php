@@ -145,6 +145,7 @@ $bootstrapData = [
         'infoBlocks' => $activityConfig['infoBlocks'] ?? [],
         'transportation' => $activityConfig['transportation'] ?? [],
         'upgrades' => $activityConfig['upgrades'] ?? [],
+        'privateActivity' => filter_var($activityConfig['privateActivity'] ?? false, FILTER_VALIDATE_BOOLEAN),
         'currency' => [
             'code' => strtoupper((string) ($activityConfig['currency']['code'] ?? 'USD')),
             'symbol' => $activityConfig['currency']['symbol'] ?? '$',

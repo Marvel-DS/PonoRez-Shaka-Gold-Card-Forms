@@ -5,6 +5,7 @@ declare(strict_types=1);
 $page = $pageContext ?? [];
 $bootstrap = $page['bootstrap'] ?? [];
 $guestConfig = $bootstrap['activity']['guestTypes'] ?? [];
+$isPrivateActivity = filter_var($bootstrap['activity']['privateActivity'] ?? false, FILTER_VALIDATE_BOOLEAN);
 $labels = $guestConfig['labels'] ?? [];
 $descriptions = $guestConfig['descriptions'] ?? [];
 $min = $guestConfig['min'] ?? [];
@@ -113,9 +114,14 @@ $label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people ar
                                data-guest-description><?= htmlspecialchars((string) $description, ENT_QUOTES, 'UTF-8') ?></p>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <p class="text-sm font-normal text-slate-900 mb-0" data-guest-price>--</p>
-                    </div>
+                    <?php if (! $isPrivateActivity): ?>
+                        <div class="flex items-center justify-end gap-2 text-right" data-guest-price-container>
+                            <span class="hidden h-4 w-4 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600"
+                                  aria-hidden="true"
+                                  data-guest-price-spinner></span>
+                            <p class="text-sm font-normal text-slate-900 mb-0" data-guest-price>--</p>
+                        </div>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
         <?php endforeach; ?>
