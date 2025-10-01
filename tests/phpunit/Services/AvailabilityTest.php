@@ -8,9 +8,6 @@ use PHPUnit\Framework\TestCase;
 use PonoRez\SGCForms\DTO\AvailabilityDay;
 use PonoRez\SGCForms\DTO\Timeslot;
 use PonoRez\SGCForms\Services\AvailabilityService;
-use PonoRez\SGCForms\Services\SoapClientFactory;
-use RuntimeException;
-use SoapClient;
 
 final class AvailabilityTest extends TestCase
 {
@@ -23,7 +20,7 @@ final class AvailabilityTest extends TestCase
         $extended = [];
         for ($day = 1; $day <= 31; $day++) {
             $seats['d' . $day] = 10;
-            $extended['d' . $day] = ['aids' => [369]];
+            $extended['d' . $day] = ['aids' => [369, 482, 999]];
         }
 
         $httpResponse = json_encode([
@@ -37,30 +34,18 @@ final class AvailabilityTest extends TestCase
             return $httpResponse;
         };
 
-        $handlers = [
-            'getActivityTimeslots' => static fn () => [
-                'timeslots' => [
-                    ['id' => '730', 'label' => '7:30 AM Departure', 'available' => 10],
-                    ['id' => '1230', 'label' => '12:30 PM Departure', 'available' => 6],
-                ],
-            ],
-        ];
-
-        $client = new AvailabilityRecordingSoapClient($handlers);
-        $factory = new AvailabilityStubSoapClientFactory($client);
-
-        $service = new AvailabilityService($factory, $httpFetcher);
+        $service = new AvailabilityService(null, $httpFetcher);
         $result = $service->fetchCalendar(
             self::SUPPLIER_SLUG,
             self::ACTIVITY_SLUG,
             '2024-03-15',
             ['345' => 2],
-            [369],
+            [369, 482, 777],
             '2024-03'
         );
 
         self::assertSame('COMMON_AVAILABILITYCHECKJSON', $capturedParams['action']);
-        self::assertSame('369', $capturedParams['activityid']);
+        self::assertSame('369|482|777', $capturedParams['activityid']);
         self::assertSame('2024_3', $capturedParams['year_months']);
         self::assertNotEmpty($capturedParams['minavailability']);
 
@@ -74,7 +59,8 @@ final class AvailabilityTest extends TestCase
         $timeslots = $result['timeslots'];
         self::assertCount(2, $timeslots);
         self::assertContainsOnlyInstancesOf(Timeslot::class, $timeslots);
-        self::assertSame('730', $timeslots[0]->getId());
+        self::assertSame('369', $timeslots[0]->getId());
+        self::assertSame('482', $timeslots[1]->getId());
 
         $metadata = $result['metadata'];
         self::assertSame('ponorez-json', $metadata['source']);
@@ -83,8 +69,7 @@ final class AvailabilityTest extends TestCase
         self::assertSame('available', $metadata['timeslotStatus']);
         self::assertSame('2024-03-01', $metadata['firstAvailableDate']);
         self::assertSame('verified', $metadata['certificateVerification']);
-
-        self::assertNotEmpty($client->calls);
+        self::assertSame([369, 482], $metadata['extended']['2024-03-15']);
     }
 
     public function testFetchCalendarMarksLimitedWhenSeatCountLow(): void
@@ -101,12 +86,7 @@ final class AvailabilityTest extends TestCase
 
         $httpFetcher = fn () => $httpResponse;
 
-        $client = new AvailabilityRecordingSoapClient([
-            'getActivityTimeslots' => static fn () => ['timeslots' => []],
-        ]);
-        $factory = new AvailabilityStubSoapClientFactory($client);
-
-        $service = new AvailabilityService($factory, $httpFetcher);
+        $service = new AvailabilityService(null, $httpFetcher);
         $result = $service->fetchCalendar(
             self::SUPPLIER_SLUG,
             self::ACTIVITY_SLUG,
@@ -138,10 +118,7 @@ final class AvailabilityTest extends TestCase
 
         $httpFetcher = fn () => $httpResponse;
 
-        $client = new AvailabilityRecordingSoapClient([]);
-        $factory = new AvailabilityStubSoapClientFactory($client);
-
-        $service = new AvailabilityService($factory, $httpFetcher);
+        $service = new AvailabilityService(null, $httpFetcher);
         $result = $service->fetchCalendar(
             self::SUPPLIER_SLUG,
             self::ACTIVITY_SLUG,
@@ -155,50 +132,37 @@ final class AvailabilityTest extends TestCase
         self::assertSame([], $result['timeslots']);
         self::assertSame('unavailable', $result['metadata']['timeslotStatus']);
         self::assertSame('verified', $result['metadata']['certificateVerification']);
-        self::assertSame([], $client->calls);
-    }
-}
-
-final class AvailabilityStubSoapClientFactory implements SoapClientFactory
-{
-    public int $buildCount = 0;
-
-    public function __construct(private SoapClient $client)
-    {
     }
 
-    public function build(): SoapClient
+    public function testFetchCalendarReturnsTimeslotsWhenExtendedShowsAvailability(): void
     {
-        $this->buildCount++;
-        return $this->client;
-    }
-}
-
-final class AvailabilityRecordingSoapClient extends SoapClient
-{
-    /** @var array<string, callable> */
-    private array $handlers;
-
-    /** @var list<array{0:string,1:array}> */
-    public array $calls = [];
-
-    /**
-     * @param array<string, callable> $handlers
-     */
-    public function __construct(array $handlers)
-    {
-        $this->handlers = $handlers;
-        // Skip parent constructor; only dynamic dispatch is needed for tests.
-    }
-
-    public function __soapCall(string $name, array $arguments, ?array $options = null, mixed $inputHeaders = null, mixed &$outputHeaders = null): mixed
-    {
-        $this->calls[] = [$name, $arguments];
-
-        if (isset($this->handlers[$name])) {
-            return ($this->handlers[$name])($arguments);
+        $seats = [];
+        $extended = [];
+        for ($day = 1; $day <= 31; $day++) {
+            $seats['d' . $day] = 0;
+            $extended['d' . $day] = ['aids' => [369]];
         }
 
-        throw new RuntimeException(sprintf('Unexpected SOAP call to "%s".', $name));
+        $httpResponse = json_encode([
+            'yearmonth_2024_6' => $seats,
+            'yearmonth_2024_6_ex' => $extended,
+        ], JSON_THROW_ON_ERROR);
+
+        $httpFetcher = fn () => $httpResponse;
+
+        $service = new AvailabilityService(null, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-06-15',
+            ['345' => 2]
+        );
+
+        self::assertSame('available', $result['metadata']['selectedDateStatus']);
+        self::assertSame('available', $result['metadata']['timeslotStatus']);
+
+        $timeslots = $result['timeslots'];
+        self::assertCount(1, $timeslots);
+        self::assertSame('369', $timeslots[0]->getId());
     }
 }

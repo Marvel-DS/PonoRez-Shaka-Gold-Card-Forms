@@ -5,7 +5,6 @@ declare(strict_types=1);
 require __DIR__ . '/../controller/Setup.php';
 
 use PonoRez\SGCForms\Services\AvailabilityService;
-use PonoRez\SGCForms\Services\SoapClientBuilder;
 use PonoRez\SGCForms\Support\ErrorHandler;
 use PonoRez\SGCForms\Support\RequestValidator;
 use PonoRez\SGCForms\Support\ResponseFormatter;
@@ -45,7 +44,7 @@ try {
         }
     }
 
-    $service = new AvailabilityService(new SoapClientBuilder());
+    $service = new AvailabilityService();
     $result = $service->fetchCalendar(
         $params['supplier'],
         $params['activity'],

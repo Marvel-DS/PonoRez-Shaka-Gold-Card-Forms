@@ -13,8 +13,6 @@ use PonoRez\SGCForms\DTO\AvailabilityDay;
 use PonoRez\SGCForms\DTO\Timeslot;
 use PonoRez\SGCForms\UtilityService;
 use RuntimeException;
-use SoapClient;
-use SoapFault;
 
 final class AvailabilityService
 {
@@ -25,7 +23,7 @@ final class AvailabilityService
     private bool $certificateVerificationDisabled = false;
 
     public function __construct(
-        private readonly SoapClientFactory $soapClientBuilder,
+        ?SoapClientFactory $soapClientBuilder = null,
         ?callable $httpFetcher = null
     ) {
         $this->httpFetcher = $httpFetcher ?? [$this, 'defaultHttpFetch'];
@@ -66,9 +64,11 @@ final class AvailabilityService
         $viewMonthStart = $this->resolveMonthStart($visibleMonth, $selectedDay);
 
         $monthsToLoad = [$viewMonthStart->format('Y-m') => $viewMonthStart];
+        $monthStarts = $monthsToLoad;
         $selectedMonthKey = $selectedDay->format('Y-m');
         if (!isset($monthsToLoad[$selectedMonthKey])) {
             $monthsToLoad[$selectedMonthKey] = $selectedDay->modify('first day of this month');
+            $monthStarts[$selectedMonthKey] = $monthsToLoad[$selectedMonthKey];
         }
 
         $monthData = [];
@@ -80,6 +80,7 @@ final class AvailabilityService
                 (int) $monthStart->format('Y'),
                 (int) $monthStart->format('n')
             );
+            $monthStarts[$monthKey] = $monthStart;
         }
 
         $calendar = new AvailabilityCalendar();
@@ -103,10 +104,17 @@ final class AvailabilityService
 
         $selectedMonthData = $monthData[$selectedMonthKey] ?? null;
         $selectedDayStatus = 'sold_out';
+        $selectedDayActivities = [];
         if ($selectedMonthData !== null) {
+            $selectedDayNumber = (int) $selectedDay->format('j');
             [$selectedDayStatus] = $this->resolveDayStatus(
                 $selectedMonthData,
-                (int) $selectedDay->format('j'),
+                $selectedDayNumber,
+                $activityIds
+            );
+            $selectedDayActivities = $this->resolveAvailableActivities(
+                $selectedMonthData,
+                $selectedDayNumber,
                 $activityIds
             );
         }
@@ -126,6 +134,7 @@ final class AvailabilityService
                     $year,
                     $month
                 );
+                $monthStarts[$monthKey] = $searchStart;
 
                 $monthEnd = $searchStart->modify('last day of this month');
                 $period = new DatePeriod($searchStart, new DateInterval('P1D'), $monthEnd->modify('+1 day'));
@@ -148,20 +157,20 @@ final class AvailabilityService
         }
 
         $requestedSeats = $this->calculateRequestedSeats($guestCounts, $activityConfig);
-        $timeslots = [];
-        $timeslotStatus = 'unavailable';
 
-        if (in_array($selectedDayStatus, ['available', 'limited'], true)) {
-            $timeslots = $this->fetchTimeslotsForDate(
-                $this->soapClientBuilder->build(),
-                $supplierConfig,
-                $activityIds,
-                $selectedDay->format('Y-m-d'),
-                $guestCounts
-            );
+        $timeslots = $this->buildTimeslotsForDate(
+            $activityIds,
+            $selectedDayActivities,
+            $activityConfig
+        );
 
-            $timeslotStatus = $timeslots === [] ? 'unavailable' : 'available';
-        }
+        $timeslotStatus = $timeslots === [] ? 'unavailable' : 'available';
+
+        $extendedAvailability = $this->buildExtendedAvailabilityIndex(
+            $monthData,
+            $monthStarts,
+            $activityIds
+        );
 
         return [
             'calendar' => $calendar,
@@ -173,6 +182,7 @@ final class AvailabilityService
             'timeslotStatus' => $timeslotStatus,
             'selectedDateStatus' => $selectedDayStatus,
             'month' => $viewMonthKey,
+            'extended' => $extendedAvailability,
             'certificateVerification' => $this->certificateVerificationDisabled ? 'disabled' : 'verified',
         ], static fn ($value) => $value !== null),
         ];
@@ -247,31 +257,60 @@ final class AvailabilityService
             }
         }
 
-        $availableActivities = [];
-        if (isset($monthData['extended'][$key]) && is_array($monthData['extended'][$key])) {
-            $entry = $monthData['extended'][$key];
-            if (isset($entry['aids']) && is_array($entry['aids'])) {
-                $availableActivities = array_map('intval', $entry['aids']);
+        $availableActivities = $this->resolveAvailableActivities($monthData, $day, $activityIds);
+
+        if ($availableActivities !== []) {
+            if ($seats !== null && $seats <= 0) {
+                $seats = null;
             }
+
+            if ($seats !== null && $seats <= self::LIMITED_THRESHOLD) {
+                return ['limited', $seats];
+            }
+
+            return ['available', $seats];
         }
 
-        $isAvailable = false;
-
-        if ($seats !== null) {
-            $isAvailable = $seats > 0;
-        } elseif ($availableActivities !== []) {
-            $isAvailable = count(array_intersect($availableActivities, array_map('intval', $activityIds))) > 0;
-        }
-
-        if (!$isAvailable) {
+        if ($seats === null) {
             return ['sold_out', 0];
         }
 
-        if ($seats !== null && $seats <= self::LIMITED_THRESHOLD) {
+        if ($seats <= 0) {
+            return ['sold_out', 0];
+        }
+
+        if ($seats <= self::LIMITED_THRESHOLD) {
             return ['limited', $seats];
         }
 
         return ['available', $seats];
+    }
+
+    private function resolveAvailableActivities(array $monthData, int $day, array $activityIds): array
+    {
+        $key = 'd' . $day;
+        if (!isset($monthData['extended'][$key]) || !is_array($monthData['extended'][$key])) {
+            return [];
+        }
+
+        $entry = $monthData['extended'][$key];
+        if (!isset($entry['aids']) || !is_array($entry['aids'])) {
+            return [];
+        }
+
+        $available = [];
+        $activityLookup = array_map('intval', $activityIds);
+
+        foreach ($entry['aids'] as $candidate) {
+            $id = (int) $candidate;
+            if (($activityLookup === [] || in_array($id, $activityLookup, true))
+                && !in_array($id, $available, true)
+            ) {
+                $available[] = $id;
+            }
+        }
+
+        return $available;
     }
 
     private function createDateImmutable(string $value): DateTimeImmutable
@@ -322,106 +361,100 @@ final class AvailabilityService
     /**
      * @return Timeslot[]
      */
-    private function fetchTimeslotsForDate(
-        SoapClient $client,
-        array $supplierConfig,
-        array $activityIds,
-        string $date,
-        array $guestCounts
-    ): array {
-        $timeslots = [];
-        $guestCountPayload = $this->formatGuestCountsPayload($guestCounts);
-
-        $soapDate = $date;
-        try {
-            $soapDate = (new DateTimeImmutable($date))->format('m/d/Y');
-        } catch (\Exception) {
-            // keep original format
-        }
-
-        foreach ($activityIds as $activityId) {
-            $payload = [
-                'serviceLogin' => [
-                    'username' => $supplierConfig['soapCredentials']['username'],
-                    'password' => $supplierConfig['soapCredentials']['password'],
-                ],
-                'supplierId' => $supplierConfig['supplierId'],
-                'activityId' => $activityId,
-                'date' => $soapDate,
-            ];
-
-            if ($guestCountPayload !== []) {
-                $payload['guestCounts'] = $guestCountPayload;
-            }
-
-            $response = null;
-
-            try {
-                $response = $client->__soapCall('getActivityTimeslots', [$payload]);
-            } catch (SoapFault $exception) {
-                try {
-                    $response = $client->__soapCall('getActivityGuestTypes', [$payload]);
-                } catch (SoapFault) {
-                    continue;
-                }
-            }
-
-            $normalized = $this->normalizeSoapResponse($response);
-            $rows = $this->extractTimeslotRows($normalized);
-
-            foreach ($rows as $row) {
-                $timeslot = $this->createTimeslotFromRow($row);
-                if ($timeslot === null) {
-                    continue;
-                }
-                $timeslots[$timeslot->getId()] = $timeslot;
-            }
-        }
-
-        $list = array_values($timeslots);
-
-        usort($list, static function (Timeslot $a, Timeslot $b): int {
-            $idA = $a->getId();
-            $idB = $b->getId();
-
-            $numericA = preg_replace('/\D+/', '', $idA);
-            $numericB = preg_replace('/\D+/', '', $idB);
-
-            if ($numericA !== '' && $numericB !== '') {
-                $valueA = (int) $numericA;
-                $valueB = (int) $numericB;
-
-                if ($valueA !== $valueB) {
-                    return $valueA <=> $valueB;
-                }
-            }
-
-            return strcmp($a->getLabel(), $b->getLabel());
-        });
-
-        return $list;
-    }
-
-    /**
-     * @param array<int|string,int> $guestCounts
-     */
-    private function formatGuestCountsPayload(array $guestCounts): array
+    private function buildTimeslotsForDate(array $activityIds, array $availableIds, array $activityConfig): array
     {
-        $payload = [];
+        if ($availableIds === []) {
+            return [];
+        }
 
-        foreach ($guestCounts as $guestTypeId => $count) {
-            $count = (int) $count;
-            if ($count <= 0) {
+        $labels = [];
+        foreach (['departureLabels', 'timeslotLabels'] as $labelKey) {
+            if (!isset($activityConfig[$labelKey]) || !is_array($activityConfig[$labelKey])) {
                 continue;
             }
 
-            $payload[] = [
-                'guestTypeId' => is_numeric($guestTypeId) ? (int) $guestTypeId : (string) $guestTypeId,
-                'guestCount' => $count,
-            ];
+            foreach ($activityConfig[$labelKey] as $id => $label) {
+                $labels[(string) $id] = (string) $label;
+            }
         }
 
-        return $payload;
+        $availableLookup = array_map('intval', $availableIds);
+        $timeslots = [];
+
+        foreach ($activityIds as $activityId) {
+            $id = (int) $activityId;
+            if (!in_array($id, $availableLookup, true)) {
+                continue;
+            }
+
+            $stringId = (string) $id;
+            $label = $labels[$stringId] ?? $labels[(string) $activityId] ?? null;
+            if ($label === null || $label === '') {
+                $label = 'Departure ' . $stringId;
+            }
+
+            $timeslots[] = new Timeslot($stringId, $label);
+        }
+
+        return $timeslots;
+    }
+
+    private function buildExtendedAvailabilityIndex(array $monthData, array $monthStarts, array $activityIds): array
+    {
+        $index = [];
+        $activityLookup = array_map('intval', $activityIds);
+
+        foreach ($monthData as $monthKey => $data) {
+            if (!isset($data['extended']) || !is_array($data['extended'])) {
+                continue;
+            }
+
+            $monthStart = $monthStarts[$monthKey] ?? null;
+            if (!$monthStart instanceof DateTimeImmutable) {
+                try {
+                    $monthStart = new DateTimeImmutable($monthKey . '-01');
+                } catch (\Exception) {
+                    continue;
+                }
+            }
+
+            $year = (int) $monthStart->format('Y');
+            $month = (int) $monthStart->format('n');
+
+            foreach ($data['extended'] as $dayKey => $entry) {
+                if (!is_array($entry) || !isset($entry['aids']) || !is_array($entry['aids'])) {
+                    continue;
+                }
+
+                if (preg_match('/^d(\d{1,2})$/', (string) $dayKey, $matches) !== 1) {
+                    continue;
+                }
+
+                $day = (int) $matches[1];
+                if ($day < 1 || $day > 31) {
+                    continue;
+                }
+
+                $date = $monthStart->setDate($year, $month, $day);
+                $iso = $date->format('Y-m-d');
+
+                $available = [];
+                foreach ($entry['aids'] as $candidate) {
+                    $id = (int) $candidate;
+                    if (($activityLookup === [] || in_array($id, $activityLookup, true))
+                        && !in_array($id, $available, true)
+                    ) {
+                        $available[] = $id;
+                    }
+                }
+
+                $index[$iso] = $available;
+            }
+        }
+
+        ksort($index);
+
+        return $index;
     }
 
     private function buildMinAvailabilityPayload(array $guestCounts): ?string
@@ -469,83 +502,6 @@ final class AvailabilityService
         }
 
         return $decoded;
-    }
-
-    private function normalizeSoapResponse(mixed $response): mixed
-    {
-        if ($response instanceof \stdClass) {
-            if (property_exists($response, 'return')) {
-                return $this->normalizeSoapResponse($response->return);
-            }
-
-            return json_decode(json_encode($response), true);
-        }
-
-        if (is_array($response) && array_key_exists('return', $response)) {
-            return $this->normalizeSoapResponse($response['return']);
-        }
-
-        return $response;
-    }
-
-    private function extractTimeslotRows(mixed $data): array
-    {
-        $rows = [];
-        $stack = [$data];
-
-        while ($stack !== []) {
-            $current = array_pop($stack);
-
-            if ($current instanceof \stdClass) {
-                $stack[] = json_decode(json_encode($current), true);
-                continue;
-            }
-
-            if (!is_array($current)) {
-                continue;
-            }
-
-            if ($this->looksLikeTimeslotRow($current)) {
-                $rows[] = $current;
-                continue;
-            }
-
-            foreach ($current as $value) {
-                if (is_array($value) || $value instanceof \stdClass) {
-                    $stack[] = $value;
-                }
-            }
-        }
-
-        return $rows;
-    }
-
-    private function looksLikeTimeslotRow(array $row): bool
-    {
-        $hasIdentifier = isset($row['id']) || isset($row['timeslotId']) || isset($row['time']) || isset($row['departureTime']);
-        $hasLabel = isset($row['label']) || isset($row['time']) || isset($row['departure']) || isset($row['departureTime']);
-
-        return $hasIdentifier && $hasLabel;
-    }
-
-    private function createTimeslotFromRow(array $row): ?Timeslot
-    {
-        $id = (string) ($row['id'] ?? $row['timeslotId'] ?? $row['time'] ?? $row['departureTime'] ?? '');
-        if ($id === '') {
-            return null;
-        }
-
-        $label = (string) ($row['label'] ?? $row['time'] ?? $row['departure'] ?? $row['departureTime'] ?? $id);
-
-        $available = null;
-        foreach (['available', 'availability', 'availableSpots', 'availableSeats', 'remaining'] as $key) {
-            if (isset($row[$key]) && is_numeric($row[$key])) {
-                $available = (int) $row[$key];
-                break;
-            }
-        }
-
-        return new Timeslot($id, $label, $available);
     }
 
     private function defaultHttpFetch(string $url, array $params): string
