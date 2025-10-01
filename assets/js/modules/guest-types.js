@@ -14,6 +14,42 @@ let lastSignature = null;
 const FETCH_DEBOUNCE_MS = 250;
 const DEFAULT_GUEST_RANGE = 10;
 
+function showPriceSpinner(priceElement) {
+    if (!priceElement) {
+        return;
+    }
+
+    let spinnerWrapper = priceElement.querySelector('[data-price-spinner]');
+    if (!spinnerWrapper) {
+        const spinner = document.createElement('span');
+        spinner.className = 'h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600';
+        spinner.setAttribute('aria-hidden', 'true');
+
+        const srText = document.createElement('span');
+        srText.className = 'sr-only';
+        srText.textContent = 'Price available at checkout';
+
+        spinnerWrapper = document.createElement('span');
+        spinnerWrapper.dataset.priceSpinner = '';
+        spinnerWrapper.className = 'inline-flex items-center justify-end';
+        spinnerWrapper.append(spinner, srText);
+    }
+
+    priceElement.textContent = '';
+    priceElement.appendChild(spinnerWrapper);
+}
+
+function hidePriceSpinner(priceElement) {
+    if (!priceElement) {
+        return;
+    }
+
+    const spinnerWrapper = priceElement.querySelector('[data-price-spinner]');
+    if (spinnerWrapper) {
+        spinnerWrapper.remove();
+    }
+}
+
 function normaliseGuestTypeConfig(rawConfig) {
     const safeObject = (value) => (value && typeof value === 'object' ? value : {});
 
@@ -418,10 +454,12 @@ function syncFromState(state) {
 
         if (priceElement) {
             if (!detail || detail.price === null || detail.price === undefined || Number.isNaN(Number(detail.price))) {
-                priceElement.textContent = 'Price available at checkout';
+                showPriceSpinner(priceElement);
             } else if (Number(detail.price) === 0) {
+                hidePriceSpinner(priceElement);
                 priceElement.textContent = 'Included';
             } else {
+                hidePriceSpinner(priceElement);
                 priceElement.textContent = formatCurrency(Number(detail.price), {
                     currency: currencyCode,
                     locale: currencyLocale,
