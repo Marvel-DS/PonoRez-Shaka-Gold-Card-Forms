@@ -11,6 +11,7 @@ let timeslotList;
 let summaryBanner;
 let loadingState;
 let emptyState;
+let metadataDetails;
 
 let fetchTimer;
 let controller;
@@ -229,6 +230,31 @@ function describeAvailability(timeslot) {
     return `${timeslot.available} seats available`;
 }
 
+function formatMetadataForDisplay(metadata, selectedDate) {
+    if (!metadata || typeof metadata !== 'object') {
+        return '';
+    }
+
+    const snapshot = { ...metadata };
+
+    if (selectedDate) {
+        snapshot.selectedDate = selectedDate;
+    }
+
+    const extended = metadata.extended;
+    if (extended && typeof extended === 'object' && selectedDate && Object.prototype.hasOwnProperty.call(extended, selectedDate)) {
+        snapshot.extendedForSelectedDate = extended[selectedDate];
+    }
+
+    try {
+        return JSON.stringify(snapshot, null, 2);
+    } catch (error) {
+        console.warn('Unable to stringify availability metadata', error);
+    }
+
+    return '';
+}
+
 function renderTimeslots(state) {
     if (!availabilityPanel || !timeslotList) {
         return;
@@ -307,6 +333,20 @@ function renderTimeslots(state) {
             summaryBanner.textContent = 'Pick a departure time to continue.';
         } else {
             summaryBanner.textContent = 'Select a date to load available timeslots.';
+        }
+    }
+
+    if (metadataDetails) {
+        const metadata = state.availabilityMetadata || {};
+        const hasMetadata = metadata && typeof metadata === 'object' && Object.keys(metadata).length > 0;
+
+        if (hasMetadata) {
+            const formatted = formatMetadataForDisplay(metadata, state.selectedDate);
+            metadataDetails.textContent = formatted;
+            toggleHidden(metadataDetails, formatted === '');
+        } else {
+            metadataDetails.textContent = '';
+            toggleHidden(metadataDetails, true);
         }
     }
 }
@@ -429,6 +469,7 @@ export function initAvailability() {
     summaryBanner = qs('[data-state="summary"]', availabilityPanel);
     loadingState = qs('[data-state="loading"]', availabilityPanel);
     emptyState = qs('[data-state="empty"]', availabilityPanel);
+    metadataDetails = qs('[data-availability-metadata]', availabilityPanel);
 
     if (timeslotList) {
         timeslotList.addEventListener('change', handleTimeslotChange);
