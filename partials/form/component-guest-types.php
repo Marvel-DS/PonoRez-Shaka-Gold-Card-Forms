@@ -60,7 +60,7 @@ $label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people ar
                         </label>
                         <select id="<?= htmlspecialchars($selectId, ENT_QUOTES, 'UTF-8') ?>"
                                 name="guestCounts[<?= htmlspecialchars($guestType['id'], ENT_QUOTES, 'UTF-8') ?>]"
-                                class="h-12 w-20 appearance-none rounded-l-xl bg-blue-600 px-3 pr-8 text-center text-base font-semibold text-white shadow-sm focus:outline-none"
+                                class="h-12 w-20 appearance-none rounded-l-xl bg-blue-600 px-3 pr-8 text-center text-base font-normal text-white shadow-sm focus:outline-none"
                                 data-guest-select>
                             <?php for ($value = $minValue; $value <= $maxValue; $value++): ?>
                                 <option value="<?= $value ?>"<?= $value === $minValue ? ' selected' : '' ?>><?= $value ?></option>
@@ -70,7 +70,7 @@ $label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people ar
                             <?php
                                 $chevronIcon = file_get_contents(dirname(__DIR__, 2) . '/assets/icons/outline/chevron-up-down.svg');
                                 if ($chevronIcon !== false) {
-                                    echo str_replace('<svg', '<svg class="h-4 w-4"', $chevronIcon);
+                                    echo str_replace('<svg', '<svg class="h-5 w-5" stroke-width="2"', $chevronIcon);
                                 }
                             ?>
                         </span>
