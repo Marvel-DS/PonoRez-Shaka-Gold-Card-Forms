@@ -590,7 +590,7 @@ final class AvailabilityService
         }
 
         $detailsLabel = $this->extractTimeslotDetailsValue($row, 'times');
-        $label = (string) (($row['label'] ?? $detailsLabel ?? $row['time'] ?? $row['departure'] ?? $row['departureTime']) ?? $id);
+        $label = (string) (($detailsLabel ?? $row['label'] ?? $row['time'] ?? $row['departure'] ?? $row['departureTime']) ?? $id);
 
         $available = null;
         foreach (['available', 'availability', 'availableSpots', 'availableSeats', 'remaining'] as $key) {
@@ -614,16 +614,47 @@ final class AvailabilityService
             return null;
         }
 
-        $value = $details[$key];
+        return $this->stringifyTimeslotDetailValue($details[$key]);
+    }
+
+    private function stringifyTimeslotDetailValue(mixed $value): ?string
+    {
         if ($value === null) {
             return null;
         }
 
         if (is_scalar($value)) {
-            $value = (string) $value;
+            $string = (string) $value;
+
+            return $string !== '' ? $string : null;
         }
 
-        return is_string($value) && $value !== '' ? $value : null;
+        if ($value instanceof stdClass) {
+            $value = (array) $value;
+        }
+
+        if (!is_array($value) || $value === []) {
+            return null;
+        }
+
+        $preferredKeys = ['provided', 'display', 'label', 'text', 'value'];
+        foreach ($preferredKeys as $preferredKey) {
+            if (array_key_exists($preferredKey, $value)) {
+                $candidate = $this->stringifyTimeslotDetailValue($value[$preferredKey]);
+                if ($candidate !== null) {
+                    return $candidate;
+                }
+            }
+        }
+
+        foreach ($value as $candidate) {
+            $string = $this->stringifyTimeslotDetailValue($candidate);
+            if ($string !== null) {
+                return $string;
+            }
+        }
+
+        return null;
     }
 
     private function defaultHttpFetch(string $url, array $params): string
