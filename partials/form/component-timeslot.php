@@ -30,6 +30,7 @@ $timeslotEndpoint = $apiEndpoints['availability'] ?? null;
         <ul class="hidden divide-y divide-slate-200" data-timeslot-list role="radiogroup">
             <!-- Timeslots injected by JavaScript -->
         </ul>
+        <div class="hidden border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs font-mono text-slate-600 whitespace-pre-wrap break-words" data-availability-metadata></div>
     </div>
 
     <?php if ($timeslotEndpoint): ?>
