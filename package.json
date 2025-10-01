@@ -7,7 +7,7 @@
     "build": "tailwindcss -i ./assets/css/tailwind.css -o ./public/assets/css/main.css --minify && vite build",
     "lint": "eslint \"assets/js/**/*.js\"",
     "format": "prettier --write \"assets/js/**/*.js\"",
-    "test": "playwright test"
+    "test": "node --test tests/js/**/*.mjs && playwright test tests/playwright"
   },
   "keywords": [],
   "author": "",
