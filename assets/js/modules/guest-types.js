@@ -11,7 +11,7 @@ let controller;
 let lastSignature = null;
 
 const FETCH_DEBOUNCE_MS = 250;
-const DEFAULT_GUEST_RANGE = 9;
+const DEFAULT_GUEST_RANGE = 10;
 
 function normaliseGuestTypeConfig(rawConfig) {
     const safeObject = (value) => (value && typeof value === 'object' ? value : {});
