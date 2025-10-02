@@ -275,6 +275,31 @@ function extractTimesMapFromMetadataEntry(entry) {
     return map;
 }
 
+function normaliseTimesValue(value) {
+    if (value === null || value === undefined) {
+        return undefined;
+    }
+
+    if (Array.isArray(value)) {
+        const values = value
+            .filter((item) => item !== null && item !== undefined)
+            .map((item) => (typeof item === 'string' ? item : String(item)))
+            .map((item) => item.trim())
+            .filter((item) => item !== '');
+
+        if (values.length === 0) {
+            return undefined;
+        }
+
+        return values.join(', ');
+    }
+
+    const stringValue = typeof value === 'string' ? value : String(value);
+    const trimmed = stringValue.trim();
+
+    return trimmed === '' ? undefined : trimmed;
+}
+
 function getConfiguredActivityOrder(state) {
     const ids = state.bootstrap?.activity?.ids;
     if (!Array.isArray(ids)) {
@@ -549,7 +574,14 @@ function buildDeparturesForMetadata(state, ids, metadataEntry) {
         const metadataActivity = metadataActivities.get(lookupId);
         const timeFromMetadata = normalizedId ? metadataTimes.get(normalizedId) : undefined;
 
-        const label = timeslot?.label
+        const labelFromTimes = normaliseTimesValue(
+            metadataActivity?.details?.times
+            ?? timeFromMetadata
+            ?? timeslot?.details?.times,
+        );
+
+        const label = labelFromTimes
+            || timeslot?.label
             || metadataActivity?.activityName
             || configuredLabels[lookupId]
             || `Departure ${lookupId}`;
