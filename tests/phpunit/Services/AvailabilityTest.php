@@ -240,6 +240,7 @@ final class AvailabilityTest extends TestCase
                         'activityName' => 'Morning Tour',
                         'available' => 'Y',
                         'details' => [
+                            'times' => '8:00am Check In',
                             'island' => 'Kauai',
                         ],
                     ],
@@ -288,6 +289,7 @@ final class AvailabilityTest extends TestCase
                 'activityName' => 'Morning Tour',
                 'available' => true,
                 'details' => [
+                    'times' => '8:00am Check In',
                     'island' => 'Kauai',
                 ],
             ],
@@ -301,6 +303,58 @@ final class AvailabilityTest extends TestCase
                 ],
             ],
         ], $metadataEntry['activities']);
+
+        self::assertSame([
+            639 => '8:00am Check In',
+            5280 => '12:00pm Check In',
+        ], $metadataEntry['times']);
+    }
+
+    public function testExtendedMetadataIncludesTopLevelTimes(): void
+    {
+        $seats = [];
+        for ($day = 1; $day <= 31; $day++) {
+            $seats['d' . $day] = 10;
+        }
+
+        $extended = [
+            'd15' => [
+                'aids' => ['639', '5280'],
+                'times' => [
+                    '639' => '8:00am Check In',
+                    '5280' => '12:00pm Check In',
+                ],
+            ],
+        ];
+
+        $httpResponse = json_encode([
+            'yearmonth_2024_5' => $seats,
+            'yearmonth_2024_5_ex' => $extended,
+        ], JSON_THROW_ON_ERROR);
+
+        $httpFetcher = fn () => $httpResponse;
+
+        $client = new AvailabilityRecordingSoapClient([
+            'getActivityTimeslots' => static fn () => ['timeslots' => []],
+        ]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-05-15',
+            ['345' => 2],
+            [639, 5280]
+        );
+
+        $metadataEntry = $result['metadata']['extended']['2024-05-15'];
+
+        self::assertSame([639, 5280], $metadataEntry['activityIds']);
+        self::assertSame([
+            639 => '8:00am Check In',
+            5280 => '12:00pm Check In',
+        ], $metadataEntry['times']);
     }
 
     public function testFetchCalendarUsesDetailsTimesForTimeslotLabel(): void
