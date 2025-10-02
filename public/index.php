@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+use PonoRez\SGCForms\Cache\FileCache;
+use PonoRez\SGCForms\Cache\NullCache;
+use PonoRez\SGCForms\Services\ActivityInfoService;
+use PonoRez\SGCForms\Services\SoapClientBuilder;
 use PonoRez\SGCForms\UtilityService;
 
 $requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
@@ -37,6 +41,58 @@ function route_api_request(string $uri): void
 
     require $scriptPath;
     exit;
+}
+
+function format_activity_info_content(?string $value): ?string
+{
+    if ($value === null) {
+        return null;
+    }
+
+    $trimmed = trim($value);
+    if ($trimmed === '') {
+        return null;
+    }
+
+    if ($trimmed !== strip_tags($trimmed)) {
+        return $trimmed;
+    }
+
+    return nl2br(htmlspecialchars($trimmed, ENT_QUOTES, 'UTF-8'));
+}
+
+function merge_activity_info_blocks(array $infoBlocks, array $activityInfo): array
+{
+    $mapping = [
+        'description' => 'description',
+        'notes' => 'notes',
+        'directions' => 'directions',
+    ];
+
+    foreach ($mapping as $blockKey => $infoKey) {
+        $content = format_activity_info_content($activityInfo[$infoKey] ?? null);
+        if ($content === null) {
+            continue;
+        }
+
+        $infoBlocks[$blockKey] = is_array($infoBlocks[$blockKey] ?? null)
+            ? $infoBlocks[$blockKey]
+            : [];
+
+        if (($infoBlocks[$blockKey]['enabled'] ?? true) === false) {
+            continue;
+        }
+
+        if (empty($infoBlocks[$blockKey]['content'])) {
+            $infoBlocks[$blockKey]['content'] = $content;
+        }
+
+        if (!array_key_exists('enabled', $infoBlocks[$blockKey])) {
+            $infoBlocks[$blockKey]['enabled'] = true;
+        }
+    }
+
+    return $infoBlocks;
 }
 
 if (preg_match('#^/api/(.+)$#', $requestUri)) {
@@ -76,6 +132,80 @@ try {
     $errorMessage = $exception->getMessage();
     include dirname(__DIR__) . '/partials/layout/error.php';
     exit;
+}
+
+$activityInfoResult = [
+    'activities' => [],
+    'checkedAt' => null,
+    'hash' => null,
+];
+
+try {
+    $cacheDirectory = UtilityService::projectRoot() . '/cache/activity-info';
+    $cache = is_writable(dirname($cacheDirectory))
+        ? new FileCache($cacheDirectory)
+        : new NullCache();
+    $activityInfoService = new ActivityInfoService($cache, new SoapClientBuilder());
+    $activityInfoResult = $activityInfoService->getActivityInfo($supplierSlug, $activitySlug);
+} catch (Throwable) {
+    $activityInfoResult = [
+        'activities' => [],
+        'checkedAt' => null,
+        'hash' => null,
+    ];
+}
+
+$activityInfoById = is_array($activityInfoResult['activities'] ?? null)
+    ? $activityInfoResult['activities']
+    : [];
+
+$primaryActivityId = isset($activityConfig['activityId']) && is_numeric($activityConfig['activityId'])
+    ? (int) $activityConfig['activityId']
+    : null;
+
+$primaryActivityInfo = null;
+if ($primaryActivityId !== null && isset($activityInfoById[(string) $primaryActivityId])) {
+    $primaryActivityInfo = $activityInfoById[(string) $primaryActivityId];
+} elseif ($activityInfoById !== []) {
+    $firstActivity = reset($activityInfoById);
+    if (is_array($firstActivity)) {
+        $primaryActivityInfo = $firstActivity;
+    }
+}
+
+$infoBlocksFromConfig = $activityConfig['infoBlocks'] ?? [];
+if (is_array($infoBlocksFromConfig) && $primaryActivityInfo !== null) {
+    $infoBlocksFromConfig = merge_activity_info_blocks($infoBlocksFromConfig, $primaryActivityInfo);
+}
+
+$activityDetails = [];
+if (is_array($primaryActivityInfo)) {
+    foreach ([
+        'id' => $primaryActivityId,
+        'name' => $primaryActivityInfo['name'] ?? null,
+        'island' => $primaryActivityInfo['island'] ?? null,
+        'times' => $primaryActivityInfo['times'] ?? null,
+        'startTimeMinutes' => $primaryActivityInfo['startTimeMinutes'] ?? null,
+        'transportationMandatory' => $primaryActivityInfo['transportationMandatory'] ?? null,
+        'description' => $primaryActivityInfo['description'] ?? null,
+        'notes' => $primaryActivityInfo['notes'] ?? null,
+        'directions' => $primaryActivityInfo['directions'] ?? null,
+    ] as $key => $value) {
+        if ($value === null) {
+            continue;
+        }
+
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed === '') {
+                continue;
+            }
+            $activityDetails[$key] = $trimmed;
+            continue;
+        }
+
+        $activityDetails[$key] = $value;
+    }
 }
 
 $brandingConfig = $supplierConfig['branding'] ?? [];
@@ -142,7 +272,7 @@ $bootstrapData = [
             ?? ucfirst(str_replace('-', ' ', $activitySlug)),
         'summary' => $activityConfig['summary'] ?? null,
         'uiLabels' => $activityConfig['uiLabels'] ?? [],
-        'infoBlocks' => $activityConfig['infoBlocks'] ?? [],
+        'infoBlocks' => $infoBlocksFromConfig,
         'transportation' => $activityConfig['transportation'] ?? [],
         'upgrades' => $activityConfig['upgrades'] ?? [],
         'privateActivity' => filter_var($activityConfig['privateActivity'] ?? false, FILTER_VALIDATE_BOOLEAN),
@@ -173,11 +303,31 @@ $bootstrapData = [
             'min' => $activityConfig['minGuestCount'] ?? [],
             'max' => $activityConfig['maxGuestCount'] ?? [],
         ],
+        'details' => $activityDetails,
     ],
     'api' => $apiEndpoints,
     'environment' => [
         'currentDate' => date('Y-m-d'),
     ],
+];
+
+foreach ($activityInfoById as $id => $info) {
+    if (!is_array($info) || empty($info['times'])) {
+        continue;
+    }
+
+    $label = trim((string) $info['times']);
+    if ($label === '') {
+        continue;
+    }
+
+    $bootstrapData['activity']['departureLabels'][(string) $id] = $label;
+}
+
+$bootstrapData['activity']['activityInfo'] = [
+    'byId' => $activityInfoById,
+    'checkedAt' => $activityInfoResult['checkedAt'] ?? null,
+    'hash' => $activityInfoResult['hash'] ?? null,
 ];
 
 $pageContext = [
@@ -188,6 +338,7 @@ $pageContext = [
     'branding' => $branding,
     'apiEndpoints' => $apiEndpoints,
     'bootstrap' => $bootstrapData,
+    'activityInfo' => $activityInfoById,
 ];
 
 include dirname(__DIR__) . '/partials/layout/form-basic.php';
