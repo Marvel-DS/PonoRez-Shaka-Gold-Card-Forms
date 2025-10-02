@@ -49,6 +49,94 @@ function collectIdsFromValues(values) {
     return ids;
 }
 
+const METADATA_LABEL_KEYS = [
+    'times',
+    'time',
+    'departure',
+    'departureTime',
+    'checkIn',
+    'checkin',
+    'checkintime',
+    'check_in',
+    'label',
+    'name',
+    'title',
+    'displayName',
+    'display',
+];
+
+function isFallbackDepartureLabel(label, id) {
+    if (typeof label !== 'string') {
+        return false;
+    }
+
+    const trimmed = label.trim();
+    if (trimmed === '') {
+        return false;
+    }
+
+    if (id === null || id === undefined) {
+        return false;
+    }
+
+    const normalisedId = String(id).trim();
+    if (normalisedId === '') {
+        return false;
+    }
+
+    return trimmed.toLowerCase() === `departure ${normalisedId}`.toLowerCase();
+}
+
+function resolveLabelFromDetails(details, id) {
+    if (!details || typeof details !== 'object') {
+        return undefined;
+    }
+
+    for (const key of METADATA_LABEL_KEYS) {
+        if (!(key in details)) {
+            continue;
+        }
+
+        const value = details[key];
+        const normalized = normaliseTimesValue(value);
+        if (normalized !== undefined && !isFallbackDepartureLabel(normalized, id)) {
+            return normalized;
+        }
+    }
+
+    return undefined;
+}
+
+function resolveLabelFromCandidate(candidate, id) {
+    if (!candidate || typeof candidate !== 'object') {
+        return undefined;
+    }
+
+    const fromDescription = resolveLabelFromDetails(candidate.description, id);
+    if (fromDescription !== undefined) {
+        return fromDescription;
+    }
+
+    const fromDetails = resolveLabelFromDetails(candidate.details, id);
+    if (fromDetails !== undefined) {
+        return fromDetails;
+    }
+
+    for (const key of METADATA_LABEL_KEYS) {
+        if (!(key in candidate)) {
+            continue;
+        }
+
+        const value = candidate[key];
+        const normalized = normaliseTimesValue(value);
+        if (normalized !== undefined && !isFallbackDepartureLabel(normalized, id)) {
+            return normalized;
+        }
+    }
+
+    return undefined;
+}
+
 function normalizeMetadataAvailabilityValue(value) {
     if (typeof value === 'boolean') {
         return value;
@@ -199,32 +287,87 @@ function extractActivitiesFromMetadataEntry(entry) {
         return map;
     }
 
-    let activities = [];
-    if (Array.isArray(entry.activities)) {
-        activities = entry.activities;
-    } else if (entry.activities && typeof entry.activities === 'object') {
-        activities = Object.values(entry.activities);
-    }
+    const sources = [];
 
-    activities.forEach((activity) => {
-        if (!activity || typeof activity !== 'object') {
+    const addSource = (value) => {
+        if (Array.isArray(value)) {
+            value.forEach((item) => {
+                sources.push(item);
+            });
             return;
         }
 
-        const id = normaliseId(activity.activityId ?? activity.activityid ?? activity.id ?? activity.aid);
+        if (value && typeof value === 'object') {
+            Object.values(value).forEach((item) => {
+                sources.push(item);
+            });
+            return;
+        }
+
+        if (value !== undefined && value !== null) {
+            sources.push(value);
+        }
+    };
+
+    addSource(entry.activities);
+    addSource(entry.activityDetails);
+    addSource(entry.activitydetails);
+    addSource(entry.activity_info);
+    addSource(entry.activityInfo);
+    addSource(entry.departures);
+    addSource(entry.departureDetails);
+    addSource(entry.departuredetails);
+    addSource(entry.departure_info);
+    addSource(entry.departureInfo);
+
+    sources.forEach((activity) => {
+        if (activity === null || activity === undefined) {
+            return;
+        }
+
+        if (typeof activity !== 'object' || Array.isArray(activity)) {
+            const id = normaliseId(activity);
+            if (id !== null && !map.has(id)) {
+                map.set(id, { activityId: id });
+            }
+            return;
+        }
+
+        const id = normaliseId(
+            activity.activityId
+            ?? activity.activityid
+            ?? activity.id
+            ?? activity.aid
+            ?? activity.departureId
+            ?? activity.departureid
+            ?? activity.departure_id,
+        );
         if (id === null) {
             return;
         }
 
-        const normalized = { activityId: id };
+        const existing = map.get(id);
+        const normalized = existing ? { ...existing } : { activityId: id };
 
-        if (typeof activity.activityName === 'string' && activity.activityName.trim() !== '') {
-            normalized.activityName = activity.activityName.trim();
-        } else if (typeof activity.activityname === 'string' && activity.activityname.trim() !== '') {
-            normalized.activityName = activity.activityname.trim();
+        const nameFields = ['activityName', 'activityname', 'name', 'label', 'title', 'displayName', 'display'];
+        for (const field of nameFields) {
+            const value = activity[field];
+            if (typeof value !== 'string') {
+                continue;
+            }
+
+            const trimmed = value.trim();
+            if (trimmed === '') {
+                continue;
+            }
+
+            if (!normalized.activityName || isFallbackDepartureLabel(normalized.activityName, id)) {
+                normalized.activityName = trimmed;
+                break;
+            }
         }
 
-        const availabilityKeys = ['available', 'isAvailable', 'availableFlag', 'status'];
+        const availabilityKeys = ['available', 'isAvailable', 'availableFlag', 'status', 'availability', 'availabilityStatus'];
         for (const key of availabilityKeys) {
             if (!(key in activity)) {
                 continue;
@@ -237,8 +380,80 @@ function extractActivitiesFromMetadataEntry(entry) {
             }
         }
 
+        let details = normalized.details && typeof normalized.details === 'object' && !Array.isArray(normalized.details)
+            ? { ...normalized.details }
+            : undefined;
+
         if (activity.details && typeof activity.details === 'object' && !Array.isArray(activity.details)) {
-            normalized.details = { ...activity.details };
+            const sanitizedDetails = normaliseTimeslotDetails(activity.details);
+            if (sanitizedDetails && Object.keys(sanitizedDetails).length > 0) {
+                details = { ...(details ?? {}), ...sanitizedDetails };
+            }
+        }
+
+        if (activity.description && typeof activity.description === 'object' && !Array.isArray(activity.description)) {
+            const sanitizedDescription = normaliseTimeslotDetails(activity.description);
+            if (sanitizedDescription && Object.keys(sanitizedDescription).length > 0) {
+                const nextDetails = { ...(details ?? {}) };
+                Object.entries(sanitizedDescription).forEach(([key, value]) => {
+                    if (!(key in nextDetails) || ['times', 'time'].includes(key)) {
+                        nextDetails[key] = value;
+                    }
+                });
+                details = Object.keys(nextDetails).length > 0 ? nextDetails : details;
+            }
+        }
+
+        METADATA_LABEL_KEYS.forEach((key) => {
+            if (!(key in activity)) {
+                return;
+            }
+
+            const value = normaliseTimesValue(activity[key]);
+            if (value === undefined) {
+                return;
+            }
+
+            if (!details) {
+                details = {};
+            }
+
+            if (['label', 'name', 'title', 'displayName', 'display'].includes(key)) {
+                if (details.times === undefined && !isFallbackDepartureLabel(value, id)) {
+                    details.times = value;
+                }
+
+                if (!normalized.activityName || isFallbackDepartureLabel(normalized.activityName, id)) {
+                    normalized.activityName = value;
+                }
+
+                return;
+            }
+
+            if (details[key] === undefined) {
+                details[key] = value;
+            }
+        });
+
+        const labelFromCandidate = resolveLabelFromCandidate(activity, id);
+        if (labelFromCandidate !== undefined) {
+            if (!details) {
+                details = {};
+            }
+
+            if (details.times === undefined) {
+                details.times = labelFromCandidate;
+            }
+
+            if (!normalized.activityName || isFallbackDepartureLabel(normalized.activityName, id)) {
+                normalized.activityName = labelFromCandidate;
+            }
+        }
+
+        if (details && Object.keys(details).length > 0) {
+            normalized.details = details;
+        } else {
+            delete normalized.details;
         }
 
         map.set(id, normalized);
@@ -254,22 +469,128 @@ function extractTimesMapFromMetadataEntry(entry) {
         return map;
     }
 
+    const record = (id, value) => {
+        const normalisedId = normaliseId(id);
+        if (normalisedId === null) {
+            return;
+        }
+
+        const label = normaliseTimesValue(value);
+        if (label === undefined || isFallbackDepartureLabel(label, normalisedId)) {
+            return;
+        }
+
+        if (!map.has(normalisedId)) {
+            map.set(normalisedId, label);
+        }
+    };
+
     const { times } = entry;
-    if (!times || typeof times !== 'object' || Array.isArray(times)) {
-        return map;
+    if (times && typeof times === 'object' && !Array.isArray(times)) {
+        Object.entries(times).forEach(([key, value]) => {
+            record(key, value);
+        });
     }
 
-    Object.entries(times).forEach(([key, value]) => {
-        if (value === null || value === undefined) {
+    const fallbackIds = [];
+    if (Array.isArray(entry.activityIds)) {
+        fallbackIds.push(...collectIdsFromValues(entry.activityIds));
+    }
+    if (Array.isArray(entry.aids)) {
+        fallbackIds.push(...collectIdsFromValues(entry.aids));
+    }
+    if (Array.isArray(entry.ids)) {
+        fallbackIds.push(...collectIdsFromValues(entry.ids));
+    }
+
+    const fallbackByIndex = (index) => fallbackIds[index];
+
+    const processCandidate = (candidate, index) => {
+        if (candidate === null || candidate === undefined) {
             return;
         }
 
-        const normalisedKey = normaliseId(key);
-        if (normalisedKey === null) {
+        if (typeof candidate !== 'object' || Array.isArray(candidate)) {
+            const fallbackId = index !== undefined ? fallbackByIndex(index) : undefined;
+            const label = normaliseTimesValue(candidate);
+            if (fallbackId !== undefined && label !== undefined && !isFallbackDepartureLabel(label, fallbackId)) {
+                record(fallbackId, label);
+            }
             return;
         }
 
-        map.set(normalisedKey, typeof value === 'string' ? value : String(value));
+        const resolvedId = normaliseId(
+            candidate.activityId
+            ?? candidate.activityid
+            ?? candidate.id
+            ?? candidate.aid
+            ?? candidate.departureId
+            ?? candidate.departureid
+            ?? candidate.departure_id,
+        ) ?? (index !== undefined ? fallbackByIndex(index) : undefined);
+
+        if (resolvedId === null || resolvedId === undefined) {
+            return;
+        }
+
+        let sanitizedDetails;
+        if (candidate.details && typeof candidate.details === 'object' && !Array.isArray(candidate.details)) {
+            sanitizedDetails = normaliseTimeslotDetails(candidate.details);
+        }
+
+        let sanitizedDescription;
+        if (candidate.description && typeof candidate.description === 'object' && !Array.isArray(candidate.description)) {
+            sanitizedDescription = normaliseTimeslotDetails(candidate.description);
+        }
+
+        let decorated = candidate;
+        if (sanitizedDetails || sanitizedDescription) {
+            decorated = { ...candidate };
+            if (sanitizedDetails) {
+                decorated.details = sanitizedDetails;
+            }
+            if (sanitizedDescription) {
+                decorated.description = sanitizedDescription;
+            }
+        }
+
+        const label = resolveLabelFromDetails(sanitizedDescription, resolvedId)
+            ?? resolveLabelFromDetails(sanitizedDetails, resolvedId)
+            ?? resolveLabelFromCandidate(decorated, resolvedId);
+
+        if (label !== undefined) {
+            record(resolvedId, label);
+        }
+    };
+
+    const candidateSources = [
+        entry.departures,
+        entry.departureDetails,
+        entry.departuredetails,
+        entry.departure_info,
+        entry.departureInfo,
+        entry.activities,
+        entry.activityDetails,
+        entry.activitydetails,
+    ];
+
+    candidateSources.forEach((source) => {
+        if (!source) {
+            return;
+        }
+
+        if (Array.isArray(source)) {
+            source.forEach((candidate, index) => {
+                processCandidate(candidate, index);
+            });
+            return;
+        }
+
+        if (typeof source === 'object') {
+            Object.values(source).forEach((candidate) => {
+                processCandidate(candidate);
+            });
+        }
     });
 
     return map;
@@ -573,16 +894,21 @@ function buildDeparturesForMetadata(state, ids, metadataEntry) {
         const timeslot = knownTimeslots.get(lookupId);
         const metadataActivity = metadataActivities.get(lookupId);
         const timeFromMetadata = normalizedId ? metadataTimes.get(normalizedId) : undefined;
+        const labelFromMetadataActivity = resolveLabelFromCandidate(metadataActivity, lookupId);
+        const labelFromMetadataMap = timeFromMetadata ? normaliseTimesValue(timeFromMetadata) : undefined;
+        const labelFromTimeslot = resolveLabelFromCandidate(timeslot, lookupId);
 
-        const labelFromTimes = normaliseTimesValue(
-            metadataActivity?.details?.times
-            ?? timeFromMetadata
-            ?? timeslot?.details?.times,
-        );
+        const metadataActivityName = typeof metadataActivity?.activityName === 'string'
+            && !isFallbackDepartureLabel(metadataActivity.activityName, lookupId)
+            ? metadataActivity.activityName
+            : undefined;
 
-        const label = labelFromTimes
-            || timeslot?.label
-            || metadataActivity?.activityName
+        const label = labelFromMetadataActivity
+            || (labelFromMetadataMap && !isFallbackDepartureLabel(labelFromMetadataMap, lookupId)
+                ? labelFromMetadataMap
+                : undefined)
+            || labelFromTimeslot
+            || metadataActivityName
             || configuredLabels[lookupId]
             || `Departure ${lookupId}`;
 
@@ -594,13 +920,20 @@ function buildDeparturesForMetadata(state, ids, metadataEntry) {
             ? { ...timeslot.details }
             : (metadataDetails ? { ...metadataDetails } : undefined);
 
-        if (timeFromMetadata && (!details || details.times === undefined)) {
-            details = { ...(details ?? {}), times: timeFromMetadata };
+        if (labelFromMetadataActivity && (!details || details.times === undefined)) {
+            details = { ...(details ?? {}), times: labelFromMetadataActivity };
+        } else if (labelFromMetadataMap && (!details || details.times === undefined)
+            && !isFallbackDepartureLabel(labelFromMetadataMap, lookupId)) {
+            details = { ...(details ?? {}), times: labelFromMetadataMap };
+        } else if (labelFromTimeslot && (!details || details.times === undefined)) {
+            details = { ...(details ?? {}), times: labelFromTimeslot };
         }
 
         const departure = { id: lookupId, label };
 
-        if (metadataActivity?.activityName) {
+        if (metadataActivityName) {
+            departure.activityName = metadataActivityName;
+        } else if (metadataActivity?.activityName && !isFallbackDepartureLabel(metadataActivity.activityName, lookupId)) {
             departure.activityName = metadataActivity.activityName;
         }
 

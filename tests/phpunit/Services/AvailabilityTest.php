@@ -113,6 +113,70 @@ final class AvailabilityTest extends TestCase
         self::assertNotEmpty($client->calls);
     }
 
+    public function testExtendedAvailabilityUsesDescriptionTimes(): void
+    {
+        $seats = [];
+        $extended = [];
+        for ($day = 1; $day <= 31; $day++) {
+            $seats['d' . $day] = 8;
+            $extended['d' . $day] = ['aids' => [639, 5280]];
+        }
+
+        $extended['d15']['departures'] = [
+            [
+                'activityId' => 639,
+                'label' => 'Departure 639',
+                'description' => [
+                    'times' => '7:30 AM Check In',
+                ],
+            ],
+            [
+                'activityId' => 5280,
+                'label' => 'Departure 5280',
+                'description' => [
+                    'times' => '1:15 PM Check In',
+                ],
+            ],
+        ];
+
+        $httpResponse = json_encode([
+            'yearmonth_2024_3' => $seats,
+            'yearmonth_2024_3_ex' => $extended,
+        ], JSON_THROW_ON_ERROR);
+
+        $httpFetcher = fn () => $httpResponse;
+
+        $client = new AvailabilityRecordingSoapClient([
+            'getActivityTimeslots' => static fn () => ['timeslots' => []],
+        ]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-03-15',
+            ['345' => 2],
+            [639, 5280],
+            '2024-03'
+        );
+
+        $metadata = $result['metadata'];
+        self::assertArrayHasKey('extended', $metadata);
+        self::assertArrayHasKey('2024-03-15', $metadata['extended']);
+
+        $entry = $metadata['extended']['2024-03-15'];
+
+        self::assertSame([639, 5280], $entry['activityIds']);
+        self::assertSame('7:30 AM Check In', $entry['times'][639]);
+        self::assertSame('1:15 PM Check In', $entry['times'][5280]);
+
+        self::assertSame('7:30 AM Check In', $entry['activities'][0]['details']['times']);
+        self::assertSame('7:30 AM Check In', $entry['activities'][0]['activityName']);
+        self::assertSame('1:15 PM Check In', $entry['activities'][1]['details']['times']);
+        self::assertSame('1:15 PM Check In', $entry['activities'][1]['activityName']);
+    }
+
     public function testFetchCalendarMarksLimitedWhenSeatCountLow(): void
     {
         $seats = [];
@@ -351,6 +415,83 @@ final class AvailabilityTest extends TestCase
         $metadataEntry = $result['metadata']['extended']['2024-05-15'];
 
         self::assertSame([639, 5280], $metadataEntry['activityIds']);
+        self::assertSame([
+            639 => '8:00am Check In',
+            5280 => '12:00pm Check In',
+        ], $metadataEntry['times']);
+    }
+
+    public function testExtendedMetadataExtractsDepartureDetails(): void
+    {
+        $seats = [];
+        for ($day = 1; $day <= 31; $day++) {
+            $seats['d' . $day] = 10;
+        }
+
+        $extended = [
+            'd20' => [
+                'aids' => ['639', '5280'],
+                'departures' => [
+                    [
+                        'id' => '639',
+                        'label' => '8:00am Check In',
+                        'checkin' => '7:30am',
+                        'available' => 'Y',
+                    ],
+                    [
+                        'departureId' => '5280',
+                        'time' => '12:00pm Check In',
+                        'availability' => 'N',
+                    ],
+                ],
+            ],
+        ];
+
+        $httpResponse = json_encode([
+            'yearmonth_2024_5' => $seats,
+            'yearmonth_2024_5_ex' => $extended,
+        ], JSON_THROW_ON_ERROR);
+
+        $httpFetcher = fn () => $httpResponse;
+
+        $client = new AvailabilityRecordingSoapClient([
+            'getActivityTimeslots' => static fn () => ['timeslots' => []],
+        ]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-05-20',
+            ['345' => 2],
+            [639, 5280]
+        );
+
+        $metadataEntry = $result['metadata']['extended']['2024-05-20'];
+
+        self::assertSame([639, 5280], $metadataEntry['activityIds']);
+        self::assertSame([
+            [
+                'activityId' => 639,
+                'activityName' => '8:00am Check In',
+                'available' => true,
+                'details' => [
+                    'checkin' => '7:30am',
+                    'times' => '8:00am Check In',
+                ],
+            ],
+            [
+                'activityId' => 5280,
+                'available' => false,
+                'details' => [
+                    'time' => '12:00pm Check In',
+                    'times' => '12:00pm Check In',
+                ],
+                'activityName' => '12:00pm Check In',
+            ],
+        ], $metadataEntry['activities']);
+
         self::assertSame([
             639 => '8:00am Check In',
             5280 => '12:00pm Check In',

@@ -323,7 +323,7 @@ final class AvailabilityService
             return null;
         }
 
-        foreach (['activityId', 'activityid', 'id', 'aid'] as $key) {
+        foreach (['activityId', 'activityid', 'id', 'aid', 'departureId', 'departureid', 'departure_id', 'departureID'] as $key) {
             if (!array_key_exists($key, $value)) {
                 continue;
             }
@@ -354,13 +354,30 @@ final class AvailabilityService
                 continue;
             }
 
-            $time = $this->extractTimeValueFromArray($activity);
-            if ($time !== null) {
+            $time = $this->extractTimeValueFromArray($activity, $activityId);
+            if ($time !== null && !$this->isFallbackDepartureLabel($time, $activityId)) {
                 $times[$activityId] = $time;
             }
         }
 
-        $candidateKeys = ['times', 'time', 'ponore', 'ponoreTimes', 'ponoretimes', 'ponoreValue', 'ponorevalue', 'ponore_values', 'ponoreValues', 'departureTimes', 'departure_times'];
+        $candidateKeys = [
+            'times',
+            'time',
+            'ponore',
+            'ponoreTimes',
+            'ponoretimes',
+            'ponoreValue',
+            'ponorevalue',
+            'ponore_values',
+            'ponoreValues',
+            'departureTimes',
+            'departure_times',
+            'departures',
+            'departureDetails',
+            'departuredetails',
+            'departure_info',
+            'departureInfo',
+        ];
         foreach ($candidateKeys as $candidateKey) {
             if (!array_key_exists($candidateKey, $entry)) {
                 continue;
@@ -409,15 +426,28 @@ final class AvailabilityService
                 $string = null;
 
                 if (is_array($value)) {
-                    $id = $this->normalizeExtendedActivityIdValue($value['activityId'] ?? $value['activityid'] ?? $value['id'] ?? $value['aid'] ?? null);
-                    $string = $this->extractTimeValueFromArray($value);
+                    $id = $this->normalizeExtendedActivityIdValue(
+                        $value['activityId']
+                        ?? $value['activityid']
+                        ?? $value['id']
+                        ?? $value['aid']
+                        ?? $value['departureId']
+                        ?? $value['departureid']
+                        ?? $value['departure_id']
+                        ?? null
+                    );
+                    $candidateId = $id ?? ($activityIds[$index] ?? null);
+                    $string = $this->extractTimeValueFromArray($value, $candidateId);
                 } else {
                     $string = $this->stringifyTimeslotDetailValue($value);
                 }
 
                 if ($string !== null) {
                     $resolvedId = $id ?? ($activityIds[$index] ?? null);
-                    if ($resolvedId !== null && !array_key_exists($resolvedId, $times)) {
+                    if ($resolvedId !== null
+                        && !array_key_exists($resolvedId, $times)
+                        && !$this->isFallbackDepartureLabel($string, $resolvedId)
+                    ) {
                         $times[$resolvedId] = $string;
                     }
                 }
@@ -436,10 +466,23 @@ final class AvailabilityService
             }
 
             if (is_array($value)) {
-                $candidateId = $id ?? $this->normalizeExtendedActivityIdValue($value['activityId'] ?? $value['activityid'] ?? $value['id'] ?? $value['aid'] ?? null);
-                $string = $this->extractTimeValueFromArray($value);
+                $candidateId = $id ?? $this->normalizeExtendedActivityIdValue(
+                    $value['activityId']
+                    ?? $value['activityid']
+                    ?? $value['id']
+                    ?? $value['aid']
+                    ?? $value['departureId']
+                    ?? $value['departureid']
+                    ?? $value['departure_id']
+                    ?? null
+                );
+                $string = $this->extractTimeValueFromArray($value, $candidateId);
 
-                if ($candidateId !== null && $string !== null && !array_key_exists($candidateId, $times)) {
+                if ($candidateId !== null
+                    && $string !== null
+                    && !array_key_exists($candidateId, $times)
+                    && !$this->isFallbackDepartureLabel($string, $candidateId)
+                ) {
                     $times[$candidateId] = $string;
                 }
 
@@ -447,30 +490,55 @@ final class AvailabilityService
             }
 
             $string = $this->stringifyTimeslotDetailValue($value);
-            if ($id !== null && $string !== null && !array_key_exists($id, $times)) {
+            if ($id !== null
+                && $string !== null
+                && !array_key_exists($id, $times)
+                && !$this->isFallbackDepartureLabel($string, $id)
+            ) {
                 $times[$id] = $string;
             }
         }
     }
 
-    private function extractTimeValueFromArray(array $value): ?string
+    private function extractTimeValueFromArray(array $value, ?int $activityId = null): ?string
     {
         if (isset($value['details'])) {
             $details = $this->normalizeTimeslotDetails($value['details']);
-            foreach (['times', 'time', 'departure', 'departureTime', 'checkIn', 'checkin', 'checkintime', 'check_in'] as $detailKey) {
+            foreach (['times', 'time', 'departure', 'departureTime', 'checkIn', 'checkin', 'checkintime', 'check_in', 'label', 'name', 'title', 'displayName', 'display'] as $detailKey) {
                 if (array_key_exists($detailKey, $details)) {
-                    return $details[$detailKey];
+                    $candidate = $details[$detailKey];
+                    if ($candidate !== null
+                        && ($activityId === null || !$this->isFallbackDepartureLabel($candidate, $activityId))
+                    ) {
+                        return $candidate;
+                    }
                 }
             }
         }
 
-        foreach (['times', 'time', 'ponoreValue', 'ponorevalue', 'ponore', 'departure', 'departureTime', 'checkIn', 'checkin', 'checkintime', 'check_in'] as $key) {
+        if (isset($value['description'])) {
+            $description = $this->normalizeTimeslotDetails($value['description']);
+            foreach (['times', 'time', 'departure', 'departureTime', 'label', 'name', 'title', 'displayName', 'display'] as $descriptionKey) {
+                if (!array_key_exists($descriptionKey, $description)) {
+                    continue;
+                }
+
+                $candidate = $description[$descriptionKey];
+                if ($candidate !== null
+                    && ($activityId === null || !$this->isFallbackDepartureLabel($candidate, $activityId))
+                ) {
+                    return $candidate;
+                }
+            }
+        }
+
+        foreach (['times', 'time', 'ponoreValue', 'ponorevalue', 'ponore', 'departure', 'departureTime', 'checkIn', 'checkin', 'checkintime', 'check_in', 'label', 'name', 'title', 'displayName', 'display'] as $key) {
             if (!array_key_exists($key, $value)) {
                 continue;
             }
 
             $candidate = $this->stringifyTimeslotDetailValue($value[$key]);
-            if ($candidate !== null) {
+            if ($candidate !== null && ($activityId === null || !$this->isFallbackDepartureLabel($candidate, $activityId))) {
                 return $candidate;
             }
         }
@@ -486,7 +554,18 @@ final class AvailabilityService
             $sources[] = $entry;
         }
 
-        foreach (['activities', 'activityDetails', 'activitydetails', 'activity_info', 'activityInfo'] as $key) {
+        foreach ([
+            'activities',
+            'activityDetails',
+            'activitydetails',
+            'activity_info',
+            'activityInfo',
+            'departures',
+            'departureDetails',
+            'departuredetails',
+            'departure_info',
+            'departureInfo',
+        ] as $key) {
             if (!array_key_exists($key, $entry)) {
                 continue;
             }
@@ -569,19 +648,40 @@ final class AvailabilityService
             return;
         }
 
-        $activityId = $this->normalizeExtendedActivityIdValue($value['activityId'] ?? $value['activityid'] ?? $value['id'] ?? $value['aid'] ?? $key);
+        $activityId = $this->normalizeExtendedActivityIdValue(
+            $value['activityId']
+            ?? $value['activityid']
+            ?? $value['id']
+            ?? $value['aid']
+            ?? $value['departureId']
+            ?? $value['departureid']
+            ?? $value['departure_id']
+            ?? $key
+        );
         if ($activityId === null) {
             return;
         }
 
         $activity = $activities[$activityId] ?? ['activityId' => $activityId];
 
-        $name = $value['activityName'] ?? $value['activityname'] ?? $value['name'] ?? $value['label'] ?? null;
+        $name = $value['activityName']
+            ?? $value['activityname']
+            ?? $value['name']
+            ?? $value['label']
+            ?? $value['title']
+            ?? $value['displayName']
+            ?? $value['display']
+            ?? null;
         if (is_string($name) && trim($name) !== '') {
-            $activity['activityName'] = trim($name);
+            $trimmedName = trim($name);
+            if (!isset($activity['activityName'])
+                || $this->shouldReplaceActivityName($activity['activityName'], $activityId, $trimmedName)
+            ) {
+                $activity['activityName'] = $trimmedName;
+            }
         }
 
-        $availabilityKeys = ['available', 'isAvailable', 'availableFlag', 'status'];
+        $availabilityKeys = ['available', 'isAvailable', 'availableFlag', 'status', 'availability', 'availabilityStatus'];
         foreach ($availabilityKeys as $availabilityKey) {
             if (!array_key_exists($availabilityKey, $value)) {
                 continue;
@@ -595,7 +695,16 @@ final class AvailabilityService
         }
 
         $details = $this->normalizeTimeslotDetails($value['details'] ?? null);
-        foreach (['times', 'time', 'departure', 'departureTime', 'checkIn', 'checkin', 'checkintime', 'check_in'] as $detailKey) {
+        $descriptionDetails = $this->normalizeTimeslotDetails($value['description'] ?? null);
+
+        if ($descriptionDetails !== []) {
+            foreach ($descriptionDetails as $detailKey => $detailValue) {
+                if (!array_key_exists($detailKey, $details) || in_array($detailKey, ['times', 'time'], true)) {
+                    $details[$detailKey] = $detailValue;
+                }
+            }
+        }
+        foreach (['times', 'time', 'departure', 'departureTime', 'checkIn', 'checkin', 'checkintime', 'check_in', 'label', 'name', 'title', 'displayName', 'display'] as $detailKey) {
             if (!array_key_exists($detailKey, $value)) {
                 continue;
             }
@@ -605,11 +714,34 @@ final class AvailabilityService
                 continue;
             }
 
+            if (in_array($detailKey, ['label', 'name', 'title', 'displayName', 'display'], true)) {
+                if (!array_key_exists('times', $details)) {
+                    $details['times'] = $stringValue;
+                }
+
+                continue;
+            }
+
             $details[$detailKey] = $stringValue;
+
+            if (in_array($detailKey, ['time', 'departure', 'departureTime'], true) && !array_key_exists('times', $details)) {
+                $details['times'] = $stringValue;
+            }
         }
 
         if ($details !== []) {
             $activity['details'] = $details;
+        }
+
+        if (isset($details['times'])) {
+            $timesLabel = $details['times'];
+            if ($timesLabel !== null && !$this->isFallbackDepartureLabel($timesLabel, $activityId)) {
+                if (!isset($activity['activityName'])
+                    || $this->shouldReplaceActivityName($activity['activityName'], $activityId, $timesLabel)
+                ) {
+                    $activity['activityName'] = $timesLabel;
+                }
+            }
         }
 
         $activities[$activityId] = $activity;
@@ -1099,6 +1231,34 @@ final class AvailabilityService
         }
 
         return null;
+    }
+
+    private function shouldReplaceActivityName(?string $current, int $activityId, string $candidate): bool
+    {
+        $trimmedCandidate = trim($candidate);
+        if ($trimmedCandidate === '') {
+            return false;
+        }
+
+        if ($current === null || trim($current) === '') {
+            return true;
+        }
+
+        if ($this->isFallbackDepartureLabel($trimmedCandidate, $activityId)) {
+            return false;
+        }
+
+        return $this->isFallbackDepartureLabel($current, $activityId);
+    }
+
+    private function isFallbackDepartureLabel(string $label, int $activityId): bool
+    {
+        $trimmed = trim($label);
+        if ($trimmed === '') {
+            return false;
+        }
+
+        return strcasecmp($trimmed, 'Departure ' . $activityId) === 0;
     }
 
     private function defaultHttpFetch(string $url, array $params): string
