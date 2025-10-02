@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 require __DIR__ . '/../controller/Setup.php';
 
+use PonoRez\SGCForms\Cache\FileCache;
+use PonoRez\SGCForms\Cache\NullCache;
+use PonoRez\SGCForms\Services\ActivityInfoService;
 use PonoRez\SGCForms\Services\AvailabilityService;
 use PonoRez\SGCForms\Services\SoapClientBuilder;
 use PonoRez\SGCForms\Support\ErrorHandler;
 use PonoRez\SGCForms\Support\RequestValidator;
 use PonoRez\SGCForms\Support\ResponseFormatter;
+use PonoRez\SGCForms\UtilityService;
 
 try {
     $params = RequestValidator::requireParams($_GET, ['supplier', 'activity']);
@@ -55,10 +59,34 @@ try {
         $visibleMonth
     );
 
+    $cacheDirectory = UtilityService::projectRoot() . '/cache/activity-info';
+    $cache = is_writable(dirname($cacheDirectory))
+        ? new FileCache($cacheDirectory)
+        : new NullCache();
+    $activityInfoService = new ActivityInfoService($cache, new SoapClientBuilder());
+    $activityInfoResult = $activityInfoService->getActivityInfo($params['supplier'], $params['activity']);
+
+    $metadata = $result['metadata'] ?? [];
+    $activityInfoById = is_array($activityInfoResult['activities'] ?? null)
+        ? $activityInfoResult['activities']
+        : [];
+
+    if ($activityInfoById !== []) {
+        $metadata['activityInfo'] = $activityInfoById;
+
+        if (isset($activityInfoResult['checkedAt']) && $activityInfoResult['checkedAt'] !== null) {
+            $metadata['activityInfoCheckedAt'] = $activityInfoResult['checkedAt'];
+        }
+
+        if (isset($activityInfoResult['hash']) && is_string($activityInfoResult['hash'])) {
+            $metadata['activityInfoHash'] = $activityInfoResult['hash'];
+        }
+    }
+
     ResponseFormatter::success([
         'calendar' => $result['calendar']->toArray(),
         'timeslots' => array_map(static fn ($slot) => $slot->toArray(), $result['timeslots']),
-        'metadata' => $result['metadata'] ?? [],
+        'metadata' => $metadata,
     ]);
 } catch (Throwable $exception) {
     ErrorHandler::handle($exception);
