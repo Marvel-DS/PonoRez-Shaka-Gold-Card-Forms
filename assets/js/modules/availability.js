@@ -602,6 +602,79 @@ function normaliseTimesValue(value) {
     return stringifyTimeslotDetailValue(value);
 }
 
+function getMetadataEntryForDate(metadata, date) {
+    if (!metadata || typeof metadata !== 'object' || !date) {
+        return undefined;
+    }
+
+    const { extended } = metadata;
+    if (!extended || typeof extended !== 'object') {
+        return undefined;
+    }
+
+    if (!(date in extended)) {
+        return undefined;
+    }
+
+    return extended[date];
+}
+
+function enhanceTimeslotsWithMetadata(state, timeslots, metadata, fallbackMetadata) {
+    if (!Array.isArray(timeslots) || timeslots.length === 0) {
+        return timeslots;
+    }
+
+    const metadataEntry = getMetadataEntryForDate(metadata, state.selectedDate)
+        ?? getMetadataEntryForDate(fallbackMetadata, state.selectedDate);
+
+    if (!metadataEntry) {
+        return timeslots;
+    }
+
+    const metadataActivities = extractActivitiesFromMetadataEntry(metadataEntry);
+    const metadataTimes = extractTimesMapFromMetadataEntry(metadataEntry);
+    const configuredLabels = getDepartureLabelMap(state);
+
+    let changed = false;
+
+    const enhanced = timeslots.map((slot) => {
+        if (!slot || slot.id === undefined || slot.id === null) {
+            return slot;
+        }
+
+        const normalizedId = normaliseId(slot.id);
+        const lookupId = normalizedId ?? slot.id;
+
+        const metadataActivity = metadataActivities.get(lookupId);
+        const timeFromMetadata = normalizedId !== null
+            ? (metadataTimes.get(normalizedId) ?? metadataTimes.get(lookupId))
+            : metadataTimes.get(lookupId);
+        const labelFromMetadataActivity = resolveLabelFromCandidate(metadataActivity, lookupId);
+        const labelFromMetadataMap = timeFromMetadata ? normaliseTimesValue(timeFromMetadata) : undefined;
+
+        const metadataActivityName = typeof metadataActivity?.activityName === 'string'
+            && !isFallbackDepartureLabel(metadataActivity.activityName, lookupId)
+            ? metadataActivity.activityName
+            : undefined;
+
+        const replacementLabel = labelFromMetadataActivity
+            || (labelFromMetadataMap && !isFallbackDepartureLabel(labelFromMetadataMap, lookupId)
+                ? labelFromMetadataMap
+                : undefined)
+            || metadataActivityName
+            || configuredLabels[lookupId];
+
+        if (!replacementLabel || replacementLabel === slot.label) {
+            return slot;
+        }
+
+        changed = true;
+        return { ...slot, label: replacementLabel };
+    });
+
+    return changed ? enhanced : timeslots;
+}
+
 function getConfiguredActivityOrder(state) {
     const ids = state.bootstrap?.activity?.ids;
     if (!Array.isArray(ids)) {
@@ -671,16 +744,16 @@ function deriveTimeslotsFromSources(state, payloadTimeslots, metadata) {
     if (Array.isArray(payloadTimeslots) && payloadTimeslots.length > 0) {
         const availableIds = getAvailableIdsFromMetadata(metadata, state.selectedDate);
         if (availableIds.length === 0) {
-            return payloadTimeslots;
+            return enhanceTimeslotsWithMetadata(state, payloadTimeslots, metadata, state.availabilityMetadata);
         }
 
         const availableSet = new Set(availableIds);
         const filtered = payloadTimeslots.filter((slot) => availableSet.has(slot.id));
         if (filtered.length > 0) {
-            return filtered;
+            return enhanceTimeslotsWithMetadata(state, filtered, metadata, state.availabilityMetadata);
         }
 
-        return payloadTimeslots;
+        return enhanceTimeslotsWithMetadata(state, payloadTimeslots, metadata, state.availabilityMetadata);
     }
 
     const availableIds = getAvailableIdsFromMetadata(metadata, state.selectedDate);
