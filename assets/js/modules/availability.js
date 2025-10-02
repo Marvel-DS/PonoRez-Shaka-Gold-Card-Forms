@@ -386,6 +386,26 @@ function extractActivitiesFromMetadataEntry(entry) {
             }
         }
 
+        const descriptionDetails = extractDetailsFromDescription(activity.description);
+        if (descriptionDetails && Object.keys(descriptionDetails).length > 0) {
+            details = { ...(details ?? {}) };
+            Object.entries(descriptionDetails).forEach(([key, value]) => {
+                if (key === 'times') {
+                    if (details.times === undefined || isFallbackDepartureLabel(details.times, id)) {
+                        details.times = value;
+                    }
+                    if (!normalized.activityName || isFallbackDepartureLabel(normalized.activityName, id)) {
+                        normalized.activityName = value;
+                    }
+                    return;
+                }
+
+                if (details[key] === undefined) {
+                    details[key] = value;
+                }
+            });
+        }
+
         METADATA_LABEL_KEYS.forEach((key) => {
             if (!(key in activity)) {
                 return;
@@ -520,6 +540,23 @@ function extractTimesMapFromMetadataEntry(entry) {
             sanitizedDetails = normaliseTimeslotDetails(candidate.details);
         }
 
+        const descriptionDetails = extractDetailsFromDescription(candidate.description);
+        if (descriptionDetails && Object.keys(descriptionDetails).length > 0) {
+            sanitizedDetails = { ...(sanitizedDetails ?? {}) };
+            Object.entries(descriptionDetails).forEach(([key, value]) => {
+                if (key === 'times') {
+                    if (sanitizedDetails.times === undefined || isFallbackDepartureLabel(sanitizedDetails.times, resolvedId)) {
+                        sanitizedDetails.times = value;
+                    }
+                    return;
+                }
+
+                if (sanitizedDetails[key] === undefined) {
+                    sanitizedDetails[key] = value;
+                }
+            });
+        }
+
         const decorated = sanitizedDetails ? { ...candidate, details: sanitizedDetails } : candidate;
         const label = resolveLabelFromDetails(sanitizedDetails, resolvedId) ?? resolveLabelFromCandidate(decorated, resolvedId);
 
@@ -562,28 +599,7 @@ function extractTimesMapFromMetadataEntry(entry) {
 }
 
 function normaliseTimesValue(value) {
-    if (value === null || value === undefined) {
-        return undefined;
-    }
-
-    if (Array.isArray(value)) {
-        const values = value
-            .filter((item) => item !== null && item !== undefined)
-            .map((item) => (typeof item === 'string' ? item : String(item)))
-            .map((item) => item.trim())
-            .filter((item) => item !== '');
-
-        if (values.length === 0) {
-            return undefined;
-        }
-
-        return values.join(', ');
-    }
-
-    const stringValue = typeof value === 'string' ? value : String(value);
-    const trimmed = stringValue.trim();
-
-    return trimmed === '' ? undefined : trimmed;
+    return stringifyTimeslotDetailValue(value);
 }
 
 function getConfiguredActivityOrder(state) {
@@ -738,6 +754,75 @@ function mapCalendar(calendar = []) {
     }, []);
 }
 
+function stringifyTimeslotDetailValue(value) {
+    if (value === null || value === undefined) {
+        return undefined;
+    }
+
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return trimmed === '' ? undefined : trimmed;
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        const stringValue = String(value).trim();
+        return stringValue === '' ? undefined : stringValue;
+    }
+
+    if (Array.isArray(value)) {
+        const parts = value
+            .map((item) => stringifyTimeslotDetailValue(item))
+            .filter((item) => item !== undefined && item !== '');
+
+        if (parts.length === 0) {
+            return undefined;
+        }
+
+        return parts.join(', ');
+    }
+
+    if (typeof value !== 'object') {
+        const stringValue = String(value).trim();
+        return stringValue === '' ? undefined : stringValue;
+    }
+
+    const preferredKeys = [
+        'provided',
+        'display',
+        'label',
+        'text',
+        'value',
+        'times',
+        'time',
+        'departure',
+        'departureTime',
+        'checkIn',
+        'checkin',
+        'checkintime',
+        'check_in',
+    ];
+
+    for (const key of preferredKeys) {
+        if (!(key in value)) {
+            continue;
+        }
+
+        const candidate = stringifyTimeslotDetailValue(value[key]);
+        if (candidate !== undefined) {
+            return candidate;
+        }
+    }
+
+    for (const candidate of Object.values(value)) {
+        const stringValue = stringifyTimeslotDetailValue(candidate);
+        if (stringValue !== undefined) {
+            return stringValue;
+        }
+    }
+
+    return undefined;
+}
+
 function normaliseTimeslotDetails(details) {
     if (!details || typeof details !== 'object') {
         return {};
@@ -753,14 +838,47 @@ function normaliseTimeslotDetails(details) {
             return accumulator;
         }
 
-        const stringValue = String(value);
-        if (stringValue === '') {
+        const normalisedValue = stringifyTimeslotDetailValue(value);
+        if (normalisedValue === undefined) {
             return accumulator;
         }
 
-        accumulator[stringKey] = stringValue;
+        accumulator[stringKey] = normalisedValue;
         return accumulator;
     }, {});
+}
+
+function extractDetailsFromDescription(description) {
+    if (!description || typeof description !== 'object') {
+        return undefined;
+    }
+
+    const sources = Array.isArray(description) ? description : [description];
+    const aggregated = {};
+
+    sources.forEach((source) => {
+        if (!source || typeof source !== 'object') {
+            return;
+        }
+
+        const directDetails = normaliseTimeslotDetails(source);
+        Object.entries(directDetails).forEach(([key, value]) => {
+            if (aggregated[key] === undefined) {
+                aggregated[key] = value;
+            }
+        });
+
+        if (source.details && typeof source.details === 'object' && !Array.isArray(source.details)) {
+            const nestedDetails = normaliseTimeslotDetails(source.details);
+            Object.entries(nestedDetails).forEach(([key, value]) => {
+                if (aggregated[key] === undefined) {
+                    aggregated[key] = value;
+                }
+            });
+        }
+    });
+
+    return Object.keys(aggregated).length > 0 ? aggregated : undefined;
 }
 
 function mapTimeslots(timeslots = []) {
