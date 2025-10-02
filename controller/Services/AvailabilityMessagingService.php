@@ -56,7 +56,8 @@ final class AvailabilityMessagingService
         $cache = [];
 
         foreach ($normalizedRequests as $request) {
-            $cacheKey = $this->buildCacheKey($request['activityId'], $request['date'], $requestedSeats);
+            $ponorezActivityId = $request['ponorezActivityId'];
+            $cacheKey = $this->buildCacheKey($ponorezActivityId, $request['date'], $requestedSeats);
             if (isset($cache[$cacheKey])) {
                 $results[] = $cache[$cacheKey];
                 continue;
@@ -65,14 +66,14 @@ final class AvailabilityMessagingService
             $baseline = $this->callCheckActivityAvailability(
                 $client,
                 $supplierConfig,
-                $request['activityId'],
+                $ponorezActivityId,
                 $request['date'],
                 $requestedSeats
             );
 
             if ($baseline !== true) {
                 $message = [
-                    'activityId' => (string) $request['activityId'],
+                    'activityId' => $request['activityId'],
                     'date' => $request['date'],
                     'tier' => 'unavailable',
                     'seats' => 0,
@@ -85,9 +86,10 @@ final class AvailabilityMessagingService
             $message = $this->probeAdditionalAvailability(
                 $client,
                 $supplierConfig,
-                $request['activityId'],
+                $ponorezActivityId,
                 $request['date'],
-                $requestedSeats
+                $requestedSeats,
+                $request['activityId']
             );
 
             $cache[$cacheKey] = $message;
@@ -129,7 +131,7 @@ final class AvailabilityMessagingService
 
     /**
      * @param array<int|string, int> $activityIds
-     * @return list<array{activityId:int,date:string}>
+     * @return list<array{activityId:string,ponorezActivityId:int,date:string}>
      */
     private function normalizeTimeslotRequests(array $timeslotRequests, array $activityIds): array
     {
@@ -147,10 +149,12 @@ final class AvailabilityMessagingService
                 $date = null;
             }
 
-            $normalizedId = $this->normalizeActivityId($activityId);
-            if ($normalizedId === null) {
+            $resolvedActivity = $this->resolveActivityIdentifier($activityId);
+            if ($resolvedActivity === null) {
                 continue;
             }
+
+            [$identifier, $normalizedId] = $resolvedActivity;
 
             if ($allowed !== null && !isset($allowed[$normalizedId])) {
                 continue;
@@ -168,7 +172,8 @@ final class AvailabilityMessagingService
 
             $seen[$key] = true;
             $normalized[] = [
-                'activityId' => $normalizedId,
+                'activityId' => $identifier,
+                'ponorezActivityId' => $normalizedId,
                 'date' => $normalizedDate,
             ];
         }
@@ -176,14 +181,30 @@ final class AvailabilityMessagingService
         return $normalized;
     }
 
-    private function normalizeActivityId(mixed $activityId): ?int
+    /**
+     * @return array{0:string,1:int}|null
+     */
+    private function resolveActivityIdentifier(mixed $activityId): ?array
     {
         if (is_int($activityId)) {
-            return $activityId;
+            return [(string) $activityId, $activityId];
         }
 
-        if (is_string($activityId) && $activityId !== '' && preg_match('/^-?\d+$/', $activityId) === 1) {
-            return (int) $activityId;
+        if (!is_string($activityId)) {
+            return null;
+        }
+
+        $trimmed = trim($activityId);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        if (preg_match('/^-?\d+$/', $trimmed) === 1) {
+            return [$activityId, (int) $trimmed];
+        }
+
+        if (preg_match('/^timeslot-(\d+)$/i', $trimmed, $matches) === 1) {
+            return [$activityId, (int) $matches[1]];
         }
 
         return null;
@@ -242,7 +263,8 @@ final class AvailabilityMessagingService
         array $supplierConfig,
         int $activityId,
         string $isoDate,
-        int $requestedSeats
+        int $requestedSeats,
+        string $responseActivityId
     ): array {
         $confirmedSeats = $requestedSeats;
         $tier = 'limited';
@@ -265,7 +287,7 @@ final class AvailabilityMessagingService
         }
 
         return [
-            'activityId' => (string) $activityId,
+            'activityId' => $responseActivityId,
             'date' => $isoDate,
             'tier' => $tier,
             'seats' => $confirmedSeats,
