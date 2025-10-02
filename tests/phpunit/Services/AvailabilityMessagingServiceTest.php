@@ -186,6 +186,50 @@ final class AvailabilityMessagingServiceTest extends TestCase
         self::assertSame('limited', $message['tier']);
         self::assertSame(3, $message['seats']);
     }
+
+    public function testCompositeActivityIdentifierRetainsOriginalKey(): void
+    {
+        $responses = [
+            101 => [
+                '2024-08-06' => [
+                    2 => true,
+                    5 => false,
+                    4 => false,
+                    3 => true,
+                ],
+            ],
+        ];
+
+        $client = new AvailabilityProbeSoapClient($responses);
+        $factory = new AvailabilityProbeSoapClientFactory($client);
+
+        $service = new AvailabilityMessagingService($factory);
+        $result = $service->probeTimeslots(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            [
+                ['activityId' => 'timeslot-101', 'date' => '2024-08-06'],
+                ['activityId' => 101, 'date' => '2024-08-06'],
+            ],
+            ['345' => 2]
+        );
+
+        self::assertSame(2, $result['requestedSeats']);
+        self::assertCount(1, $result['messages']);
+        self::assertCount(4, $client->calls);
+
+        $message = $result['messages'][0];
+        self::assertSame('timeslot-101', $message['activityId']);
+        self::assertSame('2024-08-06', $message['date']);
+        self::assertSame('limited', $message['tier']);
+        self::assertSame(3, $message['seats']);
+
+        foreach ($client->calls as $call) {
+            self::assertSame('checkActivityAvailability', $call[0]);
+            $payload = $call[1][0] ?? [];
+            self::assertSame(101, (int) ($payload['activityId'] ?? 0));
+        }
+    }
 }
 
 final class AvailabilityProbeSoapClientFactory implements SoapClientFactory
