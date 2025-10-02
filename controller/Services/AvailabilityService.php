@@ -233,11 +233,18 @@ final class AvailabilityService
 
         $activityIds = $this->extractExtendedActivityIds($entry);
         $activities = $this->extractExtendedActivities($entry, $activityIds);
+        $times = $this->extractExtendedTimes($entry, $activityIds, $activities);
 
-        return [
+        $normalized = [
             'activityIds' => $activityIds,
             'activities' => $activities,
         ];
+
+        if ($times !== []) {
+            $normalized['times'] = $times;
+        }
+
+        return $normalized;
     }
 
     private function extractExtendedActivityIds(array $entry): array
@@ -322,6 +329,147 @@ final class AvailabilityService
             }
 
             $candidate = $this->normalizeExtendedActivityIdValue($value[$key]);
+            if ($candidate !== null) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string,mixed>|list<mixed> $entry
+     * @param int[]                            $activityIds
+     * @param array<int,array<string,mixed>>   $activities
+     *
+     * @return array<int,string>
+     */
+    private function extractExtendedTimes(array $entry, array $activityIds, array $activities): array
+    {
+        $times = [];
+
+        foreach ($activities as $activity) {
+            $activityId = $activity['activityId'] ?? null;
+            if (!is_int($activityId) || array_key_exists($activityId, $times)) {
+                continue;
+            }
+
+            $time = $this->extractTimeValueFromArray($activity);
+            if ($time !== null) {
+                $times[$activityId] = $time;
+            }
+        }
+
+        $candidateKeys = ['times', 'time', 'ponore', 'ponoreTimes', 'ponoretimes', 'ponoreValue', 'ponorevalue', 'ponore_values', 'ponoreValues', 'departureTimes', 'departure_times'];
+        foreach ($candidateKeys as $candidateKey) {
+            if (!array_key_exists($candidateKey, $entry)) {
+                continue;
+            }
+
+            $this->accumulateExtendedTimes($times, $entry[$candidateKey], $activityIds);
+        }
+
+        return $times;
+    }
+
+    /**
+     * @param array<int,string> $times
+     * @param int[]             $activityIds
+     */
+    private function accumulateExtendedTimes(array &$times, mixed $source, array $activityIds): void
+    {
+        if ($source instanceof stdClass) {
+            $source = (array) $source;
+        }
+
+        if (is_scalar($source) || $source === null) {
+            $string = $this->stringifyTimeslotDetailValue($source);
+            if ($string !== null && $activityIds !== []) {
+                $firstId = $activityIds[0];
+                if (!array_key_exists($firstId, $times)) {
+                    $times[$firstId] = $string;
+                }
+            }
+
+            return;
+        }
+
+        if (!is_array($source)) {
+            return;
+        }
+
+        if (array_is_list($source)) {
+            $index = 0;
+            foreach ($source as $value) {
+                if ($value instanceof stdClass) {
+                    $value = (array) $value;
+                }
+
+                $id = null;
+                $string = null;
+
+                if (is_array($value)) {
+                    $id = $this->normalizeExtendedActivityIdValue($value['activityId'] ?? $value['activityid'] ?? $value['id'] ?? $value['aid'] ?? null);
+                    $string = $this->extractTimeValueFromArray($value);
+                } else {
+                    $string = $this->stringifyTimeslotDetailValue($value);
+                }
+
+                if ($string !== null) {
+                    $resolvedId = $id ?? ($activityIds[$index] ?? null);
+                    if ($resolvedId !== null && !array_key_exists($resolvedId, $times)) {
+                        $times[$resolvedId] = $string;
+                    }
+                }
+
+                $index++;
+            }
+
+            return;
+        }
+
+        foreach ($source as $key => $value) {
+            $id = $this->normalizeExtendedActivityIdValue($key);
+
+            if ($value instanceof stdClass) {
+                $value = (array) $value;
+            }
+
+            if (is_array($value)) {
+                $candidateId = $id ?? $this->normalizeExtendedActivityIdValue($value['activityId'] ?? $value['activityid'] ?? $value['id'] ?? $value['aid'] ?? null);
+                $string = $this->extractTimeValueFromArray($value);
+
+                if ($candidateId !== null && $string !== null && !array_key_exists($candidateId, $times)) {
+                    $times[$candidateId] = $string;
+                }
+
+                continue;
+            }
+
+            $string = $this->stringifyTimeslotDetailValue($value);
+            if ($id !== null && $string !== null && !array_key_exists($id, $times)) {
+                $times[$id] = $string;
+            }
+        }
+    }
+
+    private function extractTimeValueFromArray(array $value): ?string
+    {
+        if (isset($value['details'])) {
+            $details = $this->normalizeTimeslotDetails($value['details']);
+            foreach (['times', 'time', 'departure', 'departureTime', 'checkIn', 'checkin', 'checkintime', 'check_in'] as $detailKey) {
+                if (array_key_exists($detailKey, $details)) {
+                    return $details[$detailKey];
+                }
+            }
+        }
+
+        foreach (['times', 'time', 'ponoreValue', 'ponorevalue', 'ponore', 'departure', 'departureTime', 'checkIn', 'checkin', 'checkintime', 'check_in'] as $key) {
+            if (!array_key_exists($key, $value)) {
+                continue;
+            }
+
+            $candidate = $this->stringifyTimeslotDetailValue($value[$key]);
             if ($candidate !== null) {
                 return $candidate;
             }

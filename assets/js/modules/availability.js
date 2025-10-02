@@ -127,6 +127,29 @@ function normalizeActivityForDisplay(activity) {
     return copy;
 }
 
+function normalizeTimesForDisplay(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return undefined;
+    }
+
+    const normalized = {};
+
+    Object.entries(value).forEach(([key, timeValue]) => {
+        const [id] = convertIdsForDisplay([key]);
+        if (id === undefined) {
+            return;
+        }
+
+        if (timeValue === null || timeValue === undefined) {
+            return;
+        }
+
+        normalized[id] = typeof timeValue === 'string' ? timeValue : String(timeValue);
+    });
+
+    return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
 function normalizeExtendedEntryForDisplay(entry, fallbackIds) {
     if (Array.isArray(entry)) {
         const ids = convertIdsForDisplay(collectIdsFromValues(entry));
@@ -157,6 +180,13 @@ function normalizeExtendedEntryForDisplay(entry, fallbackIds) {
         normalized.activities = entry.activities.map((activity) => normalizeActivityForDisplay(activity));
     } else if (entry.activities && typeof entry.activities === 'object') {
         normalized.activities = Object.values(entry.activities).map((activity) => normalizeActivityForDisplay(activity));
+    }
+
+    if (entry.times && typeof entry.times === 'object' && !Array.isArray(entry.times)) {
+        const times = normalizeTimesForDisplay(entry.times);
+        if (times) {
+            normalized.times = times;
+        }
     }
 
     return normalized;
@@ -212,6 +242,34 @@ function extractActivitiesFromMetadataEntry(entry) {
         }
 
         map.set(id, normalized);
+    });
+
+    return map;
+}
+
+function extractTimesMapFromMetadataEntry(entry) {
+    const map = new Map();
+
+    if (!entry || typeof entry !== 'object') {
+        return map;
+    }
+
+    const { times } = entry;
+    if (!times || typeof times !== 'object' || Array.isArray(times)) {
+        return map;
+    }
+
+    Object.entries(times).forEach(([key, value]) => {
+        if (value === null || value === undefined) {
+            return;
+        }
+
+        const normalisedKey = normaliseId(key);
+        if (normalisedKey === null) {
+            return;
+        }
+
+        map.set(normalisedKey, typeof value === 'string' ? value : String(value));
     });
 
     return map;
@@ -482,26 +540,33 @@ function buildDeparturesForMetadata(state, ids, metadataEntry) {
 
     const configuredLabels = getDepartureLabelMap(state);
     const metadataActivities = extractActivitiesFromMetadataEntry(metadataEntry);
+    const metadataTimes = extractTimesMapFromMetadataEntry(metadataEntry);
 
     return ids.map((id) => {
-        const timeslot = knownTimeslots.get(id);
-        const metadataActivity = metadataActivities.get(id);
+        const normalizedId = normaliseId(id);
+        const lookupId = normalizedId ?? id;
+        const timeslot = knownTimeslots.get(lookupId);
+        const metadataActivity = metadataActivities.get(lookupId);
+        const timeFromMetadata = normalizedId ? metadataTimes.get(normalizedId) : undefined;
 
         const label = timeslot?.label
             || metadataActivity?.activityName
-            || configuredLabels[id]
-            || `Departure ${id}`;
+            || configuredLabels[lookupId]
+            || `Departure ${lookupId}`;
 
         const metadataDetails = metadataActivity?.details && typeof metadataActivity.details === 'object'
             && !Array.isArray(metadataActivity.details)
             ? { ...metadataActivity.details }
             : undefined;
+        let details = timeslot?.details && Object.keys(timeslot.details).length > 0
+            ? { ...timeslot.details }
+            : (metadataDetails ? { ...metadataDetails } : undefined);
 
-        const details = timeslot?.details && Object.keys(timeslot.details).length > 0
-            ? timeslot.details
-            : metadataDetails;
+        if (timeFromMetadata && (!details || details.times === undefined)) {
+            details = { ...(details ?? {}), times: timeFromMetadata };
+        }
 
-        const departure = { id, label };
+        const departure = { id: lookupId, label };
 
         if (metadataActivity?.activityName) {
             departure.activityName = metadataActivity.activityName;
