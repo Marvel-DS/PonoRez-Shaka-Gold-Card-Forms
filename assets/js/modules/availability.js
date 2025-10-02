@@ -256,7 +256,40 @@ function describeAvailability(timeslot) {
     return `${timeslot.available} seats available`;
 }
 
-function formatMetadataForDisplay(metadata, selectedDate) {
+function buildDeparturesForMetadata(state, ids) {
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return [];
+    }
+
+    const knownTimeslots = new Map();
+    (state.timeslots || []).forEach((slot) => {
+        if (!slot || !slot.id) {
+            return;
+        }
+
+        knownTimeslots.set(slot.id, {
+            label: slot.label,
+            details: slot.details && typeof slot.details === 'object' ? slot.details : undefined,
+        });
+    });
+
+    const configuredLabels = getDepartureLabelMap(state);
+
+    return ids.map((id) => {
+        const timeslot = knownTimeslots.get(id);
+        const label = timeslot?.label || configuredLabels[id] || `Departure ${id}`;
+        const details = timeslot?.details && Object.keys(timeslot.details).length > 0
+            ? timeslot.details
+            : undefined;
+
+        return details ? { id, label, details } : { id, label };
+    });
+}
+
+function formatMetadataForDisplay(state) {
+    const metadata = state.availabilityMetadata;
+    const selectedDate = state.selectedDate;
+
     if (!metadata || typeof metadata !== 'object') {
         return '';
     }
@@ -268,8 +301,17 @@ function formatMetadataForDisplay(metadata, selectedDate) {
     }
 
     const extended = metadata.extended;
-    if (extended && typeof extended === 'object' && selectedDate && Object.prototype.hasOwnProperty.call(extended, selectedDate)) {
-        snapshot.extendedForSelectedDate = extended[selectedDate];
+    if (extended && typeof extended === 'object' && selectedDate) {
+        const availableIds = getAvailableIdsFromMetadata(metadata, selectedDate);
+        const departures = buildDeparturesForMetadata(state, availableIds);
+
+        snapshot.extendedForSelectedDate = {
+            activityIds: extended[selectedDate] ?? availableIds,
+        };
+
+        if (departures.length > 0) {
+            snapshot.extendedForSelectedDate.departures = departures;
+        }
     }
 
     try {
@@ -367,7 +409,7 @@ function renderTimeslots(state) {
         const hasMetadata = metadata && typeof metadata === 'object' && Object.keys(metadata).length > 0;
 
         if (hasMetadata) {
-            const formatted = formatMetadataForDisplay(metadata, state.selectedDate);
+            const formatted = formatMetadataForDisplay(state);
             metadataDetails.textContent = formatted;
             toggleHidden(metadataDetails, formatted === '');
         } else {
