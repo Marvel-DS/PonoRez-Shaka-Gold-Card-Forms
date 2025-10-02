@@ -7,6 +7,12 @@ import { initUpgrades } from './modules/upgrades.js';
 import { initPricing } from './modules/pricing.js';
 import { initBooking } from './modules/booking.js';
 
+function removeAvailabilityMetadataDebug() {
+    document.querySelectorAll('[data-availability-metadata]').forEach((element) => {
+        element.remove();
+    });
+}
+
 function bootstrap() {
     initAlerts();
     initGuestTypes();
@@ -16,6 +22,7 @@ function bootstrap() {
     initUpgrades();
     initPricing();
     initBooking();
+    removeAvailabilityMetadataDebug();
 }
 
 if (document.readyState === 'loading') {
