@@ -11,8 +11,6 @@ let timeslotList;
 let summaryBanner;
 let loadingState;
 let emptyState;
-let metadataDetails;
-
 let fetchTimer;
 let controller;
 let lastSignature = null;
@@ -160,119 +158,6 @@ function normalizeMetadataAvailabilityValue(value) {
     }
 
     return null;
-}
-
-function convertIdsForDisplay(ids) {
-    if (!Array.isArray(ids)) {
-        return [];
-    }
-
-    return ids.map((value) => {
-        if (typeof value === 'number') {
-            return value;
-        }
-
-        const normalised = normaliseId(value);
-        if (normalised !== null && /^\d+$/.test(normalised)) {
-            return Number.parseInt(normalised, 10);
-        }
-
-        return normalised ?? value;
-    });
-}
-
-function normalizeActivityForDisplay(activity) {
-    if (!activity || typeof activity !== 'object') {
-        return activity;
-    }
-
-    const copy = { ...activity };
-
-    const id = convertIdsForDisplay([
-        copy.activityId ?? copy.activityid ?? copy.id ?? copy.aid,
-    ])[0];
-
-    if (id !== undefined) {
-        copy.activityId = id;
-    }
-
-    if (copy.details && typeof copy.details === 'object' && !Array.isArray(copy.details)) {
-        copy.details = { ...copy.details };
-    }
-
-    if (copy.available !== undefined) {
-        const availability = normalizeMetadataAvailabilityValue(copy.available);
-        if (availability !== null) {
-            copy.available = availability;
-        }
-    }
-
-    return copy;
-}
-
-function normalizeTimesForDisplay(value) {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) {
-        return undefined;
-    }
-
-    const normalized = {};
-
-    Object.entries(value).forEach(([key, timeValue]) => {
-        const [id] = convertIdsForDisplay([key]);
-        if (id === undefined) {
-            return;
-        }
-
-        if (timeValue === null || timeValue === undefined) {
-            return;
-        }
-
-        normalized[id] = typeof timeValue === 'string' ? timeValue : String(timeValue);
-    });
-
-    return Object.keys(normalized).length > 0 ? normalized : undefined;
-}
-
-function normalizeExtendedEntryForDisplay(entry, fallbackIds) {
-    if (Array.isArray(entry)) {
-        const ids = convertIdsForDisplay(collectIdsFromValues(entry));
-        return {
-            activityIds: ids.length > 0 ? Array.from(new Set(ids)) : convertIdsForDisplay(fallbackIds),
-        };
-    }
-
-    if (!entry || typeof entry !== 'object') {
-        return {
-            activityIds: convertIdsForDisplay(fallbackIds),
-        };
-    }
-
-    const normalized = { ...entry };
-
-    if (Array.isArray(entry.activityIds)) {
-        normalized.activityIds = Array.from(new Set(convertIdsForDisplay(entry.activityIds)));
-    } else if (Array.isArray(entry.aids)) {
-        normalized.activityIds = Array.from(new Set(convertIdsForDisplay(entry.aids)));
-    } else if (Array.isArray(entry.ids)) {
-        normalized.activityIds = Array.from(new Set(convertIdsForDisplay(entry.ids)));
-    } else {
-        normalized.activityIds = convertIdsForDisplay(fallbackIds);
-    }
-
-    if (Array.isArray(entry.activities)) {
-        normalized.activities = entry.activities.map((activity) => normalizeActivityForDisplay(activity));
-    } else if (entry.activities && typeof entry.activities === 'object') {
-        normalized.activities = Object.values(entry.activities).map((activity) => normalizeActivityForDisplay(activity));
-    }
-
-    if (entry.times && typeof entry.times === 'object' && !Array.isArray(entry.times)) {
-        const times = normalizeTimesForDisplay(entry.times);
-        if (times) {
-            normalized.times = times;
-        }
-    }
-
-    return normalized;
 }
 
 function extractActivitiesFromMetadataEntry(entry) {
@@ -1023,126 +908,6 @@ function describeAvailability(timeslot) {
     return `${timeslot.available} seats available`;
 }
 
-function buildDeparturesForMetadata(state, ids, metadataEntry) {
-    if (!Array.isArray(ids) || ids.length === 0) {
-        return [];
-    }
-
-    const knownTimeslots = new Map();
-    (state.timeslots || []).forEach((slot) => {
-        if (!slot || !slot.id) {
-            return;
-        }
-
-        knownTimeslots.set(slot.id, {
-            label: slot.label,
-            details: slot.details && typeof slot.details === 'object' ? slot.details : undefined,
-        });
-    });
-
-    const configuredLabels = getDepartureLabelMap(state);
-    const metadataActivities = extractActivitiesFromMetadataEntry(metadataEntry);
-    const metadataTimes = extractTimesMapFromMetadataEntry(metadataEntry);
-
-    return ids.map((id) => {
-        const normalizedId = normaliseId(id);
-        const lookupId = normalizedId ?? id;
-        const timeslot = knownTimeslots.get(lookupId);
-        const metadataActivity = metadataActivities.get(lookupId);
-        const timeFromMetadata = normalizedId ? metadataTimes.get(normalizedId) : undefined;
-        const labelFromMetadataActivity = resolveLabelFromCandidate(metadataActivity, lookupId);
-        const labelFromMetadataMap = timeFromMetadata ? normaliseTimesValue(timeFromMetadata) : undefined;
-        const labelFromTimeslot = resolveLabelFromCandidate(timeslot, lookupId);
-
-        const metadataActivityName = typeof metadataActivity?.activityName === 'string'
-            && !isFallbackDepartureLabel(metadataActivity.activityName, lookupId)
-            ? metadataActivity.activityName
-            : undefined;
-
-        const label = labelFromMetadataActivity
-            || (labelFromMetadataMap && !isFallbackDepartureLabel(labelFromMetadataMap, lookupId)
-                ? labelFromMetadataMap
-                : undefined)
-            || labelFromTimeslot
-            || metadataActivityName
-            || configuredLabels[lookupId]
-            || `Departure ${lookupId}`;
-
-        const metadataDetails = metadataActivity?.details && typeof metadataActivity.details === 'object'
-            && !Array.isArray(metadataActivity.details)
-            ? { ...metadataActivity.details }
-            : undefined;
-        let details = timeslot?.details && Object.keys(timeslot.details).length > 0
-            ? { ...timeslot.details }
-            : (metadataDetails ? { ...metadataDetails } : undefined);
-
-        if (labelFromMetadataActivity && (!details || details.times === undefined)) {
-            details = { ...(details ?? {}), times: labelFromMetadataActivity };
-        } else if (labelFromMetadataMap && (!details || details.times === undefined)
-            && !isFallbackDepartureLabel(labelFromMetadataMap, lookupId)) {
-            details = { ...(details ?? {}), times: labelFromMetadataMap };
-        } else if (labelFromTimeslot && (!details || details.times === undefined)) {
-            details = { ...(details ?? {}), times: labelFromTimeslot };
-        }
-
-        const departure = { id: lookupId, label };
-
-        if (metadataActivityName) {
-            departure.activityName = metadataActivityName;
-        } else if (metadataActivity?.activityName && !isFallbackDepartureLabel(metadataActivity.activityName, lookupId)) {
-            departure.activityName = metadataActivity.activityName;
-        }
-
-        if (metadataActivity && typeof metadataActivity.available === 'boolean') {
-            departure.available = metadataActivity.available;
-        }
-
-        if (details) {
-            departure.details = details;
-        }
-
-        return departure;
-    });
-}
-
-function formatMetadataForDisplay(state) {
-    const metadata = state.availabilityMetadata;
-    const selectedDate = state.selectedDate;
-
-    if (!metadata || typeof metadata !== 'object') {
-        return '';
-    }
-
-    const snapshot = { ...metadata };
-
-    if (selectedDate) {
-        snapshot.selectedDate = selectedDate;
-    }
-
-    const extended = metadata.extended;
-    if (extended && typeof extended === 'object' && selectedDate) {
-        const entry = extended[selectedDate];
-        const availableIds = getAvailableIdsFromMetadata(metadata, selectedDate);
-        const departures = buildDeparturesForMetadata(state, availableIds, entry);
-
-        const normalizedEntry = normalizeExtendedEntryForDisplay(entry, availableIds);
-
-        if (departures.length > 0) {
-            normalizedEntry.departures = departures;
-        }
-
-        snapshot.extendedForSelectedDate = normalizedEntry;
-    }
-
-    try {
-        return JSON.stringify(snapshot, null, 2);
-    } catch (error) {
-        console.warn('Unable to stringify availability metadata', error);
-    }
-
-    return '';
-}
-
 function renderTimeslots(state) {
     if (!availabilityPanel || !timeslotList) {
         return;
@@ -1224,19 +989,6 @@ function renderTimeslots(state) {
         }
     }
 
-    if (metadataDetails) {
-        const metadata = state.availabilityMetadata || {};
-        const hasMetadata = metadata && typeof metadata === 'object' && Object.keys(metadata).length > 0;
-
-        if (hasMetadata) {
-            const formatted = formatMetadataForDisplay(state);
-            metadataDetails.textContent = formatted;
-            toggleHidden(metadataDetails, formatted === '');
-        } else {
-            metadataDetails.textContent = '';
-            toggleHidden(metadataDetails, true);
-        }
-    }
 }
 
 async function fetchAvailability() {
@@ -1357,7 +1109,6 @@ export function initAvailability() {
     summaryBanner = qs('[data-state="summary"]', availabilityPanel);
     loadingState = qs('[data-state="loading"]', availabilityPanel);
     emptyState = qs('[data-state="empty"]', availabilityPanel);
-    metadataDetails = qs('[data-availability-metadata]', availabilityPanel);
 
     if (timeslotList) {
         timeslotList.addEventListener('change', handleTimeslotChange);
