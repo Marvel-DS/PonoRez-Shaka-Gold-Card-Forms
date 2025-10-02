@@ -152,15 +152,37 @@ final class AvailabilityService
 
         $extendedAvailability = $this->buildExtendedAvailabilityIndex($monthData);
         $selectedDateKey = $selectedDay->format('Y-m-d');
-        $availableActivityIdsForSelectedDate = $extendedAvailability[$selectedDateKey]['activityIds'] ?? [];
+        $selectedExtendedEntry = $extendedAvailability[$selectedDateKey] ?? null;
+        $availableActivityIdsForSelectedDate = $selectedExtendedEntry['activityIds'] ?? [];
 
-        $timeslots = $this->fetchTimeslotsForDate(
-            $this->soapClientBuilder->build(),
-            $supplierConfig,
-            $activityIds,
-            $selectedDay->format('Y-m-d'),
-            $guestCounts
-        );
+        $timeslots = [];
+        $shouldFetchTimeslotsFromSoap = true;
+
+        if (is_array($selectedExtendedEntry)) {
+            if ($availableActivityIdsForSelectedDate === []) {
+                $shouldFetchTimeslotsFromSoap = false;
+            } else {
+                $syntheticTimeslots = $this->buildTimeslotsFromExtendedEntry(
+                    $selectedExtendedEntry,
+                    $activityIds
+                );
+
+                if ($syntheticTimeslots !== null) {
+                    $timeslots = $syntheticTimeslots;
+                    $shouldFetchTimeslotsFromSoap = false;
+                }
+            }
+        }
+
+        if ($shouldFetchTimeslotsFromSoap) {
+            $timeslots = $this->fetchTimeslotsForDate(
+                $this->soapClientBuilder->build(),
+                $supplierConfig,
+                $activityIds,
+                $selectedDay->format('Y-m-d'),
+                $guestCounts
+            );
+        }
 
         $timeslotStatus = ($timeslots === [] && $availableActivityIdsForSelectedDate === [])
             ? 'unavailable'
@@ -216,6 +238,97 @@ final class AvailabilityService
         }
 
         return $index;
+    }
+
+    /**
+     * @param array<string,mixed> $entry
+     * @param int[]               $requestedActivityIds
+     *
+     * @return Timeslot[]|null
+     */
+    private function buildTimeslotsFromExtendedEntry(array $entry, array $requestedActivityIds): ?array
+    {
+        if (!isset($entry['times']) || !is_array($entry['times']) || $entry['times'] === []) {
+            return null;
+        }
+
+        $times = [];
+        foreach ($entry['times'] as $activityId => $label) {
+            $normalizedId = null;
+            if (is_int($activityId)) {
+                $normalizedId = $activityId;
+            } elseif (is_string($activityId) && preg_match('/^\d+$/', $activityId) === 1) {
+                $normalizedId = (int) $activityId;
+            }
+
+            if ($normalizedId === null) {
+                continue;
+            }
+
+            $stringLabel = $this->stringifyTimeslotDetailValue($label);
+            if ($stringLabel === null) {
+                continue;
+            }
+
+            $times[$normalizedId] = $stringLabel;
+        }
+
+        if ($times === []) {
+            return null;
+        }
+
+        $activitiesById = [];
+        if (isset($entry['activities']) && is_array($entry['activities'])) {
+            foreach ($entry['activities'] as $activity) {
+                if (!is_array($activity)) {
+                    continue;
+                }
+
+                $activityId = $activity['activityId'] ?? null;
+                if (!is_int($activityId) || isset($activitiesById[$activityId])) {
+                    continue;
+                }
+
+                $activitiesById[$activityId] = $activity;
+            }
+        }
+
+        $orderedIds = [];
+        if ($requestedActivityIds !== []) {
+            foreach ($requestedActivityIds as $requestedId) {
+                if (isset($times[$requestedId])) {
+                    $orderedIds[] = $requestedId;
+                }
+            }
+        }
+
+        foreach (array_keys($times) as $activityId) {
+            if (!in_array($activityId, $orderedIds, true)) {
+                $orderedIds[] = $activityId;
+            }
+        }
+
+        $timeslotList = [];
+        foreach ($orderedIds as $activityId) {
+            $label = $times[$activityId];
+            $details = [];
+
+            if (isset($activitiesById[$activityId]['details']) && is_array($activitiesById[$activityId]['details'])) {
+                $details = $activitiesById[$activityId]['details'];
+            }
+
+            if (!array_key_exists('times', $details)) {
+                $details['times'] = $label;
+            }
+
+            $timeslotList[] = new Timeslot((string) $activityId, $label, null, $details);
+        }
+
+        if ($timeslotList === []) {
+            return null;
+        }
+
+        return $this->sortTimeslots($timeslotList);
     }
 
     private function normalizeExtendedAvailabilityEntry(mixed $entry): array
@@ -924,9 +1037,16 @@ final class AvailabilityService
             }
         }
 
-        $list = array_values($timeslots);
+        return $this->sortTimeslots(array_values($timeslots));
+    }
 
-        usort($list, static function (Timeslot $a, Timeslot $b): int {
+    /**
+     * @param Timeslot[] $timeslots
+     * @return Timeslot[]
+     */
+    private function sortTimeslots(array $timeslots): array
+    {
+        usort($timeslots, static function (Timeslot $a, Timeslot $b): int {
             $idA = $a->getId();
             $idB = $b->getId();
 
@@ -945,7 +1065,7 @@ final class AvailabilityService
             return strcmp($a->getLabel(), $b->getLabel());
         });
 
-        return $list;
+        return $timeslots;
     }
 
     /**

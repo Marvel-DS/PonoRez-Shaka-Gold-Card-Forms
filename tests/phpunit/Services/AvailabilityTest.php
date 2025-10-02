@@ -86,9 +86,14 @@ final class AvailabilityTest extends TestCase
         }
 
         $timeslots = $result['timeslots'];
-        self::assertCount(2, $timeslots);
+        self::assertCount(1, $timeslots);
         self::assertContainsOnlyInstancesOf(Timeslot::class, $timeslots);
-        self::assertSame('730', $timeslots[0]->getId());
+        self::assertSame('369', $timeslots[0]->getId());
+        self::assertSame('8:00am Check In', $timeslots[0]->getLabel());
+        self::assertSame([
+            'island' => 'Kauai',
+            'times' => '8:00am Check In',
+        ], $timeslots[0]->getDetails());
 
         $metadata = $result['metadata'];
         self::assertSame('ponorez-json', $metadata['source']);
@@ -110,7 +115,8 @@ final class AvailabilityTest extends TestCase
             ],
         ], $metadata['extended']['2024-03-15']['activities']);
 
-        self::assertNotEmpty($client->calls);
+        self::assertSame(0, $factory->buildCount);
+        self::assertSame([], $client->calls);
     }
 
     public function testFetchCalendarMarksLimitedWhenSeatCountLow(): void
@@ -432,6 +438,115 @@ final class AvailabilityTest extends TestCase
             639 => '8:00am Check In',
             5280 => '12:00pm Check In',
         ], $metadataEntry['times']);
+    }
+
+    public function testFetchCalendarSkipsTimeslotLookupWhenExtendedShowsSoldOut(): void
+    {
+        $seats = [];
+        for ($day = 1; $day <= 31; $day++) {
+            $seats['d' . $day] = 0;
+        }
+
+        $extended = [
+            'd10' => [],
+        ];
+
+        $httpResponse = json_encode([
+            'yearmonth_2024_5' => $seats,
+            'yearmonth_2024_5_ex' => $extended,
+        ], JSON_THROW_ON_ERROR);
+
+        $httpFetcher = fn () => $httpResponse;
+
+        $client = new AvailabilityRecordingSoapClient([
+            'getActivityTimeslots' => static function (): void {
+                throw new RuntimeException('Timeslots should not be fetched for sold out dates.');
+            },
+        ]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-05-10',
+            ['345' => 2],
+            [639]
+        );
+
+        self::assertSame([], $result['timeslots']);
+        self::assertSame('unavailable', $result['metadata']['timeslotStatus']);
+        self::assertSame(0, $factory->buildCount);
+        self::assertSame([], $client->calls);
+    }
+
+    public function testFetchCalendarUsesExtendedTimesMetadataWithoutSoapLookup(): void
+    {
+        $seats = [];
+        for ($day = 1; $day <= 31; $day++) {
+            $seats['d' . $day] = 5;
+        }
+
+        $extended = [
+            'd12' => [
+                'aids' => ['639', '5280'],
+                'departures' => [
+                    [
+                        'id' => '639',
+                        'label' => '8:00am Check In',
+                        'checkin' => '7:30am',
+                    ],
+                    [
+                        'departureId' => '5280',
+                        'time' => '12:00pm Check In',
+                    ],
+                ],
+            ],
+        ];
+
+        $httpResponse = json_encode([
+            'yearmonth_2024_7' => $seats,
+            'yearmonth_2024_7_ex' => $extended,
+        ], JSON_THROW_ON_ERROR);
+
+        $httpFetcher = fn () => $httpResponse;
+
+        $client = new AvailabilityRecordingSoapClient([
+            'getActivityTimeslots' => static function (): void {
+                throw new RuntimeException('Timeslots should be synthesized from metadata.');
+            },
+        ]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-07-12',
+            ['345' => 2],
+            [639, 5280]
+        );
+
+        $timeslots = $result['timeslots'];
+
+        self::assertCount(2, $timeslots);
+        self::assertContainsOnlyInstancesOf(Timeslot::class, $timeslots);
+        self::assertSame('639', $timeslots[0]->getId());
+        self::assertSame('8:00am Check In', $timeslots[0]->getLabel());
+        self::assertSame([
+            'checkin' => '7:30am',
+            'times' => '8:00am Check In',
+        ], $timeslots[0]->getDetails());
+        self::assertSame('5280', $timeslots[1]->getId());
+        self::assertSame('12:00pm Check In', $timeslots[1]->getLabel());
+        self::assertSame([
+            'time' => '12:00pm Check In',
+            'times' => '12:00pm Check In',
+        ], $timeslots[1]->getDetails());
+
+        self::assertSame('available', $result['metadata']['timeslotStatus']);
+        self::assertSame(0, $factory->buildCount);
+        self::assertSame([], $client->calls);
     }
 
     public function testFetchCalendarUsesDetailsTimesForTimeslotLabel(): void
