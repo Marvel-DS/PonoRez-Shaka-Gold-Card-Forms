@@ -1,0 +1,245 @@
+<html><body>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/jquery/jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/calendar_js.jsp?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/functions.js?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/bookingsupport-1.js?jsversion=20250423"></script>
+<script type="text/javascript">
+  var PRBookingSupport = PonoRezExternal.BookingSupport;
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://ponorez.com/Calendar/START/jquery-ui.css" rel="stylesheet">
+
+<style>
+ .ui-widget { font-size: 0.75em; }
+ .ui-datepicker td.un { color:red;text-decoration:line-through; }
+/* Keep month + year on one line and control spacing */
+.ui-datepicker-title {
+  position: relative !important;
+  z-index: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;   /* prevents the line break */
+  gap: 0.35em !important;           /* tweak spacing between month/year */
+  width: 100%;                      /* fill header so it's centered */
+}
+
+/* Make sure the spans don’t get forced to blocks by the theme */
+.ui-datepicker-title .ui-datepicker-month,
+.ui-datepicker-title .ui-datepicker-year {
+  display: inline !important;
+  line-height: 1.2;
+  font-weight: 600;                 /* optional */
+}
+
+/* If you used the arrow-flex header from before, keep this */
+.ui-datepicker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ui-datepicker-title { flex: 1; }   /* keeps the title centered between arrows */
+
+</style>
+<!-- CHANGE THE THEME COLORS HERE TO MATCH WHATEVER YOUR LOGO NEEDS -->
+
+<style>
+  :root {
+    --primary-color: #F718E7;   /* pulled from logo */
+    --primary-color-dark: #0177AD; /* hover state */
+    --accent-light: #4C523C;    /* light background for sections */
+    --text-color: #000;
+  }
+</style>
+
+
+  <link rel="stylesheet" href="stylesheet.css">
+
+<header class="hero" role="banner">
+        <img class="logo" alt="Company logo"
+             src="https://ponorez.online/reservation/companyservlet?action=MISC_WEBSITELOGO&companyid=525" />
+        <div>
+          <h1>All Day Pass</h1>
+          <div class="sub">Shaka Gold Card Checkout</div>
+        </div>
+      </header>
+
+<form class="BookingForm_425bc13e">
+  <script type="text/javascript">
+    window.bookingFormContext_425bc13e = {
+      supplierId: 525,
+      agencyId: 0,
+      groupSelectSelector: '.BookingForm_425bc13e .groupSelect',
+      allActivitySelectContainersSelector: '.BookingForm_425bc13e .activitySelectContainer',
+      activitySelectSubselector: '.activitySelect',
+      dateTextInputSelector: '.BookingForm_425bc13e .dateTextInput',
+      allGuestTypeContainersSelector: '.BookingForm_425bc13e .guestTypeContainer',
+      guestCountAssignedElementSubselector: '.guestCountAssignedElement',
+      guestCountTextInputSubselector: '.guestCountTextInput',
+      guestCountSelectSubselector: '.guestCountSelect',
+      singleSeatContainersSelector: '.BookingForm_425bc13e .singleSeatContainer',
+      singleSeatGuestTypeSelectSubselector: '.guestTypeSelect',
+      guestTypeInfos: {
+        '2014': { containerSelector: '.BookingForm_425bc13e .guestTypeContainer.gt2014' },
+        '2013': { containerSelector: '.BookingForm_425bc13e .guestTypeContainer.gt2013' },
+        'null': null
+      },
+      upgradesSectionSelector: '.BookingForm_425bc13e .upgradesSection',
+      allUpgradeContainersSelector: '.BookingForm_425bc13e .upgradeContainer',
+      upgradeCountElementSubselector: '.upgradeCountElement',
+      upgradeInfos: {
+        '3523': { containerSelector: '.BookingForm_425bc13e .upgradeContainer.u3523' },
+        '3522': { containerSelector: '.BookingForm_425bc13e .upgradeContainer.u3522' },
+        '3518': { containerSelector: '.BookingForm_425bc13e .upgradeContainer.u3518' },
+        '3519': { containerSelector: '.BookingForm_425bc13e .upgradeContainer.u3519' },
+        '3520': { containerSelector: '.BookingForm_425bc13e .upgradeContainer.u3520' },
+        '3521': { containerSelector: '.BookingForm_425bc13e .upgradeContainer.u3521' },
+        'null': null
+      },
+      groupInfos: {
+        '1531': { activitySelectContainerSelector: '.BookingForm_425bc13e .activitySelectContainer.g1531' },
+        'null': null
+      },
+      activityInfos: {
+        '5677': {
+          useSingleSeatSelect: false,
+          useGuestCountSelects: false,
+          guestTypeIds: [ 2013 ],
+          upgradeIds: [  ]
+        },
+        '5676': {
+          useSingleSeatSelect: false,
+          useGuestCountSelects: false,
+          guestTypeIds: [ 2014 ],
+          upgradeIds: [ 3520, 3521, 3522, 3523, 3518, 3519 ]
+        },
+        'null': null
+      },
+      toggleUncertainAvailabilityWarningFn: function(show) {
+        $(".BookingForm_425bc13e .uncertainAvailabilityWarningSection").toggle(show);
+      }
+    };
+  </script>
+
+  <div>
+    <input type="hidden" class="groupSelect" value="g1531" />
+
+    <span class="activitySelectContainer g1531" style="display: none;">
+      Select the Type of Booking (with gear included or without):
+      <select class="activitySelect" onchange="PRBookingSupport.applyActivity(bookingFormContext_425bc13e)">
+        <option value="5677">All Day Pass (Bringing your own Gear)</option>
+        <option value="5676">All Day Pass with Rental Gear Included</option>
+      </select>
+    </span>
+  </div>
+  <div>&nbsp;</div>
+
+  <div>
+    <span class="guestTypeContainer gt2014" style="display: none;">
+      How many Guest (Rental Gear Included)
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_425bc13e)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_425bc13e)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+    <span class="guestTypeContainer gt2013" style="display: none;">
+      How many Guest (Bringing own Gear)
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_425bc13e)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_425bc13e)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="upgradesSection">
+    Upgrades:&nbsp;&nbsp;
+
+    <span class="upgradeContainer u3523" style="display: none;">
+      Camouflage coverall
+      <input type="text" class="upgradeCountElement" value="0" size="2"
+             onchange="PRBookingSupport.applyUpgradeCount(bookingFormContext_425bc13e)" />
+      &nbsp;&nbsp;
+    </span>
+
+    <span class="upgradeContainer u3522" style="display: none;">
+      Upgrade Gun (Electro-pneumatic vibe&#x2f;envy Gun Upgrade)
+      <input type="text" class="upgradeCountElement" value="0" size="2"
+             onchange="PRBookingSupport.applyUpgradeCount(bookingFormContext_425bc13e)" />
+      &nbsp;&nbsp;
+    </span>
+
+    <span class="upgradeContainer u3518" style="display: none;">
+      140 Paintballs
+      <input type="text" class="upgradeCountElement" value="0" size="2"
+             onchange="PRBookingSupport.applyUpgradeCount(bookingFormContext_425bc13e)" />
+      &nbsp;&nbsp;
+    </span>
+
+    <span class="upgradeContainer u3519" style="display: none;">
+      500 Paintballs
+      <input type="text" class="upgradeCountElement" value="0" size="2"
+             onchange="PRBookingSupport.applyUpgradeCount(bookingFormContext_425bc13e)" />
+      &nbsp;&nbsp;
+    </span>
+
+    <span class="upgradeContainer u3520" style="display: none;">
+      1,000 Paintballs
+      <input type="text" class="upgradeCountElement" value="0" size="2"
+             onchange="PRBookingSupport.applyUpgradeCount(bookingFormContext_425bc13e)" />
+      &nbsp;&nbsp;
+    </span>
+
+    <span class="upgradeContainer u3521" style="display: none;">
+      2,000 Paintballs
+      <input type="text" class="upgradeCountElement" value="0" size="2"
+             onchange="PRBookingSupport.applyUpgradeCount(bookingFormContext_425bc13e)" />
+      &nbsp;&nbsp;
+    </span>
+
+    <div>&nbsp;</div>
+  </div>
+
+  <div>
+    Activity Date
+      <input class="dateTextInput" readonly="readonly" size="15"
+             onclick="PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_425bc13e);"
+             onchange="PRBookingSupport.applyDate(bookingFormContext_425bc13e);" />
+      <a id="bookingForm_425bc13e_date_trigger" style="vertical-align: middle;"
+         href="javascript:PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_425bc13e, { anchorId: 'bookingForm_425bc13e_date_trigger' });"
+         onMouseOver="window.status='Date Picker';return true;" onMouseOut="window.status='';return true;">
+      </a>
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="uncertainAvailabilityWarningSection" style="color: red; display: none;">
+    To ensure availability, please reconfirm this date is available by re-selecting it.
+    <div>&nbsp;</div>
+  </div>
+
+  <script type="text/javascript">PRBookingSupport.applyGroup(bookingFormContext_425bc13e);</script>
+
+  Reconfirm Your Shaka Gold Number: <input type="text" class="goldcardNumberInput" size="8" /><br />
+  <label>OR <input type="checkbox" class="buyGoldcardCheckbox" />Buying for someone else? Add a Shaka Gold Card $30</label><br />
+
+  
+
+  <input type="button" value="Book Now" onclick="
+         var selectedActivityId = PRBookingSupport.getActivityId(bookingFormContext_425bc13e);
+         reservation('525', selectedActivityId, jQuery('.BookingForm_425bc13e .dateTextInput').val(), '', 0.0);
+         if (!PRBookingSupport.addGuests(bookingFormContext_425bc13e)) return false;
+         if (!PRBookingSupport.addUpgrades(bookingFormContext_425bc13e)) return false;
+         setUpgradesFixed();
+         if (!checkDateAndGuestsAndUpgrades({ dateAfterGuestsUpgrades: true })) return false;
+         setgoldcard(jQuery('.BookingForm_425bc13e .goldcardNumberInput').val()); setbuygoldcard(jQuery('.BookingForm_425bc13e .buyGoldcardCheckbox').is(':checked'));
+         availability_iframe(); return false;
+         " />
+
+</form>
+</body></html>

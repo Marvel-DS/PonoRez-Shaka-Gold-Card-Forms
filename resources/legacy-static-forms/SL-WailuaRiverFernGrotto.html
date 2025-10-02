@@ -1,0 +1,215 @@
+<html>
+<title>Shaka Gold Card Checkout</title>
+<body>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/jquery/jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/calendar_js.jsp?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/functions.js?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/bookingsupport-1.js?jsversion=20250423"></script>
+<script type="text/javascript">
+  var PRBookingSupport = PonoRezExternal.BookingSupport;
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://ponorez.com/Calendar/HUMANITY/jquery-ui.css" rel="stylesheet">
+
+<style>
+ .ui-widget { font-size: 0.75em; }
+ .ui-datepicker td.un { color:red;text-decoration:line-through; }
+/* Keep month + year on one line and control spacing */
+.ui-datepicker-title {
+  position: relative !important;
+  z-index: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;   /* prevents the line break */
+  gap: 0.35em !important;           /* tweak spacing between month/year */
+  width: 100%;                      /* fill header so it's centered */
+}
+
+/* Make sure the spans don’t get forced to blocks by the theme */
+.ui-datepicker-title .ui-datepicker-month,
+.ui-datepicker-title .ui-datepicker-year {
+  display: inline !important;
+  line-height: 1.2;
+  font-weight: 600;                 /* optional */
+}
+
+/* If you used the arrow-flex header from before, keep this */
+.ui-datepicker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ui-datepicker-title { flex: 1; }   /* keeps the title centered between arrows */
+
+</style>
+<!-- CHANGE THE THEME COLORS HERE TO MATCH WHATEVER YOUR LOGO NEEDS -->
+
+<style>
+  :root {
+    --primary-color: #00224A;   /* pulled from logo */
+    --primary-color-dark: #CA4F1D; /* hover state */
+    --accent-light: #EDE2BF;    /* light background for sections */
+    --text-color: #000;
+  }
+</style>
+
+
+  <link rel="stylesheet" href="stylesheet.css">
+
+
+<header class="hero" role="banner">
+        <img class="logo" alt="Company logo"
+             src="https://ponorez.online/reservation/companyservlet?action=MISC_SUPPLIERLOGO&companyid=387" />
+        <div>
+          <h1>Wailua River & Fern Grotto Tour</h1>
+          <div class="sub">Shaka Gold Card Checkout</div>
+        </div>
+      </header>
+
+
+
+<form class="BookingForm_1935c96a">
+  <script type="text/javascript">
+    window.bookingFormContext_1935c96a = {
+      supplierId: 387,
+      agencyId: 0,
+      selectActivityAfterDate: true,
+      groupSelectSelector: '.BookingForm_1935c96a .groupSelect',
+      allActivitySelectContainersSelector: '.BookingForm_1935c96a .activitySelectContainer',
+      activitySelectSubselector: '.activitySelect',
+      activitySelectSelectOptionSubsubselector: '.selectOption',
+      activitySelectLoadingOptionSubsubselector: '.loadingOption',
+      dateTextInputSelector: '.BookingForm_1935c96a .dateTextInput',
+      allGuestTypeContainersSelector: '.BookingForm_1935c96a .guestTypeContainer',
+      guestCountAssignedElementSubselector: '.guestCountAssignedElement',
+      guestCountTextInputSubselector: '.guestCountTextInput',
+      guestCountSelectSubselector: '.guestCountSelect',
+      singleSeatContainersSelector: '.BookingForm_1935c96a .singleSeatContainer',
+      singleSeatGuestTypeSelectSubselector: '.guestTypeSelect',
+      guestTypeInfos: {
+        '944': { containerSelector: '.BookingForm_1935c96a .guestTypeContainer.gt944' },
+        '945': { containerSelector: '.BookingForm_1935c96a .guestTypeContainer.gt945' },
+        '946': { containerSelector: '.BookingForm_1935c96a .guestTypeContainer.gt946' },
+        'null': null
+      },
+      upgradesSectionSelector: '.BookingForm_1935c96a .upgradesSection',
+      allUpgradeContainersSelector: '.BookingForm_1935c96a .upgradeContainer',
+      upgradeCountElementSubselector: '.upgradeCountElement',
+      upgradeInfos: {
+        'null': null
+      },
+      groupInfos: {
+        '253': {
+          activitySelectContainerSelector: '.BookingForm_1935c96a .activitySelectContainer.g253',
+          isTimeSelection: true,
+          selectableActivityIds: [ 2063, 3747, 2067, 2068, 2340 ]
+        },
+        'null': null
+      },
+      formVariantInfos: {
+        'g253': {
+          useSingleSeatSelect: false,
+          useGuestCountSelects: false,
+          guestTypeIds: [ 944, 945, 946 ],
+          upgradeIds: [  ]
+        },
+        'null': null
+      }
+    };
+  </script>
+
+  <input type="hidden" class="groupSelect" value="g253" />
+
+ <div class="guest-row">
+
+    <span class="guestTypeContainer gt944" style="display: none;">
+      Adult
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_1935c96a)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_1935c96a)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+    <span class="guestTypeContainer gt945" style="display: none;">
+      Child
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_1935c96a)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_1935c96a)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+    <span class="guestTypeContainer gt946" style="display: none;">
+      Infant
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_1935c96a)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_1935c96a)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="upgradesSection">
+    Upgrades:&nbsp;&nbsp;
+
+    <div>&nbsp;</div>
+  </div>
+
+  <div>
+    Activity Date
+      <input class="dateTextInput" readonly="readonly" size="15"
+             onclick="PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_1935c96a);"
+             onchange="PRBookingSupport.applyDate(bookingFormContext_1935c96a);" />
+      <a id="bookingForm_1935c96a_date_trigger" style="vertical-align: middle;"
+         href="javascript:PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_1935c96a, { anchorId: 'bookingForm_1935c96a_date_trigger' });"
+         onMouseOver="window.status='Date Picker';return true;" onMouseOut="window.status='';return true;">
+        <img src="https://ponorez.online/reservation/common/images/calendar-small.gif" style="width: 16px; height: 16px; border: none;" alt="[ ]" />
+      </a>
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="activitySelectContainer g253" style="display: none;">
+    Time:
+    <select class="activitySelect" onchange="PRBookingSupport.applyActivity(bookingFormContext_1935c96a)">
+      <option value="" class="selectOption">-- Select --</option>
+      <option value="" class="loadingOption" disabled="disabled" style="display: none;">-- Loading... --</option>
+      <option value="2063">*Check in 9:15am* Tour duration is 1 1&#x2f;2 hours.</option>
+      <option value="3747">*Check in 10:45am* Tour duration is 1 1&#x2f;2 hours.</option>
+      <option value="2067">*Check in 1:45pm* Tour duration is 1 1&#x2f;2 hours.</option>
+      <option value="2068">*Check in 3:15pm* Tour duration is 1 1&#x2f;2 hours.</option>
+      <option value="2340">*Call when on island for reservations* Tour duration is 1 1&#x2f;2 hours.</option>
+    </select>
+    <div>&nbsp;</div>
+  </div>
+
+
+  <script type="text/javascript">PRBookingSupport.applyGroup(bookingFormContext_1935c96a);</script>
+
+ Reconfirm Your Shaka Gold Number: <input type="text" class="goldcardNumberInput" size="8" /><br />
+  <label>OR<input type="checkbox" class="buyGoldcardCheckbox" />Buying for someone else? Add a Shaka Gold Card $30</label><br />
+
+
+  <div>&nbsp;</div>
+
+  
+
+  <input type="button" value="Book Now" onclick="
+         var selectedActivityId = PRBookingSupport.getAndCheckActivityId(bookingFormContext_1935c96a);
+         if (!selectedActivityId) return false;
+         reservation('387', selectedActivityId, jQuery('.BookingForm_1935c96a .dateTextInput').val(), '', 0.0);
+         if (!PRBookingSupport.addGuests(bookingFormContext_1935c96a)) return false;
+         if (!PRBookingSupport.addUpgrades(bookingFormContext_1935c96a)) return false;
+         setUpgradesFixed();
+         if (!checkDateAndGuestsAndUpgrades()) return false;
+         setgoldcard(jQuery('.BookingForm_1935c96a .goldcardNumberInput').val()); setbuygoldcard(jQuery('.BookingForm_1935c96a .buyGoldcardCheckbox').is(':checked'));
+         availability_iframe(); return false;
+         " />
+
+</form></body></html>

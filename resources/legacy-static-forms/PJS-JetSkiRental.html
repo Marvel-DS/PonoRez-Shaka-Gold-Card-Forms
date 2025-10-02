@@ -1,0 +1,224 @@
+<html><body>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/jquery/jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/calendar_js.jsp?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/functions.js?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/bookingsupport-1.js?jsversion=20250423"></script>
+<script type="text/javascript">
+  var PRBookingSupport = PonoRezExternal.BookingSupport;
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://ponorez.com/Calendar/BLITZER/jquery-ui.css" rel="stylesheet">
+
+<style>
+ .ui-widget { font-size: 0.75em; }
+ .ui-datepicker td.un { color:red;text-decoration:line-through; }
+/* Keep month + year on one line and control spacing */
+.ui-datepicker-title {
+  position: relative !important;
+  z-index: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;   /* prevents the line break */
+  gap: 0.35em !important;           /* tweak spacing between month/year */
+  width: 100%;                      /* fill header so it's centered */
+}
+
+/* Make sure the spans don’t get forced to blocks by the theme */
+.ui-datepicker-title .ui-datepicker-month,
+.ui-datepicker-title .ui-datepicker-year {
+  display: inline !important;
+  line-height: 1.2;
+  font-weight: 600;                 /* optional */
+}
+
+/* If you used the arrow-flex header from before, keep this */
+.ui-datepicker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ui-datepicker-title { flex: 1; }   /* keeps the title centered between arrows */
+
+</style>
+<!-- CHANGE THE THEME COLORS HERE TO MATCH WHATEVER YOUR LOGO NEEDS -->
+
+<style>
+  :root {
+    --primary-color: #EF061D;   /* pulled from logo */
+    --primary-color-dark: #F6EC21; /* hover state */
+    --accent-light: #4C523C;    /* light background for sections */
+    --text-color: #000;
+  }
+</style>
+
+
+  <link rel="stylesheet" href="stylesheet.css">
+
+<header class="hero" role="banner">
+        <img class="logo" alt="Company logo"
+             src="https://ponorez.online/reservation/companyservlet?action=MISC_WEBSITELOGO&companyid=95" />
+        <div>
+          <h1>Maui Water Sports ~ Pacific Jet Ski Rental</h1>
+          <div class="sub">Shaka Gold Card Checkout</div>
+        </div>
+      </header>
+<form class="BookingForm_44c83418">
+  <script type="text/javascript">
+    window.bookingFormContext_44c83418 = {
+      supplierId: 95,
+      agencyId: 0,
+      selectActivityAfterDate: true,
+      groupSelectSelector: '.BookingForm_44c83418 .groupSelect',
+      allActivitySelectContainersSelector: '.BookingForm_44c83418 .activitySelectContainer',
+      activitySelectSubselector: '.activitySelect',
+      activitySelectSelectOptionSubsubselector: '.selectOption',
+      activitySelectLoadingOptionSubsubselector: '.loadingOption',
+      dateTextInputSelector: '.BookingForm_44c83418 .dateTextInput',
+      allGuestTypeContainersSelector: '.BookingForm_44c83418 .guestTypeContainer',
+      guestCountAssignedElementSubselector: '.guestCountAssignedElement',
+      guestCountTextInputSubselector: '.guestCountTextInput',
+      guestCountSelectSubselector: '.guestCountSelect',
+      singleSeatContainersSelector: '.BookingForm_44c83418 .singleSeatContainer',
+      singleSeatGuestTypeSelectSubselector: '.guestTypeSelect',
+      guestTypeInfos: {
+        '3761': { containerSelector: '.BookingForm_44c83418 .guestTypeContainer.gt3761' },
+        '3762': { containerSelector: '.BookingForm_44c83418 .guestTypeContainer.gt3762' },
+        '1834': { containerSelector: '.BookingForm_44c83418 .guestTypeContainer.gt1834' },
+        'null': null
+      },
+      upgradesSectionSelector: '.BookingForm_44c83418 .upgradesSection',
+      allUpgradeContainersSelector: '.BookingForm_44c83418 .upgradeContainer',
+      upgradeCountElementSubselector: '.upgradeCountElement',
+      upgradeInfos: {
+        '5563': { containerSelector: '.BookingForm_44c83418 .upgradeContainer.u5563' },
+        'null': null
+      },
+      groupInfos: {
+        '710': {
+          activitySelectContainerSelector: '.BookingForm_44c83418 .activitySelectContainer.g710',
+          isTimeSelection: true,
+          selectableActivityIds: [ 13974, 4999, 5005, 13975, 5006, 13435, 5007, 13704, 5008, 5009, 13705, 13436, 5010, 13706, 5011, 5012 ]
+        },
+        'null': null
+      },
+      formVariantInfos: {
+        'g710': {
+          useSingleSeatSelect: false,
+          useGuestCountSelects: false,
+          guestTypeIds: [ 3761, 3762, 1834 ],
+          upgradeIds: [ 5563 ]
+        },
+        'null': null
+      }
+    };
+  </script>
+
+  <input type="hidden" class="groupSelect" value="g710" />
+
+  <div>
+    <span class="guestTypeContainer gt3761" style="display: none;">
+      Single (One person One Jetski)
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_44c83418)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_44c83418)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+    <span class="guestTypeContainer gt3762" style="display: none;">
+      Double (Two people One Jetski)
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_44c83418)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_44c83418)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+    <span class="guestTypeContainer gt1834" style="display: none;">
+      Observer 
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_44c83418)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_44c83418)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="upgradesSection">
+    Upgrades:&nbsp;&nbsp;
+
+    <span class="upgradeContainer u5563" style="display: none;">
+      Phone Case
+      <input type="text" class="upgradeCountElement" value="0" size="2"
+             onchange="PRBookingSupport.applyUpgradeCount(bookingFormContext_44c83418)" />
+      &nbsp;&nbsp;
+    </span>
+
+    <div>&nbsp;</div>
+  </div>
+
+  <div>
+    Activity Date
+      <input class="dateTextInput" readonly="readonly" size="15"
+             onclick="PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_44c83418);"
+             onchange="PRBookingSupport.applyDate(bookingFormContext_44c83418);" />
+      <a id="bookingForm_44c83418_date_trigger" style="vertical-align: middle;"
+         href="javascript:PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_44c83418, { anchorId: 'bookingForm_44c83418_date_trigger' });"
+         onMouseOver="window.status='Date Picker';return true;" onMouseOut="window.status='';return true;">
+              </a>
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="activitySelectContainer g710" style="display: none;">
+    Time:
+    <select class="activitySelect" onchange="PRBookingSupport.applyActivity(bookingFormContext_44c83418)">
+      <option value="" class="selectOption">-- Select --</option>
+      <option value="" class="loadingOption" disabled="disabled" style="display: none;">-- Loading... --</option>
+      <option value="13974">8:30 am (25% Off)</option>
+      <option value="4999">9:00 am (15% Off)</option>
+      <option value="5005">9:30 am (15% Off)</option>
+      <option value="13975">10:00am (15% Off)</option>
+      <option value="5006">10:30am (15% Off)</option>
+      <option value="13435">11:00am (15% Off)</option>
+      <option value="5007">12:00 pm  (25% Off)</option>
+      <option value="13704">12:30 PM (15% Off)</option>
+      <option value="5008">1:00 PM  (15% Off)</option>
+      <option value="5009">1:30PM (15% Off)</option>
+      <option value="13705">2:00PM  (15% Off)</option>
+      <option value="13436">2:30PM  (15% Off)</option>
+      <option value="5010">3:00 pm (15% off)</option>
+      <option value="13706">3:30 pm (25% Off)</option>
+      <option value="5011">4:00 pm (25% Off)</option>
+      <option value="5012">4:30 pm (15% Off)</option>
+    </select>
+    <div>&nbsp;</div>
+  </div>
+
+
+  <script type="text/javascript">PRBookingSupport.applyGroup(bookingFormContext_44c83418);</script>
+
+  Reconfirm Your Shaka Gold Number: <input type="text" class="goldcardNumberInput" size="8" /><br />
+  <label>OR <input type="checkbox" class="buyGoldcardCheckbox" />Buying for someone else? Add a Shaka Gold Card $30</label><br />
+
+
+  <input type="button" value="BOOK NOW" onclick="
+         var selectedActivityId = PRBookingSupport.getAndCheckActivityId(bookingFormContext_44c83418);
+         if (!selectedActivityId) return false;
+         reservation('95', selectedActivityId, jQuery('.BookingForm_44c83418 .dateTextInput').val(), '', 0.0);
+         if (!PRBookingSupport.addGuests(bookingFormContext_44c83418)) return false;
+         if (!PRBookingSupport.addUpgrades(bookingFormContext_44c83418)) return false;
+         setUpgradesFixed();
+         if (!checkDateAndGuestsAndUpgrades()) return false;
+         setgoldcard(jQuery('.BookingForm_44c83418 .goldcardNumberInput').val()); setbuygoldcard(jQuery('.BookingForm_44c83418 .buyGoldcardCheckbox').is(':checked'));
+         setpaylater(true);
+         availability_iframe(); return false;
+         " />
+
+</form>
+</body></html>

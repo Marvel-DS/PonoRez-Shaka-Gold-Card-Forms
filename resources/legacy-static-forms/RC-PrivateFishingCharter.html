@@ -1,0 +1,179 @@
+<html><body>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/jquery/jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/calendar_js.jsp?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/functions.js?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/bookingsupport-1.js?jsversion=20250423"></script>
+<script type="text/javascript">
+  var PRBookingSupport = PonoRezExternal.BookingSupport;
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://ponorez.com/Calendar/START/jquery-ui.css" rel="stylesheet">
+
+<style>
+ .ui-widget { font-size: 0.75em; }
+ .ui-datepicker td.un { color:red;text-decoration:line-through; }
+/* Keep month + year on one line and control spacing */
+.ui-datepicker-title {
+  position: relative !important;
+  z-index: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;   /* prevents the line break */
+  gap: 0.35em !important;           /* tweak spacing between month/year */
+  width: 100%;                      /* fill header so it's centered */
+}
+
+/* Make sure the spans don’t get forced to blocks by the theme */
+.ui-datepicker-title .ui-datepicker-month,
+.ui-datepicker-title .ui-datepicker-year {
+  display: inline !important;
+  line-height: 1.2;
+  font-weight: 600;                 /* optional */
+}
+
+/* If you used the arrow-flex header from before, keep this */
+.ui-datepicker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ui-datepicker-title { flex: 1; }   /* keeps the title centered between arrows */
+
+</style>
+<!-- CHANGE THE THEME COLORS HERE TO MATCH WHATEVER YOUR LOGO NEEDS -->
+
+<style>
+  :root {
+    --primary-color: #85983C;   /* pulled from logo */
+    --primary-color-dark: #73B300; /* hover state */
+    --accent-light: #13406F;    /* light background for sections */
+    --text-color: #000;
+  }
+</style>
+
+
+  <link rel="stylesheet" href="stylesheet.css">
+
+<header class="hero" role="banner">
+        <img class="logo" alt="Company logo"
+             src="https://ponorez.online/reservation/companyservlet?action=MISC_WEBSITELOGO&companyid=660" />
+        <div>
+          <h1>Rascal Charters Private Tour</h1>
+          <div class="sub">Shaka Gold Card Checkout</div>
+        </div>
+      </header>
+
+<form class="BookingForm_53fc9c47">
+  <script type="text/javascript">
+    window.bookingFormContext_53fc9c47 = {
+      supplierId: 660,
+      agencyId: 0,
+      selectActivityAfterDate: true,
+      groupSelectSelector: '.BookingForm_53fc9c47 .groupSelect',
+      allActivitySelectContainersSelector: '.BookingForm_53fc9c47 .activitySelectContainer',
+      activitySelectSubselector: '.activitySelect',
+      activitySelectSelectOptionSubsubselector: '.selectOption',
+      activitySelectLoadingOptionSubsubselector: '.loadingOption',
+      dateTextInputSelector: '.BookingForm_53fc9c47 .dateTextInput',
+      allGuestTypeContainersSelector: '.BookingForm_53fc9c47 .guestTypeContainer',
+      guestCountAssignedElementSubselector: '.guestCountAssignedElement',
+      guestCountTextInputSubselector: '.guestCountTextInput',
+      guestCountSelectSubselector: '.guestCountSelect',
+      singleSeatContainersSelector: '.BookingForm_53fc9c47 .singleSeatContainer',
+      singleSeatGuestTypeSelectSubselector: '.guestTypeSelect',
+      guestTypeInfos: {
+        '3408': { containerSelector: '.BookingForm_53fc9c47 .guestTypeContainer.gt3408' },
+        'null': null
+      },
+      upgradesSectionSelector: '.BookingForm_53fc9c47 .upgradesSection',
+      allUpgradeContainersSelector: '.BookingForm_53fc9c47 .upgradeContainer',
+      upgradeCountElementSubselector: '.upgradeCountElement',
+      upgradeInfos: {
+        'null': null
+      },
+      groupInfos: {
+        '1525': {
+          activitySelectContainerSelector: '.BookingForm_53fc9c47 .activitySelectContainer.g1525',
+          isTimeSelection: false,
+          selectableActivityIds: [ 10727, 10815, 10730, 10816, 10731 ]
+        },
+        'null': null
+      },
+      formVariantInfos: {
+        'g1525': {
+          useSingleSeatSelect: false,
+          useGuestCountSelects: true,
+          guestTypeIds: [ 3408 ],
+          upgradeIds: [  ]
+        },
+        'null': null
+      }
+    };
+  </script>
+
+  <input type="hidden" class="groupSelect" value="g1525" />
+
+  <div>
+    <span class="guestTypeContainer gt3408" style="display: none;">
+      <input type="hidden" class="guestCountAssignedElement" value="1" />
+    </span>
+
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="upgradesSection">
+    Upgrades:&nbsp;&nbsp;
+
+    <div>&nbsp;</div>
+  </div>
+
+  <div>
+    Activity Date
+      <input class="dateTextInput" readonly="readonly" size="15"
+             onclick="PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_53fc9c47);"
+             onchange="PRBookingSupport.applyDate(bookingFormContext_53fc9c47);" />
+      <a id="bookingForm_53fc9c47_date_trigger" style="vertical-align: middle;"
+         href="javascript:PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_53fc9c47, { anchorId: 'bookingForm_53fc9c47_date_trigger' });"
+         onMouseOver="window.status='Date Picker';return true;" onMouseOut="window.status='';return true;">
+      </a>
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="activitySelectContainer g1525" style="display: none;">
+    Select from available Private Charters:
+    <select class="activitySelect" onchange="PRBookingSupport.applyActivity(bookingFormContext_53fc9c47)">
+      <option value="" class="selectOption">-- Select --</option>
+      <option value="" class="loadingOption" disabled="disabled" style="display: none;">-- Loading... --</option>
+      <option value="10727">Full Day Private Hawaii Fishing Expedition (8 Hours)</option>
+      <option value="10815">3&#x2f;4 Day Morning Private Hawaii Fishing Expedition (6 Hours)</option>
+      <option value="10730">3&#x2f;4 Day Afternoon Private Hawaii Fishing Expedition (6 Hours)</option>
+      <option value="10816">Half Day Morning Private Hawaii Fishing Expedition (4 Hours)</option>
+      <option value="10731">Half Day Afternoon Hawaii Fishing Expedition (4 Hours)</option>
+    </select>
+    <div>&nbsp;</div>
+  </div>
+
+
+  <script type="text/javascript">PRBookingSupport.applyGroup(bookingFormContext_53fc9c47);</script>
+
+  Shaka Gold Number (optional): <input type="text" class="goldcardNumberInput" size="8" /><br />
+  Or <label>
+     <div>&nbsp;</div>
+    <input type="checkbox" class="buyGoldcardCheckbox" />Order Shaka Gold Membership for $30</label><br />
+  <div>&nbsp;</div>
+
+  <input type="button" value="BOOK NOW" onclick="
+         var selectedActivityId = PRBookingSupport.getAndCheckActivityId(bookingFormContext_53fc9c47);
+         if (!selectedActivityId) return false;
+         reservation('660', selectedActivityId, jQuery('.BookingForm_53fc9c47 .dateTextInput').val(), '', 0.0);
+         if (!PRBookingSupport.addGuests(bookingFormContext_53fc9c47)) return false;
+         if (!PRBookingSupport.addUpgrades(bookingFormContext_53fc9c47)) return false;
+         setUpgradesFixed();
+         if (!checkDateAndGuestsAndUpgrades()) return false;
+         setgoldcard(jQuery('.BookingForm_53fc9c47 .goldcardNumberInput').val()); setbuygoldcard(jQuery('.BookingForm_53fc9c47 .buyGoldcardCheckbox').is(':checked'));
+         
+         availability_iframe(); return false;
+         " />
+</form>
+</body></html>

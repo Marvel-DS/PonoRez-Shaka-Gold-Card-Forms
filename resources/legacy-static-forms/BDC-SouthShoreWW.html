@@ -1,0 +1,210 @@
+<html><body>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/jquery/jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/calendar_js.jsp?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/functions.js?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/bookingsupport-1.js?jsversion=20250423"></script>
+<script type="text/javascript">
+  var PRBookingSupport = PonoRezExternal.BookingSupport;
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://ponorez.com/Calendar/CUPERTINO/jquery-ui.css" rel="stylesheet">
+<link rel="stylesheet" href="stylesheet.css">
+<style>
+  :root {
+    --primary-color: #004080;   /* pulled from logo */
+    --primary-color-dark: #003060; /* hover state */
+    --accent-light: #e6f3f8;    /* light background for sections */
+    --text-color: #000;
+  }
+</style>
+
+
+<header class="hero" role="banner">
+        <img class="logo" alt="Company logo"
+             src="https://ponorez.online/reservation/companyservlet?action=MISC_SUPPLIERLOGO&companyid=188" />
+        <div>
+          <h1>Shaka Gold Card Checkout</h1>
+          <div class="sub">Deluxe Sunset Dinner Cruise</div>
+        </div>
+      </header>
+
+
+<form class="BookingForm_13d8cf24">
+  <script type="text/javascript">
+    window.bookingFormContext_13d8cf24 = {
+      supplierId: 188,
+      agencyId: 0,
+      selectActivityAfterDate: true,
+      groupSelectSelector: '.BookingForm_13d8cf24 .groupSelect',
+      allActivitySelectContainersSelector: '.BookingForm_13d8cf24 .activitySelectContainer',
+      activitySelectSubselector: '.activitySelect',
+      activitySelectSelectOptionSubsubselector: '.selectOption',
+      activitySelectLoadingOptionSubsubselector: '.loadingOption',
+      dateTextInputSelector: '.BookingForm_13d8cf24 .dateTextInput',
+      allGuestTypeContainersSelector: '.BookingForm_13d8cf24 .guestTypeContainer',
+      guestCountAssignedElementSubselector: '.guestCountAssignedElement',
+      guestCountTextInputSubselector: '.guestCountTextInput',
+      guestCountSelectSubselector: '.guestCountSelect',
+      singleSeatContainersSelector: '.BookingForm_13d8cf24 .singleSeatContainer',
+      singleSeatGuestTypeSelectSubselector: '.guestTypeSelect',
+      guestTypeInfos: {
+        '214': { containerSelector: '.BookingForm_13d8cf24 .guestTypeContainer.gt214' },
+        '1882': { containerSelector: '.BookingForm_13d8cf24 .guestTypeContainer.gt1882' },
+        '215': { containerSelector: '.BookingForm_13d8cf24 .guestTypeContainer.gt215' },
+        'null': null
+      },
+      upgradesSectionSelector: '.BookingForm_13d8cf24 .upgradesSection',
+      allUpgradeContainersSelector: '.BookingForm_13d8cf24 .upgradeContainer',
+      upgradeCountElementSubselector: '.upgradeCountElement',
+      upgradeInfos: {
+        'null': null
+      },
+      groupInfos: {
+        '836': {
+          activitySelectContainerSelector: '.BookingForm_13d8cf24 .activitySelectContainer.g836',
+          isTimeSelection: true,
+          selectableActivityIds: [ 6998, 11609, 10066, 10067 ]
+        },
+        'null': null
+      },
+      formVariantInfos: {
+        'g836': {
+          useSingleSeatSelect: false,
+          useGuestCountSelects: true,
+          guestTypeIds: [ 214, 215, 1882 ],
+          upgradeIds: [  ]
+        },
+        'null': null
+      }
+    };
+  </script>
+
+  <input type="hidden" class="groupSelect" value="g836" />
+<div class="guest-row">
+<div style="display: flex; gap: 20px; align-items: center;">
+  <span class="guestTypeContainer gt214" style="display: none;">
+     Adult
+    <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+           onchange="PRBookingSupport.applyGuestCount(bookingFormContext_13d8cf24)" />
+    <select class="guestCountSelect" style="display: none;"
+            onchange="PRBookingSupport.applyGuestCount(bookingFormContext_13d8cf24)">
+      <option value="0">0</option>
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <option value="7">7</option>
+      <option value="8">8</option>
+      <option value="9">9</option>
+      <option value="10">10</option>
+    </select>
+  </span>
+
+  <span class="guestTypeContainer gt1882" style="display: none;">
+    Youth
+    <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+           onchange="PRBookingSupport.applyGuestCount(bookingFormContext_13d8cf24)" />
+    <select class="guestCountSelect" style="display: none;"
+            onchange="PRBookingSupport.applyGuestCount(bookingFormContext_13d8cf24)">
+      <option value="0">0</option>
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <option value="7">7</option>
+      <option value="8">8</option>
+      <option value="9">9</option>
+      <option value="10">10</option>
+    </select>
+  </span>
+
+  <span class="guestTypeContainer gt215" style="display: none;">
+    Child
+    <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+           onchange="PRBookingSupport.applyGuestCount(bookingFormContext_13d8cf24)" />
+    <select class="guestCountSelect" style="display: none;"
+            onchange="PRBookingSupport.applyGuestCount(bookingFormContext_13d8cf24)">
+      <option value="0">0</option>
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <option value="7">7</option>
+      <option value="8">8</option>
+      <option value="9">9</option>
+      <option value="10">10</option>
+    </select>
+  </span>
+</div>
+</div>
+<div>&nbsp;</div>
+
+
+  <div class="upgradesSection">
+    Upgrades:&nbsp;&nbsp;
+
+    <div>&nbsp;</div>
+  </div>
+
+<div class="form-two-col">
+  <!-- Column 1: Activity Date -->
+  <div class="form-field">
+    <label for="bookingForm_13df128a_date">Activity Date</label>
+    <div class="datepicker-field">
+      <input id="bookingForm_13df128a_date"
+             class="dateTextInput"
+             readonly="readonly"
+             size="15"
+             onclick="PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_13d8cf24);"
+             onchange="PRBookingSupport.applyDate(bookingFormContext_13d8cf24);" />
+      <a id="bookingForm_13df128a_date_trigger"
+         class="calendar-trigger"
+         href="javascript:PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_13d8cf24, { anchorId: 'bookingForm_13df128a_date_trigger' });"
+         onMouseOver="window.status='Date Picker';return true;" onMouseOut="window.status='';return true;">
+             </a>
+    </div>
+  </div>
+
+  <!-- Column 2: Time -->
+  <div class="form-field activitySelectContainer g836" style="display: none;">
+    <label for="bookingForm_13df128a_time">Time</label>
+    <select id="bookingForm_13df128a_time"
+            class="activitySelect"
+            onchange="PRBookingSupport.applyActivity(bookingFormContext_13d8cf24)">
+      <option value="" class="selectOption">-- Select --</option>
+      <option value="" class="loadingOption" disabled="disabled" style="display:none;">-- Loading... --</option>
+      <!-- existing options... -->
+    </select>
+  </div>
+</div>
+ <div>&nbsp;</div>
+
+
+  <script type="text/javascript">PRBookingSupport.applyGroup(bookingFormContext_13d8cf24);</script>
+
+  Shaka Gold Number (optional): <input type="text" class="goldcardNumberInput" size="8" /><br />
+  Or <label>
+     <div>&nbsp;</div>
+    <input type="checkbox" class="buyGoldcardCheckbox" />Order Shaka Gold Membership for $30</label><br />
+  <div>&nbsp;</div>
+
+  <input type="button" value="Book Now" onclick="
+         var selectedActivityId = PRBookingSupport.getAndCheckActivityId(bookingFormContext_13d8cf24);
+         if (!selectedActivityId) return false;
+         reservation('188', selectedActivityId, jQuery('.BookingForm_13d8cf24 .dateTextInput').val(), '', 0.0);
+         if (!PRBookingSupport.addGuests(bookingFormContext_13d8cf24)) return false;
+         if (!PRBookingSupport.addUpgrades(bookingFormContext_13d8cf24)) return false;
+         setUpgradesFixed();
+         if (!checkDateAndGuestsAndUpgrades()) return false;
+         setgoldcard(jQuery('.BookingForm_13d8cf24 .goldcardNumberInput').val()); setbuygoldcard(jQuery('.BookingForm_13d8cf24 .buyGoldcardCheckbox').is(':checked'));
+         availability_iframe(); return false;
+         " />
+
+</form>
+</body></html>

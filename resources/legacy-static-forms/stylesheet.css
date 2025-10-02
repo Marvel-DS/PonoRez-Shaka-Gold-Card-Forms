@@ -1,0 +1,358 @@
+/* ==========================================================================
+   Base + Theme
+   ========================================================================== */
+:root{
+  /* Sizing tokens */
+  --control-h: 44px;        /* desktop control height */
+  --control-pad-x: 12px;
+  --control-radius: 6px;
+  --control-font: 16px;     /* desktop control font size */
+  --control-border: 1px solid #ccc;
+
+  /* Type scale */
+  --font-body: clamp(16px, 1.2vw + 0.5rem, 18px);
+  --font-h1: clamp(28px, 3.2vw + 0.5rem, 36px);
+  --font-sub: clamp(17px, 1.4vw + 0.4rem, 20px);
+  --font-label: clamp(15px, 1.2vw + 0.3rem, 18px);
+  --font-button: clamp(18px, 1.6vw + 0.4rem, 20px);
+}
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  padding: 0 1rem;
+  font-family: Arial, sans-serif;
+  background-color: #ffffff;
+  color: var(--text-color);
+  line-height: 1.6;
+  font-size: var(--font-body);
+}
+
+/* Container for readability */
+form {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+/* ==========================================================================
+   Header / Hero
+   ========================================================================== */
+header.hero {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+header.hero img.logo {
+  width: 50%;
+  max-width: max-content;
+  height: auto;
+  margin-bottom: 1rem;
+}
+
+header.hero h1 {
+  margin: 0.5rem 0;
+  color: var(--primary-color);
+  font-size: var(--font-h1);
+  line-height: 1.15;
+}
+
+header.hero .sub {
+  font-size: var(--font-sub);
+  color: #444;
+}
+
+/* Section headers */
+.section-header {
+  background: var(--accent-light);
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  margin: 1.5rem 0 1rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  text-transform: uppercase;
+  font-size: 0.95rem;
+}
+
+/* ==========================================================================
+   Labels / Text
+   ========================================================================== */
+label, span {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 500;
+  color: #222;
+  font-size: var(--font-label);
+}
+
+/* ==========================================================================
+   Inputs / Selects / Textareas
+   ========================================================================== */
+input[type="text"],
+input[type="number"],
+select,
+textarea,
+.dateTextInput,
+.goldcardNumberInput {
+  width: 100%;
+  height: var(--control-h) !important;
+  padding: 0 var(--control-pad-x) !important;
+  border: var(--control-border);
+  border-radius: var(--control-radius);
+  font-size: var(--control-font);
+  line-height: 1.2;
+  margin-bottom: 1rem;
+  box-sizing: border-box;
+}
+
+.goldcardNumberInput { width: 25% !important; }
+
+input[type="checkbox"] { margin-right: 0.5rem; }
+
+/* Button / CTA */
+input[type="button"] {
+  display: inline-block;
+  width: 100%;
+  background-color: var(--primary-color);
+  color: #fff;
+  border: none;
+  padding: 1rem;
+  font-size: var(--font-button);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.04s ease;
+  margin-top: 1rem;
+}
+input[type="button"]:hover { background-color: var(--primary-color-dark); }
+input[type="button"]:active { transform: translateY(1px); }
+
+/* ==========================================================================
+   Layout helpers
+   ========================================================================== */
+/* Guests row: wraps cleanly, centers on wide screens */
+.guest-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+/* Each column (Adult / Youth / Child) */
+.guest-row .guestTypeContainer{
+  display: flex !important;     /* override any span defaults */
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-sizing: border-box;
+  flex: 0 1 180px;              /* wraps to 2 or 1 cols as space tightens */
+  min-width: 0;
+  max-width: 240px;
+  font-size: var(--font-label);
+  padding: 0.25rem 0;
+}
+
+/* Make the controls fill the column width */
+.guest-row .guestCountSelect,
+.guest-row .guestCountTextInput { width: 100%; }
+
+/* Two-column form row that stacks on mobile (if you use it) */
+.form-two-col{
+  display: grid;
+  grid-template-columns: 1fr 1fr;   /* Activity Date | Time */
+  gap: 1rem 1.25rem;                /* row gap | column gap */
+  align-items: center;
+}
+.form-field label { display:block; margin-bottom:.4rem; font-weight:600; }
+.form-field .dateTextInput,
+.form-field select { width:100%; }
+
+/* Date input + icon inline, same height as other inputs */
+.datepicker-field{
+  display:flex;
+  align-items:center;
+  gap:.5rem;
+}
+.calendar-trigger{
+  display:flex;
+  align-items:center;
+  height: var(--control-h);
+}
+.calendar-trigger img{ display:block; }
+
+.g836{ margin-bottom: 0rem; }
+
+/* ==========================================================================
+   jQuery UI Calendar – make text readable and title stay on one line
+   (overrides the tiny .ui-widget sizing in the page)
+   ========================================================================== */
+.ui-widget { font-size: 1em !important; } /* reset tiny calendar text */
+.ui-datepicker td.un { color:red; text-decoration: line-through; }
+
+/* Keep month + year on one line and centered */
+.ui-datepicker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ui-datepicker-title {
+  position: relative !important;
+  z-index: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  gap: 0.35em !important;
+  width: 100%;
+  flex: 1;
+}
+.ui-datepicker-title .ui-datepicker-month,
+.ui-datepicker-title .ui-datepicker-year {
+  display: inline !important;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   Responsiveness
+   ========================================================================== */
+@media (max-width: 900px){
+  header.hero img.logo { width: 60%; }
+  form { padding: 1.5rem; }
+}
+
+@media (max-width: 700px){
+  /* Bigger touch targets + larger text on phones */
+  :root{
+    --control-h: 52px;      /* taller for touch */
+    --control-font: 18px;   /* bigger input text */
+  }
+
+  body {
+    line-height: 1.7;
+    padding: 0.5rem;
+  }
+
+  header.hero img.logo { width: 70%; }
+
+  header.hero h1 { /* already fluid via --font-h1; keep a minimum bump */
+    letter-spacing: 0.1px;
+  }
+
+  .ui-widget { font-size: 1em !important; } /* ensure calendar isn't tiny */
+
+  form { padding: 1rem; }
+
+  label, span { font-size: 1.1rem; }
+
+  .guest-row { justify-content: center; }
+  .guest-row .guestTypeContainer{
+    flex-basis: 100%;       /* full width per column on phones */
+    max-width: 420px;
+    margin-inline: auto;
+    padding: 0.5rem 0;
+  }
+
+  .form-two-col{ grid-template-columns: 1fr; } /* stack date/time rows */
+}
+
+/* Tiny screens */
+@media (max-width: 360px){
+  :root{
+    --control-h: 56px;
+    --control-font: 18px;
+  }
+  input[type="button"] { padding: 1.1rem; }
+}
+
+/* ==========================================================================
+   Motion preferences
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce){
+  * { animation: none !important; transition: none !important; }
+}
+
+/* ===== FINAL OVERRIDES (place at very end of stylesheet.css) ===== */
+
+/* Bigger base type + better readability */
+html { -webkit-text-size-adjust: 100%; }
+body { font-size: 18px; line-height: 1.7; }
+
+/* Inputs/selects: comfortable tap targets on phones */
+@media (max-width: 700px){
+  :root{
+    --control-h: 52px;
+    --control-font: 18px;
+  }
+}
+
+/* Buttons: clearer and larger on mobile */
+@media (max-width: 700px){
+  input[type="button"]{
+    font-size: 1.25rem;
+    padding: 1rem;
+  }
+}
+
+/* Labels and small text that looked tiny */
+@media (max-width: 700px){
+  label, span { font-size: 1.1rem; }
+}
+
+/* Hero heading/subheading scale nicely */
+@media (max-width: 700px){
+  header.hero h1 { font-size: 1.8rem; }
+  header.hero .sub { font-size: 1.2rem; }
+}
+
+/* Calendar text was tiny due to old rules in HTML & CSS */
+.ui-widget { font-size: 1em !important; }
+
+/* Ensure text inside inputs isn’t stuck at 16px */
+input[type="text"],
+input[type="number"],
+select,
+textarea,
+.dateTextInput,
+.goldcardNumberInput { font-size: var(--control-font) !important; height: var(--control-h) !important; }
+
+/* Guest columns: readable when stacked */
+@media (max-width: 700px){
+  .guest-row .guestTypeContainer{
+    font-size: 1.1rem;
+    flex-basis: 100%;
+    max-width: 420px;
+    margin-inline: auto;
+    padding: .5rem 0;
+  }
+}
+
+/* ===== MOBILE FONT OVERRIDES ===== */
+@media (max-width: 700px) {
+  body, label, span, input, select, textarea, button, .ui-widget {
+    font-size: 20px !important;   /* mobile-friendly size */
+    line-height: 1.5 !important;
+  }
+
+  input[type="text"],
+  select,
+  textarea,
+  .dateTextInput,
+  .goldcardNumberInput {
+    height: 60px !important;      /* taller tap targets */
+    padding: 0.8rem !important;
+  }
+
+  input[type="button"] {
+    font-size: 40px !important;
+    padding: 1rem !important;
+  }
+}

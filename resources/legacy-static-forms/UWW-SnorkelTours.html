@@ -1,0 +1,250 @@
+<html><body>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/jquery/jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/calendar_js.jsp?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/functions.js?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/bookingsupport-1.js?jsversion=20250423"></script>
+<script type="text/javascript">
+  var PRBookingSupport = PonoRezExternal.BookingSupport;
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://ponorez.com/Calendar/CUPERTINO/jquery-ui.css" rel="stylesheet">
+
+<style>
+ .ui-widget { font-size: 0.75em; }
+ .ui-datepicker td.un { color:red;text-decoration:line-through; }
+/* Keep month + year on one line and control spacing */
+.ui-datepicker-title {
+  position: relative !important;
+  z-index: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;   /* prevents the line break */
+  gap: 0.35em !important;           /* tweak spacing between month/year */
+  width: 100%;                      /* fill header so it's centered */
+}
+
+/* Make sure the spans don’t get forced to blocks by the theme */
+.ui-datepicker-title .ui-datepicker-month,
+.ui-datepicker-title .ui-datepicker-year {
+  display: inline !important;
+  line-height: 1.2;
+  font-weight: 600;                 /* optional */
+}
+
+/* If you used the arrow-flex header from before, keep this */
+.ui-datepicker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ui-datepicker-title { flex: 1; }   /* keeps the title centered between arrows */
+
+</style>
+<!-- CHANGE THE THEME COLORS HERE TO MATCH WHATEVER YOUR LOGO NEEDS -->
+
+<style>
+  :root {
+    --primary-color: #1F77FA;   /* pulled from logo */
+    --primary-color-dark: #1a62ce; /* hover state */
+    --accent-light: #E9F5F8;    /* light background for sections */
+    --text-color: #000;
+  }
+</style>
+
+<link rel="stylesheet" href="stylesheet.css">
+
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <header class="hero" role="banner">
+        <img class="logo" alt="Company logo"
+             src="https://ponorez.online/reservation/companyservlet?action=MISC_SUPPLIERLOGO&companyid=476" />
+        <div>
+          <h1>Ultimate Whale Watch Ultimate Snorkel Tours</h1>
+          <div class="sub">Shaka Gold Card Checkout</div>
+        </div>
+      </header>
+
+    
+<form class="BookingForm_7682ae55">
+  <script type="text/javascript">
+    window.bookingFormContext_7682ae55 = {
+      supplierId: 476,
+      agencyId: 0,
+      selectActivityAfterDate: true,
+      groupSelectSelector: '.BookingForm_7682ae55 .groupSelect',
+      allActivitySelectContainersSelector: '.BookingForm_7682ae55 .activitySelectContainer',
+      activitySelectSubselector: '.activitySelect',
+      activitySelectSelectOptionSubsubselector: '.selectOption',
+      activitySelectLoadingOptionSubsubselector: '.loadingOption',
+      dateTextInputSelector: '.BookingForm_7682ae55 .dateTextInput',
+      allGuestTypeContainersSelector: '.BookingForm_7682ae55 .guestTypeContainer',
+      guestCountAssignedElementSubselector: '.guestCountAssignedElement',
+      guestCountTextInputSubselector: '.guestCountTextInput',
+      guestCountSelectSubselector: '.guestCountSelect',
+      singleSeatContainersSelector: '.BookingForm_7682ae55 .singleSeatContainer',
+      singleSeatGuestTypeSelectSubselector: '.guestTypeSelect',
+      guestTypeInfos: {
+        '1656': { containerSelector: '.BookingForm_7682ae55 .guestTypeContainer.gt1656' },
+        '1657': { containerSelector: '.BookingForm_7682ae55 .guestTypeContainer.gt1657' },
+        '3727': { containerSelector: '.BookingForm_7682ae55 .guestTypeContainer.gt3727' },
+        '3769': { containerSelector: '.BookingForm_7682ae55 .guestTypeContainer.gt3769' },
+        '3788': { containerSelector: '.BookingForm_7682ae55 .guestTypeContainer.gt3788' },
+        '3893': { containerSelector: '.BookingForm_7682ae55 .guestTypeContainer.gt3893' },
+        'null': null
+      },
+      upgradesSectionSelector: '.BookingForm_7682ae55 .upgradesSection',
+      allUpgradeContainersSelector: '.BookingForm_7682ae55 .upgradeContainer',
+      upgradeCountElementSubselector: '.upgradeCountElement',
+      upgradeInfos: {
+        'null': null
+      },
+      groupInfos: {
+        '1301': {
+          activitySelectContainerSelector: '.BookingForm_7682ae55 .activitySelectContainer.g1301',
+          isTimeSelection: false,
+          selectableActivityIds: [ 13902, 8878, 4399 ]
+        },
+        'null': null
+      },
+      formVariantInfos: {
+        'g1301': {
+          useSingleSeatSelect: false,
+          useGuestCountSelects: false,
+          guestTypeIds: [ 3893, 1656, 1657, 3769, 3788, 3727 ],
+          upgradeIds: [  ]
+        },
+        'null': null
+      }
+    };
+  </script>
+
+  <input type="hidden" class="groupSelect" value="g1301" />
+
+  <div class="guest-row">
+    <span class="guestTypeContainer gt1656" style="display: none;">
+      Adults
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_7682ae55)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_7682ae55)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+    <span class="guestTypeContainer gt1657" style="display: none;">
+      Child
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_7682ae55)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_7682ae55)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+    <span class="guestTypeContainer gt3727" style="display: none;">
+      Private Charter 16 pax
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_7682ae55)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_7682ae55)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+    <span class="guestTypeContainer gt3769" style="display: none;">
+      Private Charter 16 pax MAX
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_7682ae55)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_7682ae55)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+    <span class="guestTypeContainer gt3788" style="display: none;">
+      Private Charter 26 pax max
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_7682ae55)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_7682ae55)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+    <span class="guestTypeContainer gt3893" style="display: none;">
+      How Many Guests? (Private charter only)
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_7682ae55)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_7682ae55)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="upgradesSection">
+    Upgrades:&nbsp;&nbsp;
+
+    <div>&nbsp;</div>
+  </div>
+
+  <div>
+    Activity Date
+      <input class="dateTextInput" readonly="readonly" size="15"
+             onclick="PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_7682ae55);"
+             onchange="PRBookingSupport.applyDate(bookingFormContext_7682ae55);" />
+      <a id="bookingForm_7682ae55_date_trigger" style="vertical-align: middle;"
+         href="javascript:PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_7682ae55, { anchorId: 'bookingForm_7682ae55_date_trigger' });"
+         onMouseOver="window.status='Date Picker';return true;" onMouseOut="window.status='';return true;">
+      </a>
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="activitySelectContainer g1301" style="display: none;">
+    Activity:
+    <select class="activitySelect" onchange="PRBookingSupport.applyActivity(bookingFormContext_7682ae55)">
+      <option value="" class="selectOption">-- Select --</option>
+      <option value="" class="loadingOption" disabled="disabled" style="display: none;">-- Loading... --</option>
+      <option value="13902">A 9AM SNORKELWHALEWATCH 3.5 Hour</option>
+      <option value="8878">A 9:00 AM Lanai Snorkel 4 hour</option>
+      <option value="4399">8:00 AM Deluxe Dolphin Adventure &amp; Lanai Snorkel 6 hour</option>
+    </select>
+    <div>&nbsp;</div>
+  </div>
+
+
+  <script type="text/javascript">PRBookingSupport.applyGroup(bookingFormContext_7682ae55);</script>
+
+Reconfirm Your Shaka Gold Number: <input type="text" class="goldcardNumberInput" size="8" /><br />
+  <label>OR <input type="checkbox" class="buyGoldcardCheckbox" />Buying for someone else? Add a Shaka Gold Card $30</label><br />
+
+  <div>&nbsp;</div>
+
+  <label>
+    <input type="checkbox" class="cancellationPolicyCheckbox"
+    />Cancellation and Refunds
+Your purchase is 100% refundable provided you cancel your reservation at least 24 hours (for group charters) or 72 hours (for private charters) prior to its check-in time. Company reserves the right to cancel or reschedule tours at any time due to weather or capacity. Tours not suitable for pregnant women, infants under 3 for whale watching or 4 for snorkeling, or persons with back or neck injury(s).
+  </label>
+  <div>&nbsp;</div>
+
+  <input type="button" value="BOOK NOW" onclick="
+         var selectedActivityId = PRBookingSupport.getAndCheckActivityId(bookingFormContext_7682ae55);
+         if (!selectedActivityId) return false;
+         reservation('476', selectedActivityId, jQuery('.BookingForm_7682ae55 .dateTextInput').val(), '', 0.0);
+         if (!PRBookingSupport.addGuests(bookingFormContext_7682ae55)) return false;
+         if (!PRBookingSupport.addUpgrades(bookingFormContext_7682ae55)) return false;
+         setUpgradesFixed();
+         if (!checkDateAndGuestsAndUpgrades()) return false;
+         setgoldcard(jQuery('.BookingForm_7682ae55 .goldcardNumberInput').val()); setbuygoldcard(jQuery('.BookingForm_7682ae55 .buyGoldcardCheckbox').is(':checked'));
+         if (!checkcancellation(jQuery('.BookingForm_7682ae55 .cancellationPolicyCheckbox').get(0))) return false;
+         setpaylater(true);
+         availability_popup(); return false;
+         " />
+
+</form>
+</body></html>

@@ -2,7 +2,6 @@
 _oldApp
 assets/dist/
 node_modules/
-resources/
 
 # Build outputs copied to public
 public/assets/css/

@@ -1,0 +1,232 @@
+<html>
+<title>Shaka Gold Card Form</title>
+<body>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/jquery/jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/calendar_js.jsp?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/functions.js?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/accommodation-1.js?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/bookingsupport-1.js?jsversion=20250423"></script>
+<script type="text/javascript">
+  var PRBookingSupport = PonoRezExternal.BookingSupport;
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://ponorez.com/Calendar/FLICK/jquery-ui.css" rel="stylesheet">
+
+<style>
+ .ui-widget { font-size: 0.75em; }
+ .ui-datepicker td.un { color:red;text-decoration:line-through; }
+/* Keep month + year on one line and control spacing */
+.ui-datepicker-title {
+  position: relative !important;
+  z-index: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;   /* prevents the line break */
+  gap: 0.35em !important;           /* tweak spacing between month/year */
+  width: 100%;                      /* fill header so it's centered */
+}
+
+/* Make sure the spans don’t get forced to blocks by the theme */
+.ui-datepicker-title .ui-datepicker-month,
+.ui-datepicker-title .ui-datepicker-year {
+  display: inline !important;
+  line-height: 1.2;
+  font-weight: 600;                 /* optional */
+}
+
+/* If you used the arrow-flex header from before, keep this */
+.ui-datepicker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ui-datepicker-title { flex: 1; }   /* keeps the title centered between arrows */
+
+</style>
+<!-- CHANGE THE THEME COLORS HERE TO MATCH WHATEVER YOUR LOGO NEEDS -->
+
+<style>
+  :root {
+    --primary-color: #00A651;   /* pulled from logo */
+    --primary-color-dark: #354297; /* hover state */
+    --accent-light: #FEF7B4;    /* light background for sections */
+    --text-color: #000;
+  }
+</style>
+
+
+  <link rel="stylesheet" href="stylesheet.css">
+
+<header class="hero" role="banner">
+        <img class="logo" alt="Company logo"
+             src="https://ponorez.online/reservation/companyservlet?action=MISC_SUPPLIERLOGO&companyid=492" />
+        <div>
+          <h1>Chief's Luau- Driving to Luau/No Transporation</h1>
+          <div class="sub">Shaka Gold Card Checkout</div>
+        </div>
+      </header>
+
+<form class="BookingForm_3d1c798a">
+  <script type="text/javascript">
+    window.bookingFormContext_3d1c798a = {
+      supplierId: 492,
+      agencyId: 0,
+      groupSelectSelector: '.BookingForm_3d1c798a .groupSelect',
+      allActivitySelectContainersSelector: '.BookingForm_3d1c798a .activitySelectContainer',
+      activitySelectSubselector: '.activitySelect',
+      dateTextInputSelector: '.BookingForm_3d1c798a .dateTextInput',
+      allGuestTypeContainersSelector: '.BookingForm_3d1c798a .guestTypeContainer',
+      guestCountAssignedElementSubselector: '.guestCountAssignedElement',
+      guestCountTextInputSubselector: '.guestCountTextInput',
+      guestCountSelectSubselector: '.guestCountSelect',
+      singleSeatContainersSelector: '.BookingForm_3d1c798a .singleSeatContainer',
+      singleSeatGuestTypeSelectSubselector: '.guestTypeSelect',
+      guestTypeInfos: {
+        '1795': { containerSelector: '.BookingForm_3d1c798a .guestTypeContainer.gt1795' },
+        '1797': { containerSelector: '.BookingForm_3d1c798a .guestTypeContainer.gt1797' },
+        '1796': { containerSelector: '.BookingForm_3d1c798a .guestTypeContainer.gt1796' },
+        '1799': { containerSelector: '.BookingForm_3d1c798a .guestTypeContainer.gt1799' },
+        'null': null
+      },
+      upgradesSectionSelector: '.BookingForm_3d1c798a .upgradesSection',
+      allUpgradeContainersSelector: '.BookingForm_3d1c798a .upgradeContainer',
+      upgradeCountElementSubselector: '.upgradeCountElement',
+      upgradeInfos: {
+        'null': null
+      },
+      groupInfos: {
+        '1125': { activitySelectContainerSelector: '.BookingForm_3d1c798a .activitySelectContainer.g1125' },
+        'null': null
+      },
+      activityInfos: {
+        '4954': {
+          useSingleSeatSelect: false,
+          useGuestCountSelects: false,
+          guestTypeIds: [ 1795, 1797, 1796, 1799 ],
+          upgradeIds: [  ]
+        },
+        '4956': {
+          useSingleSeatSelect: false,
+          useGuestCountSelects: false,
+          guestTypeIds: [ 1795, 1797, 1796, 1799 ],
+          upgradeIds: [  ]
+        },
+        '4957': {
+          useSingleSeatSelect: false,
+          useGuestCountSelects: false,
+          guestTypeIds: [ 1795, 1797, 1796, 1799 ],
+          upgradeIds: [  ]
+        },
+        'null': null
+      },
+      toggleUncertainAvailabilityWarningFn: function(show) {
+        $(".BookingForm_3d1c798a .uncertainAvailabilityWarningSection").toggle(show);
+      }
+    };
+  </script>
+
+  <div>
+    <input type="hidden" class="groupSelect" value="g1125" />
+
+    <span class="activitySelectContainer g1125" style="display: none;">
+      Select Seating Section:<img src="https://ponorez.com/images/chiefsSeating.png" alt="Chiefs Seating Chart" style="max-width:100%; height:auto;">
+      <select class="activitySelect" onchange="PRBookingSupport.applyActivity(bookingFormContext_3d1c798a)">
+        <option value="4954">Aloha Experience</option>
+        <option value="4956">Paradise Experience</option>
+        <option value="4957">Royal Experience</option>
+      </select>
+    </span>
+  </div>
+  <div>&nbsp;</div>
+
+<div class="guest-row">
+
+    <span class="guestTypeContainer gt1795" style="display: none;">
+      Adult
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_3d1c798a)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_3d1c798a)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+    <span class="guestTypeContainer gt1797" style="display: none;">
+      Youth (13-20)
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_3d1c798a)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_3d1c798a)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+    <span class="guestTypeContainer gt1796" style="display: none;">
+      Child (5-12)
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_3d1c798a)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_3d1c798a)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+    <span class="guestTypeContainer gt1799" style="display: none;">
+      Infant (4 &amp; Under)
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_3d1c798a)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_3d1c798a)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="upgradesSection">
+    Upgrades:&nbsp;&nbsp;
+
+    <div>&nbsp;</div>
+  </div>
+
+  <div>
+    Activity Date
+      <input class="dateTextInput" readonly="readonly" size="15"
+             onclick="PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_3d1c798a);"
+             onchange="PRBookingSupport.applyDate(bookingFormContext_3d1c798a);" />
+      <a id="bookingForm_3d1c798a_date_trigger" style="vertical-align: middle;"
+         href="javascript:PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_3d1c798a, { anchorId: 'bookingForm_3d1c798a_date_trigger' });"
+         onMouseOver="window.status='Date Picker';return true;" onMouseOut="window.status='';return true;">
+      </a>
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="uncertainAvailabilityWarningSection" style="color: red; display: none;">
+    To ensure availability, please reconfirm this date is available by re-selecting it.
+    <div>&nbsp;</div>
+  </div>
+
+  <script type="text/javascript">PRBookingSupport.applyGroup(bookingFormContext_3d1c798a);</script>
+
+ Reconfirm Your Shaka Gold Number: <input type="text" class="goldcardNumberInput" size="8" /><br />
+  <label>OR<input type="checkbox" class="buyGoldcardCheckbox" />Buying for someone else? Add a Shaka Gold Card $30</label><br />
+
+  
+  <div>&nbsp;</div>
+
+  <input type="button" value="BOOK NOW" onclick="
+         var selectedActivityId = PRBookingSupport.getActivityId(bookingFormContext_3d1c798a);
+         reservation('492', selectedActivityId, jQuery('.BookingForm_3d1c798a .dateTextInput').val(), '', 0.0);
+         if (!PRBookingSupport.addGuests(bookingFormContext_3d1c798a)) return false;
+         if (!PRBookingSupport.addUpgrades(bookingFormContext_3d1c798a)) return false;
+         setUpgradesFixed();
+         if (!checkDateAndGuestsAndUpgrades({ dateAfterGuestsUpgrades: true })) return false;
+         setgoldcard(jQuery('.BookingForm_3d1c798a .goldcardNumberInput').val()); setbuygoldcard(jQuery('.BookingForm_3d1c798a .buyGoldcardCheckbox').is(':checked'));
+         
+         availability_iframe(); return false;
+         " />
+
+</form>
+</body></html>

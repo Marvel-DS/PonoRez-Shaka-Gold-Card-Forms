@@ -1,0 +1,31 @@
+{
+    "status": "ok",
+    "activityId": "639",
+    "date": "2025-09-27",
+    "guestTypes": [
+        {
+            "id": "214",
+            "name": "Adult",
+            "description": "Ages 18 and up",
+            "price": "232.43",
+            "availabilityPerGuest": 1,
+            "noChargesApplied": false
+        },
+        {
+            "id": "1882",
+            "name": "Youth",
+            "description": "Ages 13 - 17",
+            "price": "216.22",
+            "availabilityPerGuest": 1,
+            "noChargesApplied": false
+        },
+        {
+            "id": "215",
+            "name": "Child",
+            "description": "Ages 2 - 12",
+            "price": "200.00",
+            "availabilityPerGuest": 1,
+            "noChargesApplied": false
+        }
+    ]
+}

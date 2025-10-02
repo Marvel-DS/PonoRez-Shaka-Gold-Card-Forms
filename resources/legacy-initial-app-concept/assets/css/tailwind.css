@@ -1,0 +1,54 @@
+/* Import Fonts */
+@import "@fontsource/poppins/400.css";
+@import "@fontsource/poppins/600.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+
+/* Import Tailwind Core */
+@import "tailwindcss";
+
+/* Tailwind Customization */
+@layer base {
+  body {
+    @apply text-[#090B0A];
+  }
+
+  a {
+    color: var(--brand-color);
+    @apply transition-all duration-300;
+  }
+
+  a:hover {
+    @apply underline;
+  }
+
+  p {
+    @apply mb-2;
+  }
+
+  #formSectionGuestTypes p {
+    @apply mb-0
+  }
+}
+
+/* Custom Shadow */
+@layer utilities {
+  .shadow-card {
+    --tw-shadow: 0 0 8px rgba(0,0,0,0.025);
+    --tw-shadow-colored: 0 0px 8px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
+                var(--tw-ring-shadow, 0 0 #0000),
+                var(--tw-shadow);
+  }
+}
+
+/* Custom Components */
+.btn-gallery {
+  @apply px-3 py-2 min-w-12 min-h-12 transition-all duration-300 cursor-pointer;
+}
+.btn-gallery svg {
+  @apply size-6 text-white transition-all duration-300;
+}
+.btn-gallery:hover svg {
+  color: var(--brand-color);
+}

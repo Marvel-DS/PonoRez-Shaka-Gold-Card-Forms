@@ -1,0 +1,10 @@
+{
+  "name": "ponorez/sgc-forms",
+  "description": "PonoRez SGC Forms",
+  "autoload": {
+    "psr-4": {
+      "PonoRez\\SGCForms\\": "controller/"
+    }
+  },
+  "require": {}
+}

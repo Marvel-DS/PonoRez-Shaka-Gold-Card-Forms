@@ -1,0 +1,223 @@
+<html>
+<title>Shaka Gold Card Form</title>
+<body>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/jquery/jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/calendar_js.jsp?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/functions.js?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/accommodation-1.js?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/bookingsupport-1.js?jsversion=20250423"></script>
+<script type="text/javascript">
+  var PRBookingSupport = PonoRezExternal.BookingSupport;
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://ponorez.com/Calendar/SOUTHSTREET/jquery-ui.css" rel="stylesheet">
+
+<style>
+ .ui-widget { font-size: 0.75em; }
+ .ui-datepicker td.un { color:red;text-decoration:line-through; }
+/* Keep month + year on one line and control spacing */
+.ui-datepicker-title {
+  position: relative !important;
+  z-index: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;   /* prevents the line break */
+  gap: 0.35em !important;           /* tweak spacing between month/year */
+  width: 100%;                      /* fill header so it's centered */
+}
+
+/* Make sure the spans don’t get forced to blocks by the theme */
+.ui-datepicker-title .ui-datepicker-month,
+.ui-datepicker-title .ui-datepicker-year {
+  display: inline !important;
+  line-height: 1.2;
+  font-weight: 600;                 /* optional */
+}
+
+/* If you used the arrow-flex header from before, keep this */
+.ui-datepicker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ui-datepicker-title { flex: 1; }   /* keeps the title centered between arrows */
+
+</style>
+<!-- CHANGE THE THEME COLORS HERE TO MATCH WHATEVER YOUR LOGO NEEDS -->
+
+<style>
+  :root {
+    --primary-color: #006B44;   /* pulled from logo */
+    --primary-color-dark: #B01E0F; /* hover state */
+    --accent-light: #FEF7B4;    /* light background for sections */
+    --text-color: #000;
+  }
+</style>
+
+
+  <link rel="stylesheet" href="stylesheet.css">
+
+<header class="hero" role="banner">
+        <img class="logo" alt="Company logo"
+             src="https://ponorez.online/reservation/companyservlet?action=MISC_SUPPLIERLOGO&companyid=154" />
+        <div>
+          <h1>Hana Premium Picnic</h1>
+          <div class="sub">Shaka Gold Card Checkout</div>
+        </div>
+      </header>
+<form class="BookingForm_35439298">
+  <script type="text/javascript">
+    window.bookingFormContext_35439298 = {
+      supplierId: 154,
+      agencyId: 0,
+      groupSelectSelector: '.BookingForm_35439298 .groupSelect',
+      allActivitySelectContainersSelector: '.BookingForm_35439298 .activitySelectContainer',
+      activitySelectSubselector: '.activitySelect',
+      dateTextInputSelector: '.BookingForm_35439298 .dateTextInput',
+      allGuestTypeContainersSelector: '.BookingForm_35439298 .guestTypeContainer',
+      guestCountAssignedElementSubselector: '.guestCountAssignedElement',
+      guestCountTextInputSubselector: '.guestCountTextInput',
+      guestCountSelectSubselector: '.guestCountSelect',
+      singleSeatContainersSelector: '.BookingForm_35439298 .singleSeatContainer',
+      singleSeatGuestTypeSelectSubselector: '.guestTypeSelect',
+      guestTypeInfos: {
+        '183': { containerSelector: '.BookingForm_35439298 .guestTypeContainer.gt183' },
+        'null': null
+      },
+      upgradesSectionSelector: '.BookingForm_35439298 .upgradesSection',
+      allUpgradeContainersSelector: '.BookingForm_35439298 .upgradeContainer',
+      upgradeCountElementSubselector: '.upgradeCountElement',
+      upgradeInfos: {
+        '34': { containerSelector: '.BookingForm_35439298 .upgradeContainer.u34' },
+        '3080': { containerSelector: '.BookingForm_35439298 .upgradeContainer.u3080' },
+        '3081': { containerSelector: '.BookingForm_35439298 .upgradeContainer.u3081' },
+        'null': null
+      },
+      groupInfos: {
+        '50': { activitySelectContainerSelector: '.BookingForm_35439298 .activitySelectContainer.g50' },
+        'null': null
+      },
+      activityInfos: {
+        '428': {
+          useSingleSeatSelect: false,
+          useGuestCountSelects: true,
+          guestTypeIds: [ 183 ],
+          upgradeIds: [ 34, 3080, 3081 ]
+        },
+        '955': {
+          useSingleSeatSelect: false,
+          useGuestCountSelects: true,
+          guestTypeIds: [ 183 ],
+          upgradeIds: [ 34, 3080, 3081 ]
+        },
+        'null': null
+      },
+      toggleUncertainAvailabilityWarningFn: function(show) {
+        $(".BookingForm_35439298 .uncertainAvailabilityWarningSection").toggle(show);
+      }
+    };
+  </script>
+
+  <div>
+    <input type="hidden" class="groupSelect" value="g50" />
+
+    <span class="activitySelectContainer g50" style="display: none;">
+      Time:
+      <select class="activitySelect" onchange="PRBookingSupport.applyActivity(bookingFormContext_35439298)">
+        <option value="428">7:00 AM - 1:15 PM Tour-Dine-Fly (Limo-Van &amp; Helicopter)</option>
+        <option value="955">11:15 AM - 5:00 PM Fly-Dine-Tour (Limo-Van &amp; Helicopter)</option>
+      </select>
+    </span>
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="guest-row">
+    <span class="guestTypeContainer gt183" style="display: none;">
+      Adult
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_35439298)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_35439298)">
+        <option value="0">0</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="upgradesSection">
+    Upgrades:&nbsp;&nbsp;
+
+    <span class="upgradeContainer u34" style="display: none;">
+      Comfort Seat (over 240 lbs.) Additional per person 
+      <input type="text" class="upgradeCountElement" value="0" size="2"
+             onchange="PRBookingSupport.applyUpgradeCount(bookingFormContext_35439298)" />
+      &nbsp;&nbsp;
+    </span>
+
+    <span class="upgradeContainer u3080" style="display: none;">
+      Comfort Seat (over 290 lbs.) Additional per person ( Maximum Weight of 325 lbs. per person )
+      <input type="text" class="upgradeCountElement" value="0" size="2"
+             onchange="PRBookingSupport.applyUpgradeCount(bookingFormContext_35439298)" />
+      &nbsp;&nbsp;
+    </span>
+
+    <span class="upgradeContainer u3081" style="display: none;">
+      Comfort Seat (Any Combined Couple over 420 lbs.) Additional per couple
+      <input type="text" class="upgradeCountElement" value="0" size="2"
+             onchange="PRBookingSupport.applyUpgradeCount(bookingFormContext_35439298)" />
+      &nbsp;&nbsp;
+    </span>
+
+    <div>&nbsp;</div>
+  </div>
+
+  <div>
+    Activity Date
+      <input class="dateTextInput" readonly="readonly" size="15"
+             onclick="PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_35439298);"
+             onchange="PRBookingSupport.applyDate(bookingFormContext_35439298);" />
+      <a id="bookingForm_35439298_date_trigger" style="vertical-align: middle;"
+         href="javascript:PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_35439298, { anchorId: 'bookingForm_35439298_date_trigger' });"
+         onMouseOver="window.status='Date Picker';return true;" onMouseOut="window.status='';return true;">
+      </a>
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="uncertainAvailabilityWarningSection" style="color: red; display: none;">
+    To ensure availability, please reconfirm this date is available by re-selecting it.
+    <div>&nbsp;</div>
+  </div>
+
+  <script type="text/javascript">PRBookingSupport.applyGroup(bookingFormContext_35439298);</script>
+
+  Reconfirm Your Shaka Gold Number: <input type="text" class="goldcardNumberInput" size="8" /><br />
+  <label>OR<input type="checkbox" class="buyGoldcardCheckbox" />Buying for someone else? Add a Shaka Gold Card $30</label><br />
+
+
+
+  
+  <div>&nbsp;</div>
+
+  <input type="button" value="Book Now" onclick="
+         var selectedActivityId = PRBookingSupport.getActivityId(bookingFormContext_35439298);
+         reservation('154', selectedActivityId, jQuery('.BookingForm_35439298 .dateTextInput').val(), '', 0.0);
+         if (!PRBookingSupport.addGuests(bookingFormContext_35439298)) return false;
+         if (!PRBookingSupport.addUpgrades(bookingFormContext_35439298)) return false;
+         setUpgradesFixed();
+         if (!checkDateAndGuestsAndUpgrades({ dateAfterGuestsUpgrades: true })) return false;
+         setgoldcard(jQuery('.BookingForm_35439298 .goldcardNumberInput').val()); setbuygoldcard(jQuery('.BookingForm_35439298 .buyGoldcardCheckbox').is(':checked'));
+         availability_iframe(); return false;
+         " />
+
+</form>
+</body></html>

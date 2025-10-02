@@ -1,0 +1,277 @@
+<html>
+<title>Shaka Gold Card Checkout</title>
+<body>
+
+<script type="text/javascript" src="https://ponorez.online/reservation/common/jquery/jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/common/calendar_js.jsp?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/functions.js?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/accommodation-1.js?jsversion=20250423"></script>
+<script type="text/javascript" src="https://ponorez.online/reservation/external/bookingsupport-1.js?jsversion=20250423"></script>
+<script type="text/javascript">
+  var PRBookingSupport = PonoRezExternal.BookingSupport;
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://ponorez.com/Calendar/HUMANITY/jquery-ui.css" rel="stylesheet">
+
+<style>
+ .ui-widget { font-size: 0.75em; }
+ .ui-datepicker td.un { color:red;text-decoration:line-through; }
+/* Keep month + year on one line and control spacing */
+.ui-datepicker-title {
+  position: relative !important;
+  z-index: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;   /* prevents the line break */
+  gap: 0.35em !important;           /* tweak spacing between month/year */
+  width: 100%;                      /* fill header so it's centered */
+}
+
+/* Make sure the spans don’t get forced to blocks by the theme */
+.ui-datepicker-title .ui-datepicker-month,
+.ui-datepicker-title .ui-datepicker-year {
+  display: inline !important;
+  line-height: 1.2;
+  font-weight: 600;                 /* optional */
+}
+
+/* If you used the arrow-flex header from before, keep this */
+.ui-datepicker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ui-datepicker-title { flex: 1; }   /* keeps the title centered between arrows */
+
+</style>
+<!-- CHANGE THE THEME COLORS HERE TO MATCH WHATEVER YOUR LOGO NEEDS -->
+
+<style>
+  :root {
+    --primary-color: #00224A;   /* pulled from logo */
+    --primary-color-dark: #CA4F1D; /* hover state */
+    --accent-light: #EDE2BF;    /* light background for sections */
+    --text-color: #000;
+  }
+</style>
+
+
+  <link rel="stylesheet" href="stylesheet.css">
+
+
+<header class="hero" role="banner">
+        <img class="logo" alt="Company logo"
+             src="https://ponorez.online/reservation/companyservlet?action=MISC_SUPPLIERLOGO&companyid=387" />
+        <div>
+          <h1>Smith's Family Luau & Show</h1>
+          <div class="sub">Shaka Gold Card Checkout</div>
+        </div>
+      </header>
+
+
+<form class="BookingForm_193e9bd0">
+  <script type="text/javascript">
+    window.bookingFormContext_193e9bd0 = {
+      supplierId: 387,
+      agencyId: 0,
+      selectActivityAfterDate: true,
+      groupSelectSelector: '.BookingForm_193e9bd0 .groupSelect',
+      allActivitySelectContainersSelector: '.BookingForm_193e9bd0 .activitySelectContainer',
+      activitySelectSubselector: '.activitySelect',
+      activitySelectSelectOptionSubsubselector: '.selectOption',
+      activitySelectLoadingOptionSubsubselector: '.loadingOption',
+      dateTextInputSelector: '.BookingForm_193e9bd0 .dateTextInput',
+      allGuestTypeContainersSelector: '.BookingForm_193e9bd0 .guestTypeContainer',
+      guestCountAssignedElementSubselector: '.guestCountAssignedElement',
+      guestCountTextInputSubselector: '.guestCountTextInput',
+      guestCountSelectSubselector: '.guestCountSelect',
+      singleSeatContainersSelector: '.BookingForm_193e9bd0 .singleSeatContainer',
+      singleSeatGuestTypeSelectSubselector: '.guestTypeSelect',
+      guestTypeInfos: {
+        '944': { containerSelector: '.BookingForm_193e9bd0 .guestTypeContainer.gt944' },
+        '947': { containerSelector: '.BookingForm_193e9bd0 .guestTypeContainer.gt947' },
+        '945': { containerSelector: '.BookingForm_193e9bd0 .guestTypeContainer.gt945' },
+        '946': { containerSelector: '.BookingForm_193e9bd0 .guestTypeContainer.gt946' },
+        'null': null
+      },
+      upgradesSectionSelector: '.BookingForm_193e9bd0 .upgradesSection',
+      allUpgradeContainersSelector: '.BookingForm_193e9bd0 .upgradeContainer',
+      upgradeCountElementSubselector: '.upgradeCountElement',
+      upgradeInfos: {
+        'null': null
+      },
+      hotelSelectSelector: '.BookingForm_193e9bd0 .hotelSelect',
+      hotelSelectSelectActivityOptionSubselector: '.selectActivityOption',
+      hotelSelectLoadingOptionSubselector: '.loadingOption',
+      roomTextInputSelector: '.BookingForm_193e9bd0 .roomTextInput',
+      transportationRoutesSectionSelector: '.BookingForm_193e9bd0 .transportationRoutesSection',
+      allTransportationRouteContainersSelector: '.BookingForm_193e9bd0 .transportationRouteContainer',
+      allTransportationRouteRadiosSelector: '.BookingForm_193e9bd0 .transportationRouteRadio',
+      groupInfos: {
+        '252': {
+          activitySelectContainerSelector: '.BookingForm_193e9bd0 .activitySelectContainer.g252',
+          isTimeSelection: false,
+          selectableActivityIds: [ 2022, 2060 ]
+        },
+        'null': null
+      },
+      formVariantInfos: {
+        'g252': {
+          useSingleSeatSelect: false,
+          useGuestCountSelects: false,
+          guestTypeIds: [ 944, 945, 946, 947 ],
+          upgradeIds: [  ]
+        },
+        'null': null
+      },
+      activityAccommodationInfos: {
+        '2022': {
+          hasTransportationRoutes: true,
+          isTransportationMandatory: false,
+          routeSelectionContextData: {
+            routesContainerSelector: '.BookingForm_193e9bd0 .transportationRoutesSection',
+            routeSelectorMap: {
+              '650': '.BookingForm_193e9bd0 .transportationRouteContainer.tr650',
+              'null': null
+            }
+          }
+        },
+        '2060': {
+          hasTransportationRoutes: false,
+          isTransportationMandatory: false,
+          routeSelectionContextData: {
+            routesContainerSelector: '.BookingForm_193e9bd0 .transportationRoutesSection',
+            routeSelectorMap: {
+              'null': null
+            }
+          }
+        },
+        'null': null
+      }
+    };
+  </script>
+
+  <input type="hidden" class="groupSelect" value="g252" />
+
+<div class="guest-row">
+    <span class="guestTypeContainer gt944" style="display: none;">
+      Adult
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_193e9bd0)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_193e9bd0)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+    <span class="guestTypeContainer gt947" style="display: none;">
+      Junior
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_193e9bd0)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_193e9bd0)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+    <span class="guestTypeContainer gt945" style="display: none;">
+      Child
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_193e9bd0)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_193e9bd0)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+    <span class="guestTypeContainer gt946" style="display: none;">
+      Infant
+      <input type="text" class="guestCountTextInput" value="0" size="2" style="display: none;"
+             onchange="PRBookingSupport.applyGuestCount(bookingFormContext_193e9bd0)" />
+      <select class="guestCountSelect" style="display: none;"
+              onchange="PRBookingSupport.applyGuestCount(bookingFormContext_193e9bd0)">
+        <option value="0">0</option>
+      </select>&nbsp;&nbsp;
+    </span>
+
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="upgradesSection">
+    Upgrades:&nbsp;&nbsp;
+
+    <div>&nbsp;</div>
+  </div>
+
+  <div>
+    Activity Date
+      <input class="dateTextInput" readonly="readonly" size="15"
+             onclick="PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_193e9bd0);"
+             onchange="PRBookingSupport.applyDate(bookingFormContext_193e9bd0);" />
+      <a id="bookingForm_193e9bd0_date_trigger" style="vertical-align: middle;"
+         href="javascript:PRBookingSupport.showGuestsDependentAvailabilityCalendar(bookingFormContext_193e9bd0, { anchorId: 'bookingForm_193e9bd0_date_trigger' });"
+         onMouseOver="window.status='Date Picker';return true;" onMouseOut="window.status='';return true;">
+           </a>
+  </div>
+  <div>&nbsp;</div>
+
+  <div class="activitySelectContainer g252" style="display: none;">
+    Activity:
+    <select class="activitySelect" onchange="PRBookingSupport.applyActivity(bookingFormContext_193e9bd0)">
+      <option value="" class="selectOption">-- Select --</option>
+      <option value="" class="loadingOption" disabled="disabled" style="display: none;">-- Loading... --</option>
+      <option value="2022">Smith Family Garden Luau</option>
+      <option value="2060">Smith&#x27;s Luau (Show Only)</option>
+    </select>
+    <div>&nbsp;</div>
+  </div>
+
+  <div>
+    Hotel:
+    <select class="hotelSelect" style="width: 45ex;"
+            onchange="PRBookingSupport.setupTransportationRoutes(bookingFormContext_193e9bd0)"
+            disabled="disabled">
+      <option value="" class="selectActivityOption">--select Activity First--</option>
+      <option value="" class="loadingOption"  disabled="disabled" style="display: none;">-- Loading... --</option>
+    </select>
+  </div><h10>Transportation Offered for Pride of America Passengers</h10>
+  <div>&nbsp;</div>
+
+  <div class="transportationRoutesSection" style="display: none;">
+    Transportation Route:
+
+    <div><label>
+      <input type="radio" name="transportationRoute_193e9bd0" class="transportationRouteRadio" value="" />No Transportation
+    </label></div>
+    <div class="transportationRouteContainer tr650" style="display: none;"><label>
+      <input type="radio" name="transportationRoute_193e9bd0" class="transportationRouteRadio" value="650"
+      />Pride of America guests may pre-arrange transportation. Cost is $42.50 per person (round trip) and space is limited.  Bus departs the pier at 4:30pm.  Click here to add transportation to your reservation. 
+    </label></div>
+    <div>&nbsp;</div>
+  </div>
+
+  <script type="text/javascript">PRBookingSupport.applyGroup(bookingFormContext_193e9bd0);</script>
+
+ Reconfirm Your Shaka Gold Number: <input type="text" class="goldcardNumberInput" size="8" /><br />
+  <label>OR<input type="checkbox" class="buyGoldcardCheckbox" />Buying for someone else? Add a Shaka Gold Card $30</label><br />
+
+
+  
+  <div>&nbsp;</div>
+
+  <input type="button" value="Book Now" onclick="
+         var selectedActivityId = PRBookingSupport.getAndCheckActivityId(bookingFormContext_193e9bd0);
+         if (!selectedActivityId) return false;
+         reservation('387', selectedActivityId, jQuery('.BookingForm_193e9bd0 .dateTextInput').val(), '', 0.0);
+         if (!PRBookingSupport.addGuests(bookingFormContext_193e9bd0)) return false;
+         if (!PRBookingSupport.addUpgrades(bookingFormContext_193e9bd0)) return false;
+         setUpgradesFixed();
+         if (!checkDateAndGuestsAndUpgrades()) return false;
+         if (!PRBookingSupport.setAccommodation(bookingFormContext_193e9bd0)) return false;
+         setAccommodationFixed();
+         setgoldcard(jQuery('.BookingForm_193e9bd0 .goldcardNumberInput').val()); setbuygoldcard(jQuery('.BookingForm_193e9bd0 .buyGoldcardCheckbox').is(':checked'));
+availability_iframe(); return false;" />
+
+</form>
+</body></html>
