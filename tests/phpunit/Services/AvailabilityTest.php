@@ -119,6 +119,65 @@ final class AvailabilityTest extends TestCase
         self::assertSame([], $client->calls);
     }
 
+    public function testExtendedActivitiesAreSynthesizedFromTimes(): void
+    {
+        $seats = [];
+        for ($day = 1; $day <= 31; $day++) {
+            $seats['d' . $day] = 0;
+        }
+        $seats['d2'] = 12;
+
+        $extended = [
+            'd2' => [
+                'aids' => [639],
+                'times' => [
+                    639 => '8:00am Check In',
+                ],
+            ],
+        ];
+
+        $httpResponse = json_encode([
+            'yearmonth_2024_5' => $seats,
+            'yearmonth_2024_5_ex' => $extended,
+        ], JSON_THROW_ON_ERROR);
+
+        $httpFetcher = fn () => $httpResponse;
+
+        $client = new AvailabilityRecordingSoapClient([]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-05-02',
+            ['345' => 2],
+            [639],
+            '2024-05'
+        );
+
+        $metadata = $result['metadata'];
+        $this->assertArrayHasKey('extended', $metadata);
+        $dayEntry = $metadata['extended']['2024-05-02'];
+
+        self::assertSame([639], $dayEntry['activityIds']);
+        self::assertCount(1, $dayEntry['activities']);
+        $activity = $dayEntry['activities'][0];
+        self::assertSame(639, $activity['activityId']);
+        self::assertSame('8:00am Check In', $activity['activityName']);
+        self::assertSame(['times' => '8:00am Check In'], $activity['details']);
+
+        $timeslots = $result['timeslots'];
+        self::assertCount(1, $timeslots);
+        self::assertSame('639', $timeslots[0]->getId());
+        self::assertSame('8:00am Check In', $timeslots[0]->getLabel());
+        self::assertSame(['times' => '8:00am Check In'], $timeslots[0]->getDetails());
+
+        self::assertSame('available', $metadata['timeslotStatus']);
+        self::assertSame(0, $factory->buildCount);
+        self::assertSame([], $client->calls);
+    }
+
     public function testFetchCalendarMarksLimitedWhenSeatCountLow(): void
     {
         $seats = [];

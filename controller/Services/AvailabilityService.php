@@ -348,6 +348,10 @@ final class AvailabilityService
         $activities = $this->extractExtendedActivities($entry, $activityIds);
         $times = $this->extractExtendedTimes($entry, $activityIds, $activities);
 
+        if ($times !== []) {
+            $activities = $this->mergeExtendedActivitiesWithTimes($activities, $times, $activityIds);
+        }
+
         $normalized = [
             'activityIds' => $activityIds,
             'activities' => $activities,
@@ -599,6 +603,80 @@ final class AvailabilityService
                 $times[$id] = $string;
             }
         }
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $activities
+     * @param array<int,string>              $times
+     * @param int[]                          $activityIds
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    private function mergeExtendedActivitiesWithTimes(array $activities, array $times, array $activityIds): array
+    {
+        $activitiesById = [];
+        foreach ($activities as $activity) {
+            $activityId = $activity['activityId'] ?? null;
+            if (!is_int($activityId)) {
+                continue;
+            }
+
+            if (isset($activity['details']) && !is_array($activity['details'])) {
+                unset($activity['details']);
+            }
+
+            $activitiesById[$activityId] = $activity;
+        }
+
+        foreach ($times as $activityId => $label) {
+            if (!is_int($activityId)) {
+                continue;
+            }
+
+            $activity = $activitiesById[$activityId] ?? ['activityId' => $activityId];
+
+            $details = [];
+            if (isset($activity['details']) && is_array($activity['details'])) {
+                $details = $activity['details'];
+            }
+
+            if (!array_key_exists('times', $details)
+                || !is_string($details['times'])
+                || trim($details['times']) === ''
+            ) {
+                $details['times'] = $label;
+            }
+
+            $activity['details'] = $details;
+
+            if (!isset($activity['activityName']) && $label !== '') {
+                $activity['activityName'] = $label;
+            }
+
+            $activitiesById[$activityId] = $activity;
+        }
+
+        if ($activitiesById === []) {
+            return [];
+        }
+
+        $orderedIds = $activityIds !== [] ? $activityIds : array_keys($activitiesById);
+        $ordered = [];
+
+        foreach ($orderedIds as $activityId) {
+            if (!isset($activitiesById[$activityId])) {
+                continue;
+            }
+
+            $ordered[] = $activitiesById[$activityId];
+            unset($activitiesById[$activityId]);
+        }
+
+        foreach ($activitiesById as $activity) {
+            $ordered[] = $activity;
+        }
+
+        return $ordered;
     }
 
     private function extractTimeValueFromArray(array $value): ?string
