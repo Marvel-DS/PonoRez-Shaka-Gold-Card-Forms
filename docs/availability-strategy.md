@@ -88,9 +88,33 @@ Our service strips the JSONP wrapper, decodes both objects, and returns:
   ],
   "metadata": {
     "extended": {
-      "2025-11-01": [5280, 639],
-      "2025-11-06": [5280, 639],
-      "2025-11-07": [5280],
+      "2025-11-01": {
+        "activityIds": [5280, 639],
+        "activities": [
+          {
+            "activityId": 5280,
+            "activityName": "Deluxe Morning Napali Coast Snorkel Tour 8:00am",
+            "available": true,
+            "details": {
+              "times": "8:00am Check In"
+            }
+          },
+          {
+            "activityId": 639,
+            "activityName": "Deluxe Morning Napali Coast Snorkel Tour 9:30am",
+            "available": true,
+            "details": {
+              "times": "9:30am Check In"
+            }
+          }
+        ]
+      },
+      "2025-11-06": {
+        "activityIds": [5280, 639]
+      },
+      "2025-11-07": {
+        "activityIds": [5280]
+      },
       …
     },
     "requestedSeats": 2,
@@ -108,7 +132,7 @@ Our service strips the JSONP wrapper, decodes both objects, and returns:
 When the user picks a date:
 
 * `assets/js/modules/availability.js` receives the `extended` map and the selected date.
-* We filter the configured `activityIds` against `metadata.extended[date]`. Only those that remain are shown.
+* We filter the configured `activityIds` against `metadata.extended[date].activityIds`. Only those that remain are shown.
 
 Example (config snippet):
 
@@ -122,7 +146,7 @@ Example (config snippet):
 }
 ```
 
-If `metadata.extended["2025-11-06"] = [5280, 639]`, we render only those two departures. No SOAP call is necessary. If a deployment absolutely requires a second check, we can optionally call `checkActivityAvailability` for the specific activity/date combo, but the JSONP already tells us which IDs are open.
+If `metadata.extended["2025-11-06"].activityIds = [5280, 639]`, we render only those two departures. No SOAP call is necessary. If a deployment absolutely requires a second check, we can optionally call `checkActivityAvailability` for the specific activity/date combo, but the JSONP already tells us which IDs are open.
 
 ### 2.3 Checkout Handoff
 

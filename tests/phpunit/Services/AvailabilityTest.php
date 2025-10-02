@@ -23,7 +23,21 @@ final class AvailabilityTest extends TestCase
         $extended = [];
         for ($day = 1; $day <= 31; $day++) {
             $seats['d' . $day] = 10;
-            $extended['d' . $day] = ['aids' => [369]];
+
+            $entry = ['aids' => [369]];
+            if ($day === 15) {
+                $entry['activities'] = [[
+                    'activityId' => 369,
+                    'activityName' => 'Deluxe Morning Napali Coast Snorkel Tour 8:00am',
+                    'available' => true,
+                    'details' => [
+                        'island' => 'Kauai',
+                        'times' => '8:00am Check In',
+                    ],
+                ]];
+            }
+
+            $extended['d' . $day] = $entry;
         }
 
         $httpResponse = json_encode([
@@ -83,7 +97,18 @@ final class AvailabilityTest extends TestCase
         self::assertSame('available', $metadata['timeslotStatus']);
         self::assertSame('2024-03-01', $metadata['firstAvailableDate']);
         self::assertSame('verified', $metadata['certificateVerification']);
-        self::assertSame([369], $metadata['extended']['2024-03-15']);
+        self::assertSame([369], $metadata['extended']['2024-03-15']['activityIds']);
+        self::assertSame([
+            [
+                'activityId' => 369,
+                'activityName' => 'Deluxe Morning Napali Coast Snorkel Tour 8:00am',
+                'available' => true,
+                'details' => [
+                    'island' => 'Kauai',
+                    'times' => '8:00am Check In',
+                ],
+            ],
+        ], $metadata['extended']['2024-03-15']['activities']);
 
         self::assertNotEmpty($client->calls);
     }
@@ -194,8 +219,88 @@ final class AvailabilityTest extends TestCase
         );
 
         self::assertSame('available', $result['metadata']['timeslotStatus']);
-        self::assertSame([369, 555], $result['metadata']['extended']['2024-07-12']);
+        self::assertSame([369, 555], $result['metadata']['extended']['2024-07-12']['activityIds']);
+        self::assertSame([], $result['metadata']['extended']['2024-07-12']['activities']);
         self::assertSame([], $result['timeslots']);
+    }
+
+    public function testExtendedMetadataIncludesActivityDetailsWhenProvided(): void
+    {
+        $seats = [];
+        for ($day = 1; $day <= 30; $day++) {
+            $seats['d' . $day] = 10;
+        }
+
+        $extended = [
+            'd30' => [
+                'aids' => ['639', '5280'],
+                'activities' => [
+                    [
+                        'activityId' => '639',
+                        'activityName' => 'Morning Tour',
+                        'available' => 'Y',
+                        'details' => [
+                            'island' => 'Kauai',
+                        ],
+                    ],
+                    [
+                        'activityId' => '5280',
+                        'activityname' => 'Afternoon Tour',
+                        'status' => 'unavailable',
+                        'details' => (object) ['times' => '12:00pm Check In'],
+                        'checkin' => '11:30am',
+                    ],
+                    [
+                        'activityId' => '9999',
+                        'activityName' => 'Hidden Tour',
+                    ],
+                ],
+            ],
+        ];
+
+        $httpResponse = json_encode([
+            'yearmonth_2024_6' => $seats,
+            'yearmonth_2024_6_ex' => $extended,
+        ], JSON_THROW_ON_ERROR);
+
+        $httpFetcher = fn () => $httpResponse;
+
+        $client = new AvailabilityRecordingSoapClient([
+            'getActivityTimeslots' => static fn () => ['timeslots' => []],
+        ]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-06-30',
+            ['345' => 2],
+            [639, 5280]
+        );
+
+        $metadataEntry = $result['metadata']['extended']['2024-06-30'];
+
+        self::assertSame([639, 5280], $metadataEntry['activityIds']);
+        self::assertSame([
+            [
+                'activityId' => 639,
+                'activityName' => 'Morning Tour',
+                'available' => true,
+                'details' => [
+                    'island' => 'Kauai',
+                ],
+            ],
+            [
+                'activityId' => 5280,
+                'activityName' => 'Afternoon Tour',
+                'available' => false,
+                'details' => [
+                    'times' => '12:00pm Check In',
+                    'checkin' => '11:30am',
+                ],
+            ],
+        ], $metadataEntry['activities']);
     }
 
     public function testFetchCalendarUsesDetailsTimesForTimeslotLabel(): void

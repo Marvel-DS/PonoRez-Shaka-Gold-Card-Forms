@@ -27,6 +27,196 @@ function normaliseId(value) {
     return stringValue === '' ? null : stringValue;
 }
 
+function collectIdsFromValues(values) {
+    if (!Array.isArray(values)) {
+        return [];
+    }
+
+    const ids = [];
+
+    values.forEach((value) => {
+        let candidate = value;
+        if (value && typeof value === 'object') {
+            candidate = value.activityId ?? value.activityid ?? value.id ?? value.aid;
+        }
+
+        const normalised = normaliseId(candidate);
+        if (normalised !== null) {
+            ids.push(normalised);
+        }
+    });
+
+    return ids;
+}
+
+function normalizeMetadataAvailabilityValue(value) {
+    if (typeof value === 'boolean') {
+        return value;
+    }
+
+    if (typeof value === 'number') {
+        return value > 0;
+    }
+
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+
+        if (normalized === '') {
+            return null;
+        }
+
+        const truthy = ['1', 'y', 'yes', 'true', 't', 'available', 'open'];
+        if (truthy.includes(normalized)) {
+            return true;
+        }
+
+        const falsy = ['0', 'n', 'no', 'false', 'f', 'unavailable', 'closed', 'sold_out', 'soldout'];
+        if (falsy.includes(normalized)) {
+            return false;
+        }
+    }
+
+    return null;
+}
+
+function convertIdsForDisplay(ids) {
+    if (!Array.isArray(ids)) {
+        return [];
+    }
+
+    return ids.map((value) => {
+        if (typeof value === 'number') {
+            return value;
+        }
+
+        const normalised = normaliseId(value);
+        if (normalised !== null && /^\d+$/.test(normalised)) {
+            return Number.parseInt(normalised, 10);
+        }
+
+        return normalised ?? value;
+    });
+}
+
+function normalizeActivityForDisplay(activity) {
+    if (!activity || typeof activity !== 'object') {
+        return activity;
+    }
+
+    const copy = { ...activity };
+
+    const id = convertIdsForDisplay([
+        copy.activityId ?? copy.activityid ?? copy.id ?? copy.aid,
+    ])[0];
+
+    if (id !== undefined) {
+        copy.activityId = id;
+    }
+
+    if (copy.details && typeof copy.details === 'object' && !Array.isArray(copy.details)) {
+        copy.details = { ...copy.details };
+    }
+
+    if (copy.available !== undefined) {
+        const availability = normalizeMetadataAvailabilityValue(copy.available);
+        if (availability !== null) {
+            copy.available = availability;
+        }
+    }
+
+    return copy;
+}
+
+function normalizeExtendedEntryForDisplay(entry, fallbackIds) {
+    if (Array.isArray(entry)) {
+        const ids = convertIdsForDisplay(collectIdsFromValues(entry));
+        return {
+            activityIds: ids.length > 0 ? Array.from(new Set(ids)) : convertIdsForDisplay(fallbackIds),
+        };
+    }
+
+    if (!entry || typeof entry !== 'object') {
+        return {
+            activityIds: convertIdsForDisplay(fallbackIds),
+        };
+    }
+
+    const normalized = { ...entry };
+
+    if (Array.isArray(entry.activityIds)) {
+        normalized.activityIds = Array.from(new Set(convertIdsForDisplay(entry.activityIds)));
+    } else if (Array.isArray(entry.aids)) {
+        normalized.activityIds = Array.from(new Set(convertIdsForDisplay(entry.aids)));
+    } else if (Array.isArray(entry.ids)) {
+        normalized.activityIds = Array.from(new Set(convertIdsForDisplay(entry.ids)));
+    } else {
+        normalized.activityIds = convertIdsForDisplay(fallbackIds);
+    }
+
+    if (Array.isArray(entry.activities)) {
+        normalized.activities = entry.activities.map((activity) => normalizeActivityForDisplay(activity));
+    } else if (entry.activities && typeof entry.activities === 'object') {
+        normalized.activities = Object.values(entry.activities).map((activity) => normalizeActivityForDisplay(activity));
+    }
+
+    return normalized;
+}
+
+function extractActivitiesFromMetadataEntry(entry) {
+    const map = new Map();
+
+    if (!entry || typeof entry !== 'object') {
+        return map;
+    }
+
+    let activities = [];
+    if (Array.isArray(entry.activities)) {
+        activities = entry.activities;
+    } else if (entry.activities && typeof entry.activities === 'object') {
+        activities = Object.values(entry.activities);
+    }
+
+    activities.forEach((activity) => {
+        if (!activity || typeof activity !== 'object') {
+            return;
+        }
+
+        const id = normaliseId(activity.activityId ?? activity.activityid ?? activity.id ?? activity.aid);
+        if (id === null) {
+            return;
+        }
+
+        const normalized = { activityId: id };
+
+        if (typeof activity.activityName === 'string' && activity.activityName.trim() !== '') {
+            normalized.activityName = activity.activityName.trim();
+        } else if (typeof activity.activityname === 'string' && activity.activityname.trim() !== '') {
+            normalized.activityName = activity.activityname.trim();
+        }
+
+        const availabilityKeys = ['available', 'isAvailable', 'availableFlag', 'status'];
+        for (const key of availabilityKeys) {
+            if (!(key in activity)) {
+                continue;
+            }
+
+            const availability = normalizeMetadataAvailabilityValue(activity[key]);
+            if (availability !== null) {
+                normalized.available = availability;
+                break;
+            }
+        }
+
+        if (activity.details && typeof activity.details === 'object' && !Array.isArray(activity.details)) {
+            normalized.details = { ...activity.details };
+        }
+
+        map.set(id, normalized);
+    });
+
+    return map;
+}
+
 function getConfiguredActivityOrder(state) {
     const ids = state.bootstrap?.activity?.ids;
     if (!Array.isArray(ids)) {
@@ -66,13 +256,30 @@ function getAvailableIdsFromMetadata(metadata, date) {
     }
 
     const entry = extended[date];
-    if (!Array.isArray(entry)) {
-        return [];
+
+    if (Array.isArray(entry)) {
+        return Array.from(new Set(collectIdsFromValues(entry)));
     }
 
-    return entry
-        .map((id) => normaliseId(id))
-        .filter((id) => id !== null);
+    if (entry && typeof entry === 'object') {
+        const ids = [
+            ...collectIdsFromValues(entry.activityIds),
+            ...collectIdsFromValues(entry.aids),
+            ...collectIdsFromValues(entry.ids),
+        ];
+
+        if (ids.length === 0) {
+            if (Array.isArray(entry.activities)) {
+                ids.push(...collectIdsFromValues(entry.activities));
+            } else if (entry.activities && typeof entry.activities === 'object') {
+                ids.push(...collectIdsFromValues(Object.values(entry.activities)));
+            }
+        }
+
+        return Array.from(new Set(ids));
+    }
+
+    return [];
 }
 
 function deriveTimeslotsFromSources(state, payloadTimeslots, metadata) {
@@ -256,7 +463,7 @@ function describeAvailability(timeslot) {
     return `${timeslot.available} seats available`;
 }
 
-function buildDeparturesForMetadata(state, ids) {
+function buildDeparturesForMetadata(state, ids, metadataEntry) {
     if (!Array.isArray(ids) || ids.length === 0) {
         return [];
     }
@@ -274,15 +481,41 @@ function buildDeparturesForMetadata(state, ids) {
     });
 
     const configuredLabels = getDepartureLabelMap(state);
+    const metadataActivities = extractActivitiesFromMetadataEntry(metadataEntry);
 
     return ids.map((id) => {
         const timeslot = knownTimeslots.get(id);
-        const label = timeslot?.label || configuredLabels[id] || `Departure ${id}`;
-        const details = timeslot?.details && Object.keys(timeslot.details).length > 0
-            ? timeslot.details
+        const metadataActivity = metadataActivities.get(id);
+
+        const label = timeslot?.label
+            || metadataActivity?.activityName
+            || configuredLabels[id]
+            || `Departure ${id}`;
+
+        const metadataDetails = metadataActivity?.details && typeof metadataActivity.details === 'object'
+            && !Array.isArray(metadataActivity.details)
+            ? { ...metadataActivity.details }
             : undefined;
 
-        return details ? { id, label, details } : { id, label };
+        const details = timeslot?.details && Object.keys(timeslot.details).length > 0
+            ? timeslot.details
+            : metadataDetails;
+
+        const departure = { id, label };
+
+        if (metadataActivity?.activityName) {
+            departure.activityName = metadataActivity.activityName;
+        }
+
+        if (metadataActivity && typeof metadataActivity.available === 'boolean') {
+            departure.available = metadataActivity.available;
+        }
+
+        if (details) {
+            departure.details = details;
+        }
+
+        return departure;
     });
 }
 
@@ -302,16 +535,17 @@ function formatMetadataForDisplay(state) {
 
     const extended = metadata.extended;
     if (extended && typeof extended === 'object' && selectedDate) {
+        const entry = extended[selectedDate];
         const availableIds = getAvailableIdsFromMetadata(metadata, selectedDate);
-        const departures = buildDeparturesForMetadata(state, availableIds);
+        const departures = buildDeparturesForMetadata(state, availableIds, entry);
 
-        snapshot.extendedForSelectedDate = {
-            activityIds: extended[selectedDate] ?? availableIds,
-        };
+        const normalizedEntry = normalizeExtendedEntryForDisplay(entry, availableIds);
 
         if (departures.length > 0) {
-            snapshot.extendedForSelectedDate.departures = departures;
+            normalizedEntry.departures = departures;
         }
+
+        snapshot.extendedForSelectedDate = normalizedEntry;
     }
 
     try {
