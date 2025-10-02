@@ -96,7 +96,7 @@ final class AvailabilityTest extends TestCase
         ], $timeslots[0]->getDetails());
 
         $metadata = $result['metadata'];
-        self::assertSame('ponorez-json', $metadata['source']);
+        self::assertArrayNotHasKey('source', $metadata);
         self::assertSame(2, $metadata['requestedSeats']);
         self::assertSame('available', $metadata['selectedDateStatus']);
         self::assertSame('available', $metadata['timeslotStatus']);
