@@ -152,7 +152,7 @@ final class AvailabilityService
 
         $extendedAvailability = $this->buildExtendedAvailabilityIndex($monthData);
         $selectedDateKey = $selectedDay->format('Y-m-d');
-        $availableActivityIdsForSelectedDate = $extendedAvailability[$selectedDateKey] ?? [];
+        $availableActivityIdsForSelectedDate = $extendedAvailability[$selectedDateKey]['activityIds'] ?? [];
 
         $timeslots = $this->fetchTimeslotsForDate(
             $this->soapClientBuilder->build(),
@@ -207,29 +207,295 @@ final class AvailabilityService
 
                 $day = (int) $matches[1];
 
-                $ids = [];
-                if (isset($entry['aids']) && is_array($entry['aids'])) {
-                    $ids = array_values(array_filter(
-                        array_map(
-                            static fn ($value) => is_numeric($value) ? (int) $value : null,
-                            $entry['aids']
-                        ),
-                        static fn ($value) => $value !== null
-                    ));
-                }
+                $normalized = $this->normalizeExtendedAvailabilityEntry($entry);
 
                 $indexKey = sprintf('%04d-%02d-%02d', $year, $month, $day);
 
-                if ($ids === []) {
-                    $index[$indexKey] = [];
-                    continue;
-                }
-
-                $index[$indexKey] = $ids;
+                $index[$indexKey] = $normalized;
             }
         }
 
         return $index;
+    }
+
+    private function normalizeExtendedAvailabilityEntry(mixed $entry): array
+    {
+        if ($entry instanceof stdClass) {
+            $entry = (array) $entry;
+        }
+
+        if (!is_array($entry)) {
+            return [
+                'activityIds' => [],
+                'activities' => [],
+            ];
+        }
+
+        $activityIds = $this->extractExtendedActivityIds($entry);
+        $activities = $this->extractExtendedActivities($entry, $activityIds);
+
+        return [
+            'activityIds' => $activityIds,
+            'activities' => $activities,
+        ];
+    }
+
+    private function extractExtendedActivityIds(array $entry): array
+    {
+        $candidates = [];
+
+        if (array_is_list($entry)) {
+            $candidates[] = $entry;
+        }
+
+        foreach (['activityIds', 'aids', 'ids'] as $key) {
+            if (!array_key_exists($key, $entry)) {
+                continue;
+            }
+
+            $value = $entry[$key];
+
+            if ($value instanceof stdClass) {
+                $value = (array) $value;
+            }
+
+            if (!is_array($value)) {
+                continue;
+            }
+
+            $candidates[] = $value;
+        }
+
+        if ($candidates === []) {
+            if (isset($entry['activities'])) {
+                $activities = $entry['activities'];
+                if ($activities instanceof stdClass) {
+                    $activities = (array) $activities;
+                }
+
+                if (is_array($activities)) {
+                    $candidates[] = $activities;
+                }
+            }
+
+            if ($candidates === []) {
+                return [];
+            }
+        }
+
+        $ids = [];
+        foreach ($candidates as $candidate) {
+            foreach ($candidate as $value) {
+                $id = $this->normalizeExtendedActivityIdValue($value);
+                if ($id === null || in_array($id, $ids, true)) {
+                    continue;
+                }
+
+                $ids[] = $id;
+            }
+        }
+
+        return $ids;
+    }
+
+    private function normalizeExtendedActivityIdValue(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && preg_match('/^\d+$/', $value) === 1) {
+            return (int) $value;
+        }
+
+        if ($value instanceof stdClass) {
+            $value = (array) $value;
+        }
+
+        if (!is_array($value)) {
+            return null;
+        }
+
+        foreach (['activityId', 'activityid', 'id', 'aid'] as $key) {
+            if (!array_key_exists($key, $value)) {
+                continue;
+            }
+
+            $candidate = $this->normalizeExtendedActivityIdValue($value[$key]);
+            if ($candidate !== null) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function extractExtendedActivities(array $entry, array $activityIds): array
+    {
+        $sources = [];
+
+        if (array_is_list($entry)) {
+            $sources[] = $entry;
+        }
+
+        foreach (['activities', 'activityDetails', 'activitydetails', 'activity_info', 'activityInfo'] as $key) {
+            if (!array_key_exists($key, $entry)) {
+                continue;
+            }
+
+            $value = $entry[$key];
+
+            if ($value instanceof stdClass) {
+                $value = (array) $value;
+            }
+
+            if (!is_array($value)) {
+                continue;
+            }
+
+            $sources[] = $value;
+        }
+
+        if ($sources === []) {
+            return [];
+        }
+
+        $activities = [];
+        foreach ($sources as $source) {
+            $this->accumulateExtendedActivities($activities, $source);
+        }
+
+        if ($activities === []) {
+            return [];
+        }
+
+        if ($activityIds !== []) {
+            $ordered = [];
+            foreach ($activityIds as $id) {
+                if (isset($activities[$id])) {
+                    $ordered[] = $activities[$id];
+                }
+            }
+
+            return $ordered;
+        }
+
+        return array_values($activities);
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $activities
+     */
+    private function accumulateExtendedActivities(array &$activities, array $source): void
+    {
+        if (array_is_list($source)) {
+            foreach ($source as $value) {
+                $this->appendExtendedActivity($activities, $value);
+            }
+
+            return;
+        }
+
+        foreach ($source as $key => $value) {
+            $this->appendExtendedActivity($activities, $value, $key);
+        }
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $activities
+     */
+    private function appendExtendedActivity(array &$activities, mixed $value, mixed $key = null): void
+    {
+        if ($value instanceof stdClass) {
+            $value = (array) $value;
+        }
+
+        if (!is_array($value)) {
+            $id = $this->normalizeExtendedActivityIdValue($value ?? $key);
+            if ($id === null || isset($activities[$id])) {
+                return;
+            }
+
+            $activities[$id] = ['activityId' => $id];
+
+            return;
+        }
+
+        $activityId = $this->normalizeExtendedActivityIdValue($value['activityId'] ?? $value['activityid'] ?? $value['id'] ?? $value['aid'] ?? $key);
+        if ($activityId === null) {
+            return;
+        }
+
+        $activity = $activities[$activityId] ?? ['activityId' => $activityId];
+
+        $name = $value['activityName'] ?? $value['activityname'] ?? $value['name'] ?? $value['label'] ?? null;
+        if (is_string($name) && trim($name) !== '') {
+            $activity['activityName'] = trim($name);
+        }
+
+        $availabilityKeys = ['available', 'isAvailable', 'availableFlag', 'status'];
+        foreach ($availabilityKeys as $availabilityKey) {
+            if (!array_key_exists($availabilityKey, $value)) {
+                continue;
+            }
+
+            $available = $this->normalizeAvailabilityFlag($value[$availabilityKey]);
+            if ($available !== null) {
+                $activity['available'] = $available;
+                break;
+            }
+        }
+
+        $details = $this->normalizeTimeslotDetails($value['details'] ?? null);
+        foreach (['times', 'time', 'departure', 'departureTime', 'checkIn', 'checkin', 'checkintime', 'check_in'] as $detailKey) {
+            if (!array_key_exists($detailKey, $value)) {
+                continue;
+            }
+
+            $stringValue = $this->stringifyTimeslotDetailValue($value[$detailKey]);
+            if ($stringValue === null || array_key_exists($detailKey, $details)) {
+                continue;
+            }
+
+            $details[$detailKey] = $stringValue;
+        }
+
+        if ($details !== []) {
+            $activity['details'] = $details;
+        }
+
+        $activities[$activityId] = $activity;
+    }
+
+    private function normalizeAvailabilityFlag(mixed $value): ?bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            return (int) $value > 0;
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+
+            if ($normalized === '') {
+                return null;
+            }
+
+            $truthy = ['1', 'y', 'yes', 'true', 't', 'available', 'open'];
+            if (in_array($normalized, $truthy, true)) {
+                return true;
+            }
+
+            $falsy = ['0', 'n', 'no', 'false', 'f', 'unavailable', 'closed', 'sold_out', 'soldout'];
+            if (in_array($normalized, $falsy, true)) {
+                return false;
+            }
+        }
+
+        return null;
     }
 
     /**
