@@ -192,15 +192,14 @@ final class AvailabilityService
             'calendar' => $calendar,
             'timeslots' => $timeslots,
             'metadata' => array_filter([
-            'source' => 'ponorez-json',
-            'requestedSeats' => $requestedSeats,
-            'firstAvailableDate' => $firstAvailableDate,
-            'timeslotStatus' => $timeslotStatus,
-            'selectedDateStatus' => $selectedDayStatus,
-            'month' => $viewMonthKey,
-            'certificateVerification' => $this->certificateVerificationDisabled ? 'disabled' : 'verified',
-            'extended' => $extendedAvailability,
-        ], static fn ($value) => $value !== null),
+                'requestedSeats' => $requestedSeats,
+                'firstAvailableDate' => $firstAvailableDate,
+                'timeslotStatus' => $timeslotStatus,
+                'selectedDateStatus' => $selectedDayStatus,
+                'month' => $viewMonthKey,
+                'certificateVerification' => $this->certificateVerificationDisabled ? 'disabled' : 'verified',
+                'extended' => $extendedAvailability,
+            ], static fn ($value) => $value !== null),
         ];
     }
 
