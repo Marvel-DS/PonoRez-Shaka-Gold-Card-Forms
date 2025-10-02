@@ -323,7 +323,7 @@ final class AvailabilityService
             return null;
         }
 
-        foreach (['activityId', 'activityid', 'id', 'aid'] as $key) {
+        foreach (['activityId', 'activityid', 'id', 'aid', 'departureId', 'departureid', 'departure_id', 'departureID'] as $key) {
             if (!array_key_exists($key, $value)) {
                 continue;
             }
@@ -360,7 +360,24 @@ final class AvailabilityService
             }
         }
 
-        $candidateKeys = ['times', 'time', 'ponore', 'ponoreTimes', 'ponoretimes', 'ponoreValue', 'ponorevalue', 'ponore_values', 'ponoreValues', 'departureTimes', 'departure_times'];
+        $candidateKeys = [
+            'times',
+            'time',
+            'ponore',
+            'ponoreTimes',
+            'ponoretimes',
+            'ponoreValue',
+            'ponorevalue',
+            'ponore_values',
+            'ponoreValues',
+            'departureTimes',
+            'departure_times',
+            'departures',
+            'departureDetails',
+            'departuredetails',
+            'departure_info',
+            'departureInfo',
+        ];
         foreach ($candidateKeys as $candidateKey) {
             if (!array_key_exists($candidateKey, $entry)) {
                 continue;
@@ -409,7 +426,16 @@ final class AvailabilityService
                 $string = null;
 
                 if (is_array($value)) {
-                    $id = $this->normalizeExtendedActivityIdValue($value['activityId'] ?? $value['activityid'] ?? $value['id'] ?? $value['aid'] ?? null);
+                    $id = $this->normalizeExtendedActivityIdValue(
+                        $value['activityId']
+                        ?? $value['activityid']
+                        ?? $value['id']
+                        ?? $value['aid']
+                        ?? $value['departureId']
+                        ?? $value['departureid']
+                        ?? $value['departure_id']
+                        ?? null
+                    );
                     $string = $this->extractTimeValueFromArray($value);
                 } else {
                     $string = $this->stringifyTimeslotDetailValue($value);
@@ -436,7 +462,16 @@ final class AvailabilityService
             }
 
             if (is_array($value)) {
-                $candidateId = $id ?? $this->normalizeExtendedActivityIdValue($value['activityId'] ?? $value['activityid'] ?? $value['id'] ?? $value['aid'] ?? null);
+                $candidateId = $id ?? $this->normalizeExtendedActivityIdValue(
+                    $value['activityId']
+                    ?? $value['activityid']
+                    ?? $value['id']
+                    ?? $value['aid']
+                    ?? $value['departureId']
+                    ?? $value['departureid']
+                    ?? $value['departure_id']
+                    ?? null
+                );
                 $string = $this->extractTimeValueFromArray($value);
 
                 if ($candidateId !== null && $string !== null && !array_key_exists($candidateId, $times)) {
@@ -457,14 +492,14 @@ final class AvailabilityService
     {
         if (isset($value['details'])) {
             $details = $this->normalizeTimeslotDetails($value['details']);
-            foreach (['times', 'time', 'departure', 'departureTime', 'checkIn', 'checkin', 'checkintime', 'check_in'] as $detailKey) {
+            foreach (['times', 'time', 'departure', 'departureTime', 'checkIn', 'checkin', 'checkintime', 'check_in', 'label', 'name', 'title', 'displayName', 'display'] as $detailKey) {
                 if (array_key_exists($detailKey, $details)) {
                     return $details[$detailKey];
                 }
             }
         }
 
-        foreach (['times', 'time', 'ponoreValue', 'ponorevalue', 'ponore', 'departure', 'departureTime', 'checkIn', 'checkin', 'checkintime', 'check_in'] as $key) {
+        foreach (['times', 'time', 'ponoreValue', 'ponorevalue', 'ponore', 'departure', 'departureTime', 'checkIn', 'checkin', 'checkintime', 'check_in', 'label', 'name', 'title', 'displayName', 'display'] as $key) {
             if (!array_key_exists($key, $value)) {
                 continue;
             }
@@ -486,7 +521,18 @@ final class AvailabilityService
             $sources[] = $entry;
         }
 
-        foreach (['activities', 'activityDetails', 'activitydetails', 'activity_info', 'activityInfo'] as $key) {
+        foreach ([
+            'activities',
+            'activityDetails',
+            'activitydetails',
+            'activity_info',
+            'activityInfo',
+            'departures',
+            'departureDetails',
+            'departuredetails',
+            'departure_info',
+            'departureInfo',
+        ] as $key) {
             if (!array_key_exists($key, $entry)) {
                 continue;
             }
@@ -569,19 +615,35 @@ final class AvailabilityService
             return;
         }
 
-        $activityId = $this->normalizeExtendedActivityIdValue($value['activityId'] ?? $value['activityid'] ?? $value['id'] ?? $value['aid'] ?? $key);
+        $activityId = $this->normalizeExtendedActivityIdValue(
+            $value['activityId']
+            ?? $value['activityid']
+            ?? $value['id']
+            ?? $value['aid']
+            ?? $value['departureId']
+            ?? $value['departureid']
+            ?? $value['departure_id']
+            ?? $key
+        );
         if ($activityId === null) {
             return;
         }
 
         $activity = $activities[$activityId] ?? ['activityId' => $activityId];
 
-        $name = $value['activityName'] ?? $value['activityname'] ?? $value['name'] ?? $value['label'] ?? null;
+        $name = $value['activityName']
+            ?? $value['activityname']
+            ?? $value['name']
+            ?? $value['label']
+            ?? $value['title']
+            ?? $value['displayName']
+            ?? $value['display']
+            ?? null;
         if (is_string($name) && trim($name) !== '') {
             $activity['activityName'] = trim($name);
         }
 
-        $availabilityKeys = ['available', 'isAvailable', 'availableFlag', 'status'];
+        $availabilityKeys = ['available', 'isAvailable', 'availableFlag', 'status', 'availability', 'availabilityStatus'];
         foreach ($availabilityKeys as $availabilityKey) {
             if (!array_key_exists($availabilityKey, $value)) {
                 continue;
@@ -595,7 +657,7 @@ final class AvailabilityService
         }
 
         $details = $this->normalizeTimeslotDetails($value['details'] ?? null);
-        foreach (['times', 'time', 'departure', 'departureTime', 'checkIn', 'checkin', 'checkintime', 'check_in'] as $detailKey) {
+        foreach (['times', 'time', 'departure', 'departureTime', 'checkIn', 'checkin', 'checkintime', 'check_in', 'label', 'name', 'title', 'displayName', 'display'] as $detailKey) {
             if (!array_key_exists($detailKey, $value)) {
                 continue;
             }
@@ -605,11 +667,27 @@ final class AvailabilityService
                 continue;
             }
 
+            if (in_array($detailKey, ['label', 'name', 'title', 'displayName', 'display'], true)) {
+                if (!array_key_exists('times', $details)) {
+                    $details['times'] = $stringValue;
+                }
+
+                continue;
+            }
+
             $details[$detailKey] = $stringValue;
+
+            if (in_array($detailKey, ['time', 'departure', 'departureTime'], true) && !array_key_exists('times', $details)) {
+                $details['times'] = $stringValue;
+            }
         }
 
         if ($details !== []) {
             $activity['details'] = $details;
+        }
+
+        if (!isset($activity['activityName']) && isset($details['times'])) {
+            $activity['activityName'] = $details['times'];
         }
 
         $activities[$activityId] = $activity;
