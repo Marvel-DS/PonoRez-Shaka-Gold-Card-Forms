@@ -49,6 +49,76 @@ final class AvailabilityMessagingServiceTest extends TestCase
         self::assertSame(0, $message['seats']);
     }
 
+    public function testProbeHandlesArrayBasedBooleanResponse(): void
+    {
+        $responses = [
+            369 => [
+                '2024-08-11' => [
+                    2 => ['return' => ['available' => 'true']],
+                    5 => false,
+                    4 => false,
+                    3 => false,
+                ],
+            ],
+        ];
+
+        $client = new AvailabilityProbeSoapClient($responses);
+        $factory = new AvailabilityProbeSoapClientFactory($client);
+
+        $service = new AvailabilityMessagingService($factory);
+        $result = $service->probeTimeslots(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            [
+                ['activityId' => 369, 'date' => '2024-08-11'],
+            ],
+            ['345' => 2]
+        );
+
+        self::assertSame(2, $result['requestedSeats']);
+        self::assertCount(4, $client->calls);
+
+        $message = $result['messages'][0];
+        self::assertSame('369', $message['activityId']);
+        self::assertSame('2024-08-11', $message['date']);
+        self::assertSame('limited', $message['tier']);
+        self::assertSame(2, $message['seats']);
+    }
+
+    public function testProbeHandlesObjectBasedBooleanResponse(): void
+    {
+        $responses = [
+            369 => [
+                '2024-08-12' => [
+                    2 => ['return' => (object) ['available' => 'false']],
+                ],
+            ],
+        ];
+
+        $client = new AvailabilityProbeSoapClient($responses);
+        $factory = new AvailabilityProbeSoapClientFactory($client);
+
+        $service = new AvailabilityMessagingService($factory);
+        $result = $service->probeTimeslots(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            [
+                ['activityId' => 369, 'date' => '2024-08-12'],
+            ],
+            ['345' => 2]
+        );
+
+        self::assertSame(2, $result['requestedSeats']);
+        self::assertCount(1, $client->calls);
+        self::assertCount(1, $result['messages']);
+
+        $message = $result['messages'][0];
+        self::assertSame('369', $message['activityId']);
+        self::assertSame('2024-08-12', $message['date']);
+        self::assertSame('unavailable', $message['tier']);
+        self::assertSame(0, $message['seats']);
+    }
+
     public function testProbeMarksPlentyWhenHigherTierSucceeds(): void
     {
         $responses = [
@@ -299,14 +369,14 @@ final class AvailabilityProbeSoapClientFactory implements SoapClientFactory
 
 final class AvailabilityProbeSoapClient extends SoapClient
 {
-    /** @var array<int, array<string, array<int, bool>>> */
+    /** @var array<int, array<string, array<int, mixed>>> */
     private array $responses;
 
     /** @var list<array{0:string,1:array}> */
     public array $calls = [];
 
     /**
-     * @param array<int, array<string, array<int, bool>>> $responses
+     * @param array<int, array<string, array<int, mixed>>> $responses
      */
     public function __construct(array $responses)
     {
