@@ -153,7 +153,12 @@ final class AvailabilityService
         $extendedAvailability = $this->buildExtendedAvailabilityIndex($monthData);
         $selectedDateKey = $selectedDay->format('Y-m-d');
         $selectedExtendedEntry = $extendedAvailability[$selectedDateKey] ?? null;
-        $availableActivityIdsForSelectedDate = $selectedExtendedEntry['activityIds'] ?? [];
+        $availableActivityIdsForSelectedDate = [];
+        if (is_array($selectedExtendedEntry)) {
+            $availableActivityIdsForSelectedDate = $selectedExtendedEntry['availableActivityIds']
+                ?? $selectedExtendedEntry['activityIds']
+                ?? [];
+        }
 
         $timeslots = [];
         $shouldFetchTimeslotsFromSoap = true;
@@ -184,9 +189,23 @@ final class AvailabilityService
             );
         }
 
-        $timeslotStatus = ($timeslots === [] && $availableActivityIdsForSelectedDate === [])
-            ? 'unavailable'
-            : 'available';
+        $timeslotStatus = 'available';
+        if ($timeslots === [] && $availableActivityIdsForSelectedDate === []) {
+            $timeslotStatus = 'unavailable';
+        } elseif ($timeslots !== []) {
+            $hasSelectableTimeslot = false;
+            foreach ($timeslots as $timeslot) {
+                $available = $timeslot->getAvailable();
+                if ($available === null || $available > 0) {
+                    $hasSelectableTimeslot = true;
+                    break;
+                }
+            }
+
+            if (!$hasSelectableTimeslot) {
+                $timeslotStatus = 'unavailable';
+            }
+        }
 
         return [
             'calendar' => $calendar,
@@ -307,20 +326,35 @@ final class AvailabilityService
             }
         }
 
+        $availableActivityIds = [];
+        if (isset($entry['availableActivityIds']) && is_array($entry['availableActivityIds'])) {
+            $availableActivityIds = array_values(array_map('intval', $entry['availableActivityIds']));
+        }
+
         $timeslotList = [];
         foreach ($orderedIds as $activityId) {
+            if ($availableActivityIds !== [] && !in_array($activityId, $availableActivityIds, true)) {
+                continue;
+            }
+
             $label = $times[$activityId];
+            $activity = $activitiesById[$activityId] ?? null;
             $details = [];
 
-            if (isset($activitiesById[$activityId]['details']) && is_array($activitiesById[$activityId]['details'])) {
-                $details = $activitiesById[$activityId]['details'];
+            if (isset($activity['details']) && is_array($activity['details'])) {
+                $details = $activity['details'];
             }
 
             if (!array_key_exists('times', $details)) {
                 $details['times'] = $label;
             }
 
-            $timeslotList[] = new Timeslot((string) $activityId, $label, null, $details);
+            $available = null;
+            if (is_array($activity) && array_key_exists('available', $activity) && $activity['available'] === false) {
+                $available = 0;
+            }
+
+            $timeslotList[] = new Timeslot((string) $activityId, $label, $available, $details);
         }
 
         if ($timeslotList === []) {
@@ -339,6 +373,7 @@ final class AvailabilityService
         if (!is_array($entry)) {
             return [
                 'activityIds' => [],
+                'availableActivityIds' => [],
                 'activities' => [],
             ];
         }
@@ -351,8 +386,11 @@ final class AvailabilityService
             $activities = $this->mergeExtendedActivitiesWithTimes($activities, $times, $activityIds);
         }
 
+        $availableActivityIds = $this->resolveAvailableActivityIds($activityIds, $activities);
+
         $normalized = [
             'activityIds' => $activityIds,
+            'availableActivityIds' => $availableActivityIds,
             'activities' => $activities,
         ];
 
@@ -361,6 +399,66 @@ final class AvailabilityService
         }
 
         return $normalized;
+    }
+
+    /**
+     * @param int[]                          $activityIds
+     * @param array<int,array<string,mixed>> $activities
+     *
+     * @return int[]
+     */
+    private function resolveAvailableActivityIds(array $activityIds, array $activities): array
+    {
+        if ($activities === []) {
+            return $activityIds;
+        }
+
+        $availableSet = [];
+        $availableOrder = [];
+
+        foreach ($activities as $activity) {
+            if (!is_array($activity)) {
+                continue;
+            }
+
+            $activityId = $activity['activityId'] ?? null;
+            if (!is_int($activityId)) {
+                continue;
+            }
+
+            if (array_key_exists('available', $activity) && $activity['available'] === false) {
+                continue;
+            }
+
+            if (!array_key_exists($activityId, $availableSet)) {
+                $availableSet[$activityId] = true;
+                $availableOrder[] = $activityId;
+            }
+        }
+
+        if ($availableSet === []) {
+            return [];
+        }
+
+        $ordered = [];
+
+        if ($activityIds !== []) {
+            foreach ($activityIds as $id) {
+                if (array_key_exists($id, $availableSet) && !in_array($id, $ordered, true)) {
+                    $ordered[] = $id;
+                }
+            }
+        }
+
+        if ($ordered === []) {
+            foreach ($availableOrder as $id) {
+                if (!in_array($id, $ordered, true)) {
+                    $ordered[] = $id;
+                }
+            }
+        }
+
+        return $ordered;
     }
 
     private function extractExtendedActivityIds(array $entry): array
@@ -984,11 +1082,9 @@ final class AvailabilityService
         }
 
         $availableActivities = [];
-        if (isset($monthData['extended'][$key]) && is_array($monthData['extended'][$key])) {
-            $entry = $monthData['extended'][$key];
-            if (isset($entry['aids']) && is_array($entry['aids'])) {
-                $availableActivities = array_map('intval', $entry['aids']);
-            }
+        if (isset($monthData['extended'][$key])) {
+            $normalizedEntry = $this->normalizeExtendedAvailabilityEntry($monthData['extended'][$key]);
+            $availableActivities = $normalizedEntry['availableActivityIds'] ?? $normalizedEntry['activityIds'];
         }
 
         $isAvailable = false;

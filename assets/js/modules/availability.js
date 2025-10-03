@@ -47,6 +47,24 @@ function collectIdsFromValues(values) {
     return ids;
 }
 
+function collectAvailableIdsFromValues(values) {
+    if (!Array.isArray(values)) {
+        return [];
+    }
+
+    return collectIdsFromValues(values.filter((value) => {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) {
+            return true;
+        }
+
+        if ('available' in value && value.available === false) {
+            return false;
+        }
+
+        return true;
+    }));
+}
+
 const METADATA_LABEL_KEYS = [
     'times',
     'time',
@@ -590,34 +608,44 @@ function getDepartureLabelMap(state) {
 
 function getAvailableIdsFromMetadata(metadata, date) {
     if (!metadata || typeof metadata !== 'object' || !date) {
-        return [];
+        return null;
     }
 
     const extended = metadata.extended;
     if (!extended || typeof extended !== 'object') {
-        return [];
+        return null;
     }
 
     const entry = extended[date];
+    if (entry === undefined) {
+        return null;
+    }
 
     if (Array.isArray(entry)) {
-        return Array.from(new Set(collectIdsFromValues(entry)));
+        return Array.from(new Set(collectAvailableIdsFromValues(entry)));
     }
 
     if (entry && typeof entry === 'object') {
+        if (Array.isArray(entry.availableActivityIds)) {
+            return Array.from(new Set(collectIdsFromValues(entry.availableActivityIds)));
+        }
+
+        const activityValues = [];
+        if (Array.isArray(entry.activities)) {
+            activityValues.push(...entry.activities);
+        } else if (entry.activities && typeof entry.activities === 'object') {
+            activityValues.push(...Object.values(entry.activities));
+        }
+
+        if (activityValues.length > 0) {
+            return Array.from(new Set(collectAvailableIdsFromValues(activityValues)));
+        }
+
         const ids = [
             ...collectIdsFromValues(entry.activityIds),
             ...collectIdsFromValues(entry.aids),
             ...collectIdsFromValues(entry.ids),
         ];
-
-        if (ids.length === 0) {
-            if (Array.isArray(entry.activities)) {
-                ids.push(...collectIdsFromValues(entry.activities));
-            } else if (entry.activities && typeof entry.activities === 'object') {
-                ids.push(...collectIdsFromValues(Object.values(entry.activities)));
-            }
-        }
 
         return Array.from(new Set(ids));
     }
@@ -628,8 +656,12 @@ function getAvailableIdsFromMetadata(metadata, date) {
 function deriveTimeslotsFromSources(state, payloadTimeslots, metadata) {
     if (Array.isArray(payloadTimeslots) && payloadTimeslots.length > 0) {
         const availableIds = getAvailableIdsFromMetadata(metadata, state.selectedDate);
-        if (availableIds.length === 0) {
+        if (!Array.isArray(availableIds)) {
             return enhanceTimeslotsWithMetadata(state, payloadTimeslots, metadata, state.availabilityMetadata);
+        }
+
+        if (availableIds.length === 0) {
+            return enhanceTimeslotsWithMetadata(state, [], metadata, state.availabilityMetadata);
         }
 
         const availableSet = new Set(availableIds);
@@ -638,11 +670,11 @@ function deriveTimeslotsFromSources(state, payloadTimeslots, metadata) {
             return enhanceTimeslotsWithMetadata(state, filtered, metadata, state.availabilityMetadata);
         }
 
-        return enhanceTimeslotsWithMetadata(state, payloadTimeslots, metadata, state.availabilityMetadata);
+        return enhanceTimeslotsWithMetadata(state, [], metadata, state.availabilityMetadata);
     }
 
     const availableIds = getAvailableIdsFromMetadata(metadata, state.selectedDate);
-    if (availableIds.length === 0) {
+    if (!Array.isArray(availableIds) || availableIds.length === 0) {
         return [];
     }
 
