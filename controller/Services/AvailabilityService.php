@@ -66,6 +66,8 @@ final class AvailabilityService
         $selectedDay = $this->createDateImmutable($selectedDate);
         $viewMonthStart = $this->resolveMonthStart($visibleMonth, $selectedDay);
 
+        $requestedSeats = $this->calculateRequestedSeats($guestCounts, $activityConfig);
+
         $monthsToLoad = [$viewMonthStart->format('Y-m') => $viewMonthStart];
         $selectedMonthKey = $selectedDay->format('Y-m');
         if (!isset($monthsToLoad[$selectedMonthKey])) {
@@ -93,7 +95,7 @@ final class AvailabilityService
 
         foreach ($period as $date) {
             $day = (int) $date->format('j');
-            [$status] = $this->resolveDayStatus($viewMonthData, $day, $activityIds);
+            [$status] = $this->resolveDayStatus($viewMonthData, $day, $activityIds, $requestedSeats);
 
             $calendar->addDay(new AvailabilityDay($date->format('Y-m-d'), $status));
 
@@ -108,7 +110,8 @@ final class AvailabilityService
             [$selectedDayStatus] = $this->resolveDayStatus(
                 $selectedMonthData,
                 (int) $selectedDay->format('j'),
-                $activityIds
+                $activityIds,
+                $requestedSeats
             );
         }
 
@@ -135,7 +138,8 @@ final class AvailabilityService
                     [$status] = $this->resolveDayStatus(
                         $monthData[$monthKey],
                         (int) $date->format('j'),
-                        $activityIds
+                        $activityIds,
+                        $requestedSeats
                     );
 
                     if (in_array($status, ['available', 'limited'], true)) {
@@ -148,9 +152,7 @@ final class AvailabilityService
             }
         }
 
-        $requestedSeats = $this->calculateRequestedSeats($guestCounts, $activityConfig);
-
-        $extendedAvailability = $this->buildExtendedAvailabilityIndex($monthData);
+        $extendedAvailability = $this->buildExtendedAvailabilityIndex($monthData, $requestedSeats);
         $selectedDateKey = $selectedDay->format('Y-m-d');
         $selectedExtendedEntry = $extendedAvailability[$selectedDateKey] ?? null;
         $availableActivityIdsForSelectedDate = [];
@@ -169,7 +171,8 @@ final class AvailabilityService
             } else {
                 $syntheticTimeslots = $this->buildTimeslotsFromExtendedEntry(
                     $selectedExtendedEntry,
-                    $activityIds
+                    $activityIds,
+                    $requestedSeats
                 );
 
                 if ($syntheticTimeslots !== null) {
@@ -185,13 +188,14 @@ final class AvailabilityService
                 $supplierConfig,
                 $activityIds,
                 $selectedDay->format('Y-m-d'),
-                $guestCounts
+                $guestCounts,
+                $requestedSeats
             );
         }
 
         $timeslotStatus = 'available';
-        if ($timeslots === [] && $availableActivityIdsForSelectedDate === []) {
-            $timeslotStatus = 'unavailable';
+        if ($timeslots === []) {
+            $timeslotStatus = $availableActivityIdsForSelectedDate === [] ? 'unavailable' : 'available';
         } elseif ($timeslots !== []) {
             $hasSelectableTimeslot = false;
             foreach ($timeslots as $timeslot) {
@@ -222,7 +226,7 @@ final class AvailabilityService
         ];
     }
 
-    private function buildExtendedAvailabilityIndex(array $monthData): array
+    private function buildExtendedAvailabilityIndex(array $monthData, int $requestedSeats): array
     {
         $index = [];
 
@@ -247,7 +251,7 @@ final class AvailabilityService
 
                 $day = (int) $matches[1];
 
-                $normalized = $this->normalizeExtendedAvailabilityEntry($entry);
+                $normalized = $this->normalizeExtendedAvailabilityEntry($entry, $requestedSeats);
 
                 $indexKey = sprintf('%04d-%02d-%02d', $year, $month, $day);
 
@@ -261,10 +265,11 @@ final class AvailabilityService
     /**
      * @param array<string,mixed> $entry
      * @param int[]               $requestedActivityIds
+     * @param int                 $requestedSeats
      *
      * @return Timeslot[]|null
      */
-    private function buildTimeslotsFromExtendedEntry(array $entry, array $requestedActivityIds): ?array
+    private function buildTimeslotsFromExtendedEntry(array $entry, array $requestedActivityIds, int $requestedSeats): ?array
     {
         if (!isset($entry['times']) || !is_array($entry['times']) || $entry['times'] === []) {
             return null;
@@ -350,8 +355,19 @@ final class AvailabilityService
             }
 
             $available = null;
-            if (is_array($activity) && array_key_exists('available', $activity) && $activity['available'] === false) {
-                $available = 0;
+            if (is_array($activity)) {
+                $capacity = $this->extractActivityCapacity($activity);
+                if ($capacity !== null) {
+                    $available = $capacity;
+                }
+
+                if ($requestedSeats > 0 && $capacity !== null && $capacity < $requestedSeats) {
+                    continue;
+                }
+
+                if (array_key_exists('available', $activity) && $activity['available'] === false) {
+                    $available = 0;
+                }
             }
 
             $timeslotList[] = new Timeslot((string) $activityId, $label, $available, $details);
@@ -364,7 +380,7 @@ final class AvailabilityService
         return $this->sortTimeslots($timeslotList);
     }
 
-    private function normalizeExtendedAvailabilityEntry(mixed $entry): array
+    private function normalizeExtendedAvailabilityEntry(mixed $entry, int $requestedSeats = 0): array
     {
         if ($entry instanceof stdClass) {
             $entry = (array) $entry;
@@ -386,7 +402,7 @@ final class AvailabilityService
             $activities = $this->mergeExtendedActivitiesWithTimes($activities, $times, $activityIds);
         }
 
-        $availableActivityIds = $this->resolveAvailableActivityIds($activityIds, $activities);
+        $availableActivityIds = $this->resolveAvailableActivityIds($activityIds, $activities, $requestedSeats);
 
         $normalized = [
             'activityIds' => $activityIds,
@@ -407,7 +423,7 @@ final class AvailabilityService
      *
      * @return int[]
      */
-    private function resolveAvailableActivityIds(array $activityIds, array $activities): array
+    private function resolveAvailableActivityIds(array $activityIds, array $activities, int $requestedSeats): array
     {
         if ($activities === []) {
             return $activityIds;
@@ -428,6 +444,13 @@ final class AvailabilityService
 
             if (array_key_exists('available', $activity) && $activity['available'] === false) {
                 continue;
+            }
+
+            if ($requestedSeats > 0) {
+                $capacity = $this->extractActivityCapacity($activity);
+                if ($capacity !== null && $capacity < $requestedSeats) {
+                    continue;
+                }
             }
 
             if (!array_key_exists($activityId, $availableSet)) {
@@ -459,6 +482,58 @@ final class AvailabilityService
         }
 
         return $ordered;
+    }
+
+    /**
+     * @param array<string, mixed> $activity
+     */
+    private function extractActivityCapacity(array $activity): ?int
+    {
+        $keys = ['availableSeats', 'availableSpots', 'remaining', 'availableCount', 'capacity', 'available'];
+
+        foreach ($keys as $key) {
+            if (!array_key_exists($key, $activity)) {
+                continue;
+            }
+
+            $value = $activity[$key];
+            $numeric = $this->normalizeAvailabilityCount($value);
+            if ($numeric !== null) {
+                return $numeric;
+            }
+        }
+
+        if (isset($activity['details']) && is_array($activity['details'])) {
+            foreach ($keys as $key) {
+                if (!array_key_exists($key, $activity['details'])) {
+                    continue;
+                }
+
+                $numeric = $this->normalizeAvailabilityCount($activity['details'][$key]);
+                if ($numeric !== null) {
+                    return $numeric;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizeAvailabilityCount(mixed $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return max(0, (int) $value);
+        }
+
+        if (is_string($value) && is_numeric($value)) {
+            return max(0, (int) $value);
+        }
+
+        return null;
     }
 
     private function extractExtendedActivityIds(array $entry): array
@@ -978,6 +1053,12 @@ final class AvailabilityService
             $activity['activityName'] = $details['times'];
         }
 
+        foreach (['availableSeats', 'availableSpots', 'remaining', 'availableCount', 'capacity'] as $capacityKey) {
+            if (array_key_exists($capacityKey, $value) && !array_key_exists($capacityKey, $activity)) {
+                $activity[$capacityKey] = $value[$capacityKey];
+            }
+        }
+
         $activities[$activityId] = $activity;
     }
 
@@ -1070,7 +1151,7 @@ final class AvailabilityService
     /**
      * @return array{0:string,1:?int}
      */
-    private function resolveDayStatus(array $monthData, int $day, array $activityIds): array
+    private function resolveDayStatus(array $monthData, int $day, array $activityIds, int $requestedSeats): array
     {
         $key = 'd' . $day;
         $seats = null;
@@ -1083,13 +1164,17 @@ final class AvailabilityService
 
         $availableActivities = [];
         if (isset($monthData['extended'][$key])) {
-            $normalizedEntry = $this->normalizeExtendedAvailabilityEntry($monthData['extended'][$key]);
+            $normalizedEntry = $this->normalizeExtendedAvailabilityEntry($monthData['extended'][$key], $requestedSeats);
             $availableActivities = $normalizedEntry['availableActivityIds'] ?? $normalizedEntry['activityIds'];
         }
 
         $isAvailable = false;
 
         if ($seats !== null) {
+            if ($requestedSeats > 0 && $seats < $requestedSeats) {
+                return ['sold_out', $seats];
+            }
+
             $isAvailable = $seats > 0;
         } elseif ($availableActivities !== []) {
             $isAvailable = count(array_intersect($availableActivities, array_map('intval', $activityIds))) > 0;
@@ -1152,6 +1237,8 @@ final class AvailabilityService
     }
 
     /**
+     * @param int $requestedSeats
+     *
      * @return Timeslot[]
      */
     private function fetchTimeslotsForDate(
@@ -1159,7 +1246,8 @@ final class AvailabilityService
         array $supplierConfig,
         array $activityIds,
         string $date,
-        array $guestCounts
+        array $guestCounts,
+        int $requestedSeats
     ): array {
         $timeslots = [];
         $guestCountPayload = $this->formatGuestCountsPayload($guestCounts);
@@ -1210,7 +1298,9 @@ final class AvailabilityService
             }
         }
 
-        return $this->sortTimeslots(array_values($timeslots));
+        $sorted = $this->sortTimeslots(array_values($timeslots));
+
+        return $this->filterTimeslotsByRequestedSeats($sorted, $requestedSeats);
     }
 
     /**
@@ -1239,6 +1329,31 @@ final class AvailabilityService
         });
 
         return $timeslots;
+    }
+
+    /**
+     * @param Timeslot[] $timeslots
+     * @return Timeslot[]
+     */
+    private function filterTimeslotsByRequestedSeats(array $timeslots, int $requestedSeats): array
+    {
+        if ($requestedSeats <= 0) {
+            return $timeslots;
+        }
+
+        $filtered = [];
+
+        foreach ($timeslots as $timeslot) {
+            $available = $timeslot->getAvailable();
+
+            if ($available !== null && $available < $requestedSeats) {
+                continue;
+            }
+
+            $filtered[] = $timeslot;
+        }
+
+        return $filtered;
     }
 
     /**

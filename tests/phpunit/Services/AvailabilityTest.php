@@ -815,6 +815,102 @@ final class AvailabilityTest extends TestCase
         self::assertSame('900', $timeslots[0]->getId());
         self::assertSame('1300', $timeslots[1]->getId());
     }
+
+    public function testCalendarTreatsDayAsUnavailableWhenSeatsBelowRequestedCount(): void
+    {
+        $seats = [];
+        for ($day = 1; $day <= 31; $day++) {
+            $seats['d' . $day] = $day === 15 ? 3 : 12;
+        }
+
+        $extended = [
+            'd15' => [
+                'times' => [369 => '8:00am Check In'],
+                'activities' => [[
+                    'activityId' => 369,
+                    'available' => true,
+                    'remaining' => 3,
+                    'details' => ['times' => '8:00am Check In'],
+                ]],
+            ],
+        ];
+
+        $httpResponse = json_encode([
+            'yearmonth_2024_3' => $seats,
+            'yearmonth_2024_3_ex' => $extended,
+        ], JSON_THROW_ON_ERROR);
+
+        $httpFetcher = fn () => $httpResponse;
+
+        $client = new AvailabilityRecordingSoapClient([]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-03-15',
+            ['345' => 4],
+            [369],
+            '2024-03'
+        );
+
+        $calendarEntries = $result['calendar']->toArray();
+        $dayEntry = null;
+        foreach ($calendarEntries as $entry) {
+            if ($entry['date'] === '2024-03-15') {
+                $dayEntry = $entry;
+                break;
+            }
+        }
+
+        self::assertNotNull($dayEntry);
+        self::assertSame('sold_out', $dayEntry['status']);
+        self::assertSame('sold_out', $result['metadata']['selectedDateStatus']);
+        self::assertSame('unavailable', $result['metadata']['timeslotStatus']);
+        self::assertSame([], $result['timeslots']);
+    }
+
+    public function testTimeslotsBelowRequestedSeatsAreFilteredFromSoapResults(): void
+    {
+        $seats = [];
+        for ($day = 1; $day <= 31; $day++) {
+            $seats['d' . $day] = 12;
+        }
+
+        $httpResponse = json_encode([
+            'yearmonth_2024_7' => $seats,
+            'yearmonth_2024_7_ex' => [],
+        ], JSON_THROW_ON_ERROR);
+
+        $httpFetcher = fn () => $httpResponse;
+
+        $client = new AvailabilityRecordingSoapClient([
+            'getActivityTimeslots' => static fn () => [
+                'timeslots' => [
+                    ['id' => '800', 'label' => '8:00 AM Departure', 'available' => 3],
+                    ['id' => '1300', 'label' => '1:00 PM Departure', 'available' => 6],
+                ],
+            ],
+        ]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-07-15',
+            ['345' => 4],
+            [369],
+            '2024-07'
+        );
+
+        $timeslots = $result['timeslots'];
+        self::assertCount(1, $timeslots);
+        self::assertSame('1300', $timeslots[0]->getId());
+        self::assertSame('1:00 PM Departure', $timeslots[0]->getLabel());
+        self::assertSame('available', $result['metadata']['timeslotStatus']);
+    }
 }
 
 final class AvailabilityStubSoapClientFactory implements SoapClientFactory
