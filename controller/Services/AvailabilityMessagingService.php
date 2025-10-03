@@ -59,7 +59,10 @@ final class AvailabilityMessagingService
             $ponorezActivityId = $request['ponorezActivityId'];
             $cacheKey = $this->buildCacheKey($ponorezActivityId, $request['date'], $requestedSeats);
             if (isset($cache[$cacheKey])) {
-                $results[] = $cache[$cacheKey];
+                $cachedPayload = $cache[$cacheKey];
+                $clonedPayload = $cachedPayload;
+                $clonedPayload['activityId'] = $request['activityId'];
+                $results[] = $clonedPayload;
                 continue;
             }
 
@@ -78,7 +81,9 @@ final class AvailabilityMessagingService
                     'tier' => 'unavailable',
                     'seats' => 0,
                 ];
-                $cache[$cacheKey] = $message;
+                $cachePayload = $message;
+                $cachePayload['activityId'] = '';
+                $cache[$cacheKey] = $cachePayload;
                 $results[] = $message;
                 continue;
             }
@@ -92,7 +97,9 @@ final class AvailabilityMessagingService
                 $request['activityId']
             );
 
-            $cache[$cacheKey] = $message;
+            $cachePayload = $message;
+            $cachePayload['activityId'] = '';
+            $cache[$cacheKey] = $cachePayload;
             $results[] = $message;
         }
 
@@ -138,7 +145,6 @@ final class AvailabilityMessagingService
         $allowed = $activityIds !== [] ? array_flip($activityIds) : null;
 
         $normalized = [];
-        $seen = [];
 
         foreach ($timeslotRequests as $entry) {
             if (is_array($entry)) {
@@ -165,12 +171,6 @@ final class AvailabilityMessagingService
                 continue;
             }
 
-            $key = $normalizedDate . '|' . $normalizedId;
-            if (isset($seen[$key])) {
-                continue;
-            }
-
-            $seen[$key] = true;
             $normalized[] = [
                 'activityId' => $identifier,
                 'ponorezActivityId' => $normalizedId,
