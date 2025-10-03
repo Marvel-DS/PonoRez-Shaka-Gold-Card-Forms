@@ -53,7 +53,6 @@ function normaliseUpgradeQuantities(upgrades) {
 
 const guestCounts = normaliseGuestCounts(bootstrap.activity && bootstrap.activity.guestTypes);
 const upgradeQuantities = normaliseUpgradeQuantities(bootstrap.activity && bootstrap.activity.upgrades);
-const initialGuestSignature = JSON.stringify(guestCounts);
 
 const initialState = {
     bootstrap,
@@ -76,8 +75,6 @@ const initialState = {
     timeslots: [],
     selectedTimeslotId: null,
     availabilityMetadata: {},
-    timeslotMessages: {},
-    timeslotMessagesSignature: initialGuestSignature,
     transportationRouteId: bootstrap.activity
         && bootstrap.activity.transportation
         && bootstrap.activity.transportation.defaultRouteId

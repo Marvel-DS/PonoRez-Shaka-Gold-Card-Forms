@@ -15,10 +15,6 @@ let fetchTimer;
 let controller;
 let lastSignature = null;
 let lastVisibleMonth;
-let messageFetchTimer;
-let messageController;
-let lastMessageSignature = null;
-let lastGuestSignature = null;
 
 function normaliseId(value) {
     if (value === null || value === undefined) {
@@ -855,11 +851,8 @@ function mapTimeslots(timeslots = []) {
             ? Number(slot.available)
             : null;
         const details = normaliseTimeslotDetails(slot.details);
-        const availabilityTier = typeof slot.availabilityTier === 'string'
-            ? String(slot.availabilityTier).toLowerCase()
-            : null;
 
-        accumulator.push({ id, label, available, details, availabilityTier });
+        accumulator.push({ id, label, available, details });
         return accumulator;
     }, []);
 }
@@ -893,127 +886,6 @@ function buildAvailabilityUrl() {
     return url.toString();
 }
 
-function buildAvailabilityMessageUrl(date, activityIds, guestCounts) {
-    const base = resolveApiUrl('availabilityMessages');
-    if (!base) {
-        return null;
-    }
-
-    const url = new URL(base);
-
-    if (typeof date === 'string' && date !== '') {
-        url.searchParams.set('date', date);
-    }
-
-    if (Array.isArray(activityIds) && activityIds.length > 0) {
-        const normalisedIds = activityIds
-            .map((id) => normaliseId(id))
-            .filter((id) => id !== null);
-        if (normalisedIds.length > 0) {
-            url.searchParams.set('activityIds', JSON.stringify(normalisedIds));
-        }
-    }
-
-    if (guestCounts && typeof guestCounts === 'object') {
-        const entries = Object.entries(guestCounts)
-            .filter(([, value]) => Number(value) > 0);
-        if (entries.length > 0) {
-            url.searchParams.set('guestCounts', JSON.stringify(Object.fromEntries(entries)));
-        }
-    }
-
-    return url.toString();
-}
-
-function normalizeMessageEntry(entry, fallbackDate, keyHint) {
-    if (!entry || typeof entry !== 'object') {
-        return null;
-    }
-
-    const candidateId = entry.activityId ?? entry.activityid ?? entry.id ?? keyHint;
-    const activityId = normaliseId(candidateId);
-    if (activityId === null) {
-        return null;
-    }
-
-    let date = fallbackDate || null;
-    if (typeof entry.date === 'string' && entry.date.trim() !== '') {
-        const trimmed = entry.date.trim();
-        date = trimmed.length >= 10 ? trimmed.slice(0, 10) : trimmed;
-    }
-
-    const tier = typeof entry.tier === 'string'
-        ? entry.tier.toLowerCase()
-        : null;
-
-    let seats = null;
-    if (entry.seats !== undefined && entry.seats !== null) {
-        const numeric = Number(entry.seats);
-        seats = Number.isFinite(numeric) ? numeric : null;
-    }
-
-    return {
-        activityId,
-        date: date || fallbackDate || '',
-        tier,
-        seats,
-    };
-}
-
-function normalizeMessagesPayload(messages, fallbackDate) {
-    const normalized = {};
-
-    const assign = (entry, keyHint) => {
-        const normalizedEntry = normalizeMessageEntry(entry, fallbackDate, keyHint);
-        if (!normalizedEntry) {
-            return;
-        }
-
-        normalized[normalizedEntry.activityId] = normalizedEntry;
-    };
-
-    if (Array.isArray(messages)) {
-        messages.forEach((entry) => assign(entry));
-        return normalized;
-    }
-
-    if (messages && typeof messages === 'object') {
-        Object.entries(messages).forEach(([key, value]) => {
-            assign(value, key);
-        });
-    }
-
-    return normalized;
-}
-
-function resetAvailabilityMessages(signature) {
-    if (messageController) {
-        messageController.abort();
-        messageController = null;
-    }
-
-    window.clearTimeout(messageFetchTimer);
-    messageFetchTimer = null;
-    lastMessageSignature = null;
-
-    setState((current) => {
-        const updates = {
-            timeslotMessagesSignature: signature,
-            timeslotMessages: {},
-        };
-
-        if (Array.isArray(current.timeslots) && current.timeslots.length > 0) {
-            updates.timeslots = current.timeslots.map((slot) => ({
-                ...slot,
-                availabilityTier: null,
-                available: null,
-            }));
-        }
-
-        return updates;
-    });
-}
-
 function setLoading(isLoading) {
     setState((current) => ({
         loading: { ...current.loading, availability: isLoading },
@@ -1021,230 +893,19 @@ function setLoading(isLoading) {
 }
 
 function describeAvailability(timeslot) {
-    const tier = typeof timeslot.availabilityTier === 'string'
-        ? timeslot.availabilityTier.toLowerCase()
-        : null;
-
-    if (tier === 'unavailable') {
-        return 'Sold out';
-    }
-
-    if (tier === 'limited') {
-        const seats = Number(timeslot.available);
-        if (Number.isFinite(seats) && seats > 0) {
-            return `Only ${seats} ${pluralize('spot', seats)} left`;
-        }
-        return 'Limited availability';
-    }
-
-    if (tier === 'plenty') {
-        return 'Available';
-    }
-
     if (timeslot.available === null || timeslot.available === undefined) {
         return 'Availability will be confirmed during checkout.';
     }
 
-    const seats = Number(timeslot.available);
-    if (!Number.isFinite(seats) || seats <= 0) {
+    if (timeslot.available <= 0) {
         return 'Sold out';
     }
 
-    if (seats <= 4) {
-        return `${seats} ${pluralize('spot', seats)} left`;
+    if (timeslot.available <= 4) {
+        return `${timeslot.available} ${pluralize('spot', timeslot.available)} left`;
     }
 
-    return `${seats} seats available`;
-}
-
-async function fetchAvailabilityMessages() {
-    const state = getState();
-
-    if (state.loading?.availability) {
-        return;
-    }
-
-    const date = state.selectedDate;
-    const timeslots = Array.isArray(state.timeslots) ? state.timeslots : [];
-
-    if (!date || timeslots.length === 0) {
-        return;
-    }
-
-    const guestCounts = state.guestCounts || {};
-    const guestSignature = JSON.stringify(guestCounts);
-
-    if (state.timeslotMessagesSignature !== guestSignature) {
-        resetAvailabilityMessages(guestSignature);
-        return;
-    }
-
-    const messagesForDate = state.timeslotMessages?.[date] || {};
-    const missingIds = [];
-
-    timeslots.forEach((slot) => {
-        const id = normaliseId(slot?.id);
-        if (id === null) {
-            return;
-        }
-
-        if (!messagesForDate[id]) {
-            missingIds.push(id);
-        }
-    });
-
-    if (missingIds.length === 0) {
-        return;
-    }
-
-    const url = buildAvailabilityMessageUrl(date, missingIds, guestCounts);
-    if (!url) {
-        return;
-    }
-
-    const signature = JSON.stringify({
-        date,
-        ids: [...missingIds].sort(),
-        guests: guestSignature,
-    });
-
-    if (signature === lastMessageSignature) {
-        return;
-    }
-
-    if (messageController) {
-        messageController.abort();
-    }
-
-    messageController = new AbortController();
-    lastMessageSignature = signature;
-
-    try {
-        const payload = await requestJson(url, { signal: messageController.signal });
-        const normalized = normalizeMessagesPayload(payload?.messages, date);
-        const metadata = payload?.metadata || {};
-        const requestedSeatsValue = Number(metadata.requestedSeats);
-        const requestedSeats = Number.isFinite(requestedSeatsValue) ? requestedSeatsValue : null;
-
-        setState((current) => {
-            const currentSignature = JSON.stringify(current.guestCounts || {});
-            if (currentSignature !== guestSignature) {
-                return {};
-            }
-
-            const nextMessages = { ...current.timeslotMessages };
-            const existingForDate = nextMessages[date] ? { ...nextMessages[date] } : {};
-            let changed = false;
-
-            Object.values(normalized).forEach((entry) => {
-                if (!entry) {
-                    return;
-                }
-
-                existingForDate[entry.activityId] = entry;
-                changed = true;
-            });
-
-            if (changed) {
-                nextMessages[date] = existingForDate;
-            }
-
-            const updates = {
-                timeslotMessagesSignature: guestSignature,
-            };
-
-            if (changed) {
-                updates.timeslotMessages = nextMessages;
-            }
-
-            if (current.selectedDate === date && changed) {
-                const updatedTimeslots = current.timeslots.map((slot) => {
-                    const id = normaliseId(slot?.id);
-                    if (id === null) {
-                        return slot;
-                    }
-
-                    const entry = existingForDate[id];
-                    if (!entry) {
-                        return slot;
-                    }
-
-                    const numericSeats = Number(entry.seats);
-                    const seats = Number.isFinite(numericSeats) ? numericSeats : null;
-
-                    return {
-                        ...slot,
-                        availabilityTier: entry.tier || null,
-                        available: seats,
-                    };
-                });
-
-                updates.timeslots = updatedTimeslots;
-
-                const selectedId = normaliseId(current.selectedTimeslotId);
-                if (selectedId !== null) {
-                    const selectedEntry = existingForDate[selectedId];
-                    const selectedSeats = Number(selectedEntry?.seats);
-                    const selectedTier = selectedEntry?.tier ? String(selectedEntry.tier).toLowerCase() : null;
-                    const selectedUnavailable = Boolean(selectedTier === 'unavailable'
-                        || (Number.isFinite(selectedSeats) && selectedSeats <= 0));
-
-                    if (selectedUnavailable) {
-                        const fallback = updatedTimeslots.find((slot) => {
-                            if (!slot) {
-                                return false;
-                            }
-
-                            const tier = typeof slot.availabilityTier === 'string'
-                                ? slot.availabilityTier.toLowerCase()
-                                : null;
-
-                            if (tier === 'unavailable') {
-                                return false;
-                            }
-
-                            if (slot.available === null || slot.available === undefined) {
-                                return true;
-                            }
-
-                            return Number(slot.available) > 0;
-                        });
-
-                        updates.selectedTimeslotId = fallback ? fallback.id : null;
-                    }
-                }
-            }
-
-            if (requestedSeats !== null) {
-                updates.availabilityMetadata = {
-                    ...current.availabilityMetadata,
-                    requestedSeats,
-                };
-            }
-
-            return updates;
-        });
-    } catch (error) {
-        if (error?.name !== 'AbortError') {
-            console.error('Availability message request failed', error);
-        }
-    } finally {
-        lastMessageSignature = null;
-        if (messageController) {
-            messageController = null;
-        }
-    }
-}
-
-function scheduleMessageFetch({ immediate = false } = {}) {
-    window.clearTimeout(messageFetchTimer);
-
-    if (immediate) {
-        fetchAvailabilityMessages();
-        return;
-    }
-
-    messageFetchTimer = window.setTimeout(fetchAvailabilityMessages, 150);
+    return `${timeslot.available} seats available`;
 }
 
 function renderTimeslots(state) {
@@ -1290,12 +951,7 @@ function renderTimeslots(state) {
                 radio.checked = true;
             }
 
-            const normalizedTier = typeof timeslot.availabilityTier === 'string'
-                ? timeslot.availabilityTier.toLowerCase()
-                : null;
-
-            if (normalizedTier === 'unavailable'
-                || (timeslot.available !== null && timeslot.available <= 0)) {
+            if (timeslot.available !== null && timeslot.available <= 0) {
                 radio.disabled = true;
             }
 
@@ -1460,29 +1116,16 @@ export function initAvailability() {
 
     subscribe((state) => {
         const visibleMonthChanged = lastVisibleMonth && state.visibleMonth !== lastVisibleMonth;
-        const guestSignature = JSON.stringify(state.guestCounts || {});
-
-        if (state.timeslotMessagesSignature !== guestSignature) {
-            lastGuestSignature = guestSignature;
-            resetAvailabilityMessages(guestSignature);
-            return;
-        }
-
-        lastGuestSignature = guestSignature;
 
         renderTimeslots(state);
 
         lastVisibleMonth = state.visibleMonth;
 
         scheduleFetch({ immediate: Boolean(visibleMonthChanged) });
-        scheduleMessageFetch();
     });
 
-    const initialState = getState();
-    lastVisibleMonth = initialState.visibleMonth;
-    lastGuestSignature = JSON.stringify(initialState.guestCounts || {});
+    lastVisibleMonth = getState().visibleMonth;
     scheduleFetch();
-    scheduleMessageFetch();
 }
 
 export default initAvailability;
