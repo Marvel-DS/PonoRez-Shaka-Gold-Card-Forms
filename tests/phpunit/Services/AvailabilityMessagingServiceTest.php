@@ -171,7 +171,7 @@ final class AvailabilityMessagingServiceTest extends TestCase
             self::ACTIVITY_SLUG,
             [
                 ['activityId' => 369, 'date' => '2024-08-05'],
-                ['activityId' => '369', 'date' => '2024-08-05'],
+                ['activityId' => 'timeslot-369', 'date' => '2024-08-05'],
                 ['activityId' => 999, 'date' => '2024-08-05'],
             ],
             ['345' => 2]
@@ -179,12 +179,17 @@ final class AvailabilityMessagingServiceTest extends TestCase
 
         // Baseline + three probes should be executed once.
         self::assertCount(4, $client->calls);
-        self::assertCount(1, $result['messages']);
+        self::assertCount(2, $result['messages']);
 
-        $message = $result['messages'][0];
-        self::assertSame('369', $message['activityId']);
-        self::assertSame('limited', $message['tier']);
-        self::assertSame(3, $message['seats']);
+        $first = $result['messages'][0];
+        self::assertSame('369', $first['activityId']);
+        self::assertSame('limited', $first['tier']);
+        self::assertSame(3, $first['seats']);
+
+        $second = $result['messages'][1];
+        self::assertSame('timeslot-369', $second['activityId']);
+        self::assertSame('limited', $second['tier']);
+        self::assertSame(3, $second['seats']);
     }
 
     public function testCompositeActivityIdentifierRetainsOriginalKey(): void
@@ -215,20 +220,68 @@ final class AvailabilityMessagingServiceTest extends TestCase
         );
 
         self::assertSame(2, $result['requestedSeats']);
-        self::assertCount(1, $result['messages']);
+        self::assertCount(2, $result['messages']);
         self::assertCount(4, $client->calls);
 
-        $message = $result['messages'][0];
-        self::assertSame('timeslot-101', $message['activityId']);
-        self::assertSame('2024-08-06', $message['date']);
-        self::assertSame('limited', $message['tier']);
-        self::assertSame(3, $message['seats']);
+        $first = $result['messages'][0];
+        self::assertSame('timeslot-101', $first['activityId']);
+        self::assertSame('2024-08-06', $first['date']);
+        self::assertSame('limited', $first['tier']);
+        self::assertSame(3, $first['seats']);
+
+        $second = $result['messages'][1];
+        self::assertSame('101', $second['activityId']);
+        self::assertSame('2024-08-06', $second['date']);
+        self::assertSame('limited', $second['tier']);
+        self::assertSame(3, $second['seats']);
 
         foreach ($client->calls as $call) {
             self::assertSame('checkActivityAvailability', $call[0]);
             $payload = $call[1][0] ?? [];
             self::assertSame(101, (int) ($payload['activityId'] ?? 0));
         }
+    }
+
+    public function testCachedResponsesRetainOriginalIdentifiersForDuplicates(): void
+    {
+        $responses = [
+            101 => [
+                '2024-08-07' => [
+                    2 => true,
+                    5 => false,
+                    4 => false,
+                    3 => true,
+                ],
+            ],
+        ];
+
+        $client = new AvailabilityProbeSoapClient($responses);
+        $factory = new AvailabilityProbeSoapClientFactory($client);
+
+        $service = new AvailabilityMessagingService($factory);
+        $result = $service->probeTimeslots(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            [
+                ['activityId' => 'timeslot-101', 'date' => '2024-08-07'],
+                ['activityId' => 101, 'date' => '2024-08-07'],
+            ],
+            ['345' => 2]
+        );
+
+        self::assertSame(2, $result['requestedSeats']);
+        self::assertCount(4, $client->calls);
+        self::assertCount(2, $result['messages']);
+
+        $first = $result['messages'][0];
+        self::assertSame('timeslot-101', $first['activityId']);
+        self::assertSame('limited', $first['tier']);
+        self::assertSame(3, $first['seats']);
+
+        $second = $result['messages'][1];
+        self::assertSame('101', $second['activityId']);
+        self::assertSame('limited', $second['tier']);
+        self::assertSame(3, $second['seats']);
     }
 }
 
