@@ -300,12 +300,46 @@ final class AvailabilityMessagingService
             return $response;
         }
 
-        if ($response instanceof stdClass && property_exists($response, 'return')) {
-            return $this->normalizeBooleanResponse($response->return);
+        if ($response instanceof stdClass) {
+            if (property_exists($response, 'return')) {
+                return $this->normalizeBooleanResponse($response->return);
+            }
+
+            $decoded = json_decode(json_encode($response), true);
+            $response = is_array($decoded) ? $decoded : (array) $response;
         }
 
-        if (is_array($response) && array_key_exists('return', $response)) {
-            return $this->normalizeBooleanResponse($response['return']);
+        if (is_array($response)) {
+            if (array_key_exists('return', $response)) {
+                return $this->normalizeBooleanResponse($response['return']);
+            }
+
+            $booleanKeys = [
+                'available' => true,
+                'availability' => true,
+                'isavailable' => true,
+                'success' => true,
+            ];
+
+            foreach ($response as $key => $value) {
+                if (is_string($key) && isset($booleanKeys[strtolower($key)])) {
+                    $normalized = $this->normalizeBooleanResponse($value);
+                    if ($normalized !== null) {
+                        return $normalized;
+                    }
+                }
+            }
+
+            foreach ($response as $value) {
+                if ($value === $response) {
+                    continue;
+                }
+
+                $normalized = $this->normalizeBooleanResponse($value);
+                if ($normalized !== null) {
+                    return $normalized;
+                }
+            }
         }
 
         if (is_string($response)) {
