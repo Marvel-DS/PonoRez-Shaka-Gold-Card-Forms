@@ -234,11 +234,6 @@ $apiEndpoints = [
         rawurlencode($supplierSlug),
         rawurlencode($activitySlug)
     ),
-    'availabilityMessages' => sprintf(
-        '/api/get-availability-messages.php?supplier=%s&activity=%s',
-        rawurlencode($supplierSlug),
-        rawurlencode($activitySlug)
-    ),
     'transportation' => sprintf(
         '/api/get-transportation.php?supplier=%s&activity=%s',
         rawurlencode($supplierSlug),
