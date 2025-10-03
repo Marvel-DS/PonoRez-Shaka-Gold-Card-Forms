@@ -103,6 +103,7 @@ final class AvailabilityTest extends TestCase
         self::assertSame('2024-03-01', $metadata['firstAvailableDate']);
         self::assertSame('verified', $metadata['certificateVerification']);
         self::assertSame([369], $metadata['extended']['2024-03-15']['activityIds']);
+        self::assertSame([369], $metadata['extended']['2024-03-15']['availableActivityIds']);
         self::assertSame([
             [
                 'activityId' => 369,
@@ -161,6 +162,7 @@ final class AvailabilityTest extends TestCase
         $dayEntry = $metadata['extended']['2024-05-02'];
 
         self::assertSame([639], $dayEntry['activityIds']);
+        self::assertSame([639], $dayEntry['availableActivityIds']);
         self::assertCount(1, $dayEntry['activities']);
         $activity = $dayEntry['activities'][0];
         self::assertSame(639, $activity['activityId']);
@@ -285,6 +287,7 @@ final class AvailabilityTest extends TestCase
 
         self::assertSame('available', $result['metadata']['timeslotStatus']);
         self::assertSame([369, 555], $result['metadata']['extended']['2024-07-12']['activityIds']);
+        self::assertSame([369, 555], $result['metadata']['extended']['2024-07-12']['availableActivityIds']);
         self::assertSame([], $result['metadata']['extended']['2024-07-12']['activities']);
         self::assertSame([], $result['timeslots']);
     }
@@ -348,6 +351,7 @@ final class AvailabilityTest extends TestCase
         $metadataEntry = $result['metadata']['extended']['2024-06-30'];
 
         self::assertSame([639, 5280], $metadataEntry['activityIds']);
+        self::assertSame([639], $metadataEntry['availableActivityIds']);
         self::assertSame([
             [
                 'activityId' => 639,
@@ -416,6 +420,7 @@ final class AvailabilityTest extends TestCase
         $metadataEntry = $result['metadata']['extended']['2024-05-15'];
 
         self::assertSame([639, 5280], $metadataEntry['activityIds']);
+        self::assertSame([639, 5280], $metadataEntry['availableActivityIds']);
         self::assertSame([
             639 => '8:00am Check In',
             5280 => '12:00pm Check In',
@@ -497,6 +502,76 @@ final class AvailabilityTest extends TestCase
             639 => '8:00am Check In',
             5280 => '12:00pm Check In',
         ], $metadataEntry['times']);
+    }
+
+    public function testFetchCalendarTreatsUnavailableActivitiesAsSoldOut(): void
+    {
+        $seats = [];
+        for ($day = 1; $day <= 31; $day++) {
+            $seats['d' . $day] = 10;
+        }
+        $seats['d12'] = 'unknown';
+
+        $extended = [
+            'd12' => [
+                'aids' => ['639', '5280'],
+                'activities' => [
+                    [
+                        'activityId' => '639',
+                        'available' => 'N',
+                        'details' => ['times' => '8:00am Check In'],
+                    ],
+                    [
+                        'activityId' => '5280',
+                        'available' => false,
+                        'details' => ['times' => '12:00pm Check In'],
+                    ],
+                ],
+                'times' => [
+                    '639' => '8:00am Check In',
+                    '5280' => '12:00pm Check In',
+                ],
+            ],
+        ];
+
+        $httpResponse = json_encode([
+            'yearmonth_2024_5' => $seats,
+            'yearmonth_2024_5_ex' => $extended,
+        ], JSON_THROW_ON_ERROR);
+
+        $httpFetcher = fn () => $httpResponse;
+
+        $client = new AvailabilityRecordingSoapClient([
+            'getActivityTimeslots' => static fn () => ['timeslots' => []],
+        ]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-05-12',
+            ['345' => 2],
+            [639, 5280]
+        );
+
+        $calendarDay = null;
+        foreach ($result['calendar']->all() as $day) {
+            if ($day->getDate() === '2024-05-12') {
+                $calendarDay = $day;
+                break;
+            }
+        }
+
+        self::assertInstanceOf(AvailabilityDay::class, $calendarDay);
+        self::assertSame('sold_out', $calendarDay->getStatus());
+
+        $metadataEntry = $result['metadata']['extended']['2024-05-12'];
+        self::assertSame([], $metadataEntry['availableActivityIds']);
+        self::assertSame('unavailable', $result['metadata']['timeslotStatus']);
+        self::assertSame([], $result['timeslots']);
+        self::assertSame(0, $factory->buildCount);
+        self::assertSame([], $client->calls);
     }
 
     public function testFetchCalendarSkipsTimeslotLookupWhenExtendedShowsSoldOut(): void
