@@ -1597,9 +1597,8 @@ final class AvailabilityService
         }
 
         $cafile = $this->findCaBundlePath();
-        $verifyPeer = $cafile !== null;
-        if (!$verifyPeer) {
-            $this->certificateVerificationDisabled = true;
+        if ($cafile === null) {
+            throw new RuntimeException('Unable to locate a trusted CA bundle for availability request.');
         }
 
         $context = stream_context_create([
@@ -1610,10 +1609,11 @@ final class AvailabilityService
                 'max_redirects' => 5,
             ],
             'ssl' => [
-                'verify_peer' => $verifyPeer,
-                'verify_peer_name' => $verifyPeer,
-                'allow_self_signed' => !$verifyPeer,
-            ] + ($cafile !== null ? ['cafile' => $cafile] : []),
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+                'allow_self_signed' => false,
+                'cafile' => $cafile,
+            ],
         ]);
 
         $body = @file_get_contents($target, false, $context);
@@ -1636,21 +1636,20 @@ final class AvailabilityService
         }
 
         $cafile = $this->findCaBundlePath();
-        $verifyPeer = $cafile !== null;
+        if ($cafile === null) {
+            curl_close($handle);
+            throw new RuntimeException('Unable to locate a trusted CA bundle for availability request.');
+        }
 
         curl_setopt_array($handle, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HEADER => true,
             CURLOPT_TIMEOUT => 15,
-            CURLOPT_SSL_VERIFYPEER => $verifyPeer,
-            CURLOPT_SSL_VERIFYHOST => $verifyPeer ? 2 : 0,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
         ]);
 
-        if ($cafile !== null) {
-            curl_setopt($handle, CURLOPT_CAINFO, $cafile);
-        } else {
-            $this->certificateVerificationDisabled = true;
-        }
+        curl_setopt($handle, CURLOPT_CAINFO, $cafile);
 
         $response = curl_exec($handle);
         if ($response === false) {
@@ -1705,7 +1704,11 @@ final class AvailabilityService
         $candidates = [
             ini_get('curl.cainfo'),
             ini_get('openssl.cafile'),
+            '/etc/ssl/certs/ca-certificates.crt',
+            '/etc/ssl/certs/ca-bundle.crt',
             '/etc/ssl/cert.pem',
+            '/etc/pki/tls/certs/ca-bundle.crt',
+            '/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem',
             '/usr/local/etc/openssl@3/cert.pem',
             '/usr/local/etc/openssl/cert.pem',
         ];
