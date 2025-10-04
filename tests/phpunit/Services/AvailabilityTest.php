@@ -911,6 +911,57 @@ final class AvailabilityTest extends TestCase
         self::assertSame('1:00 PM Departure', $timeslots[0]->getLabel());
         self::assertSame('available', $result['metadata']['timeslotStatus']);
     }
+
+    public function testFetchCalendarHandlesNestedStdClassTimeslotResponse(): void
+    {
+        $seats = [];
+        for ($day = 1; $day <= 31; $day++) {
+            $seats['d' . $day] = 12;
+        }
+
+        $httpResponse = json_encode([
+            'yearmonth_2024_9' => $seats,
+            'yearmonth_2024_9_ex' => [],
+        ], JSON_THROW_ON_ERROR);
+
+        $httpFetcher = fn () => $httpResponse;
+
+        $client = new AvailabilityRecordingSoapClient([
+            'getActivityTimeslots' => static fn () => [
+                'timeslots' => [
+                    (object) [
+                        'id' => '930',
+                        'label' => 'Departure 930',
+                        'availableSpots' => '5',
+                        'details' => (object) [
+                            'times' => (object) [
+                                'provided' => '9:30am Check In',
+                                'display' => '9:30 AM Check-In',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+
+        $service = new AvailabilityService($factory, $httpFetcher);
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-09-15',
+            ['345' => 2],
+            [369],
+            '2024-09'
+        );
+
+        $timeslots = $result['timeslots'];
+        self::assertCount(1, $timeslots);
+        self::assertSame('930', $timeslots[0]->getId());
+        self::assertSame('9:30am Check In', $timeslots[0]->getLabel());
+        self::assertSame(['times' => '9:30am Check In'], $timeslots[0]->getDetails());
+        self::assertSame(5, $timeslots[0]->getAvailable());
+    }
 }
 
 final class AvailabilityStubSoapClientFactory implements SoapClientFactory

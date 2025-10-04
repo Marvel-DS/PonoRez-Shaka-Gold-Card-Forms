@@ -1493,9 +1493,8 @@ final class AvailabilityService
         while ($stack !== []) {
             $current = array_pop($stack);
 
-            if ($current instanceof \stdClass) {
-                $stack[] = json_decode(json_encode($current), true);
-                continue;
+            if ($current instanceof stdClass) {
+                $current = get_object_vars($current);
             }
 
             if (!is_array($current)) {
@@ -1503,18 +1502,36 @@ final class AvailabilityService
             }
 
             if ($this->looksLikeTimeslotRow($current)) {
-                $rows[] = $current;
+                $rows[] = $this->convertObjectsToArrays($current);
                 continue;
             }
 
             foreach ($current as $value) {
-                if (is_array($value) || $value instanceof \stdClass) {
+                if ($value instanceof stdClass || is_array($value)) {
                     $stack[] = $value;
                 }
             }
         }
 
         return $rows;
+    }
+
+    private function convertObjectsToArrays(mixed $value): mixed
+    {
+        if ($value instanceof stdClass) {
+            $value = get_object_vars($value);
+        }
+
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        $converted = [];
+        foreach ($value as $key => $item) {
+            $converted[$key] = $this->convertObjectsToArrays($item);
+        }
+
+        return $converted;
     }
 
     private function looksLikeTimeslotRow(array $row): bool
