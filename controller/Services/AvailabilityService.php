@@ -75,6 +75,7 @@ final class AvailabilityService
         }
 
         $monthData = [];
+        $normalizedExtended = [];
         foreach ($monthsToLoad as $monthKey => $monthStart) {
             $monthData[$monthKey] = $this->fetchMonthAvailabilityData(
                 $supplierConfig,
@@ -83,19 +84,31 @@ final class AvailabilityService
                 (int) $monthStart->format('Y'),
                 (int) $monthStart->format('n')
             );
+
+            $normalizedExtended[$monthKey] = $this->normalizeMonthExtendedData(
+                $monthData[$monthKey],
+                $requestedSeats
+            );
         }
 
         $calendar = new AvailabilityCalendar();
         $firstAvailableDate = null;
         $viewMonthKey = $viewMonthStart->format('Y-m');
         $viewMonthData = $monthData[$viewMonthKey];
+        $viewMonthExtended = $normalizedExtended[$viewMonthKey] ?? [];
 
         $monthEnd = $viewMonthStart->modify('last day of this month');
         $period = new DatePeriod($viewMonthStart, new DateInterval('P1D'), $monthEnd->modify('+1 day'));
 
         foreach ($period as $date) {
             $day = (int) $date->format('j');
-            [$status] = $this->resolveDayStatus($viewMonthData, $day, $activityIds, $requestedSeats);
+            [$status] = $this->resolveDayStatus(
+                $viewMonthData,
+                $viewMonthExtended,
+                $day,
+                $activityIds,
+                $requestedSeats
+            );
 
             $calendar->addDay(new AvailabilityDay($date->format('Y-m-d'), $status));
 
@@ -105,10 +118,12 @@ final class AvailabilityService
         }
 
         $selectedMonthData = $monthData[$selectedMonthKey] ?? null;
+        $selectedMonthExtended = $normalizedExtended[$selectedMonthKey] ?? [];
         $selectedDayStatus = 'sold_out';
         if ($selectedMonthData !== null) {
             [$selectedDayStatus] = $this->resolveDayStatus(
                 $selectedMonthData,
+                $selectedMonthExtended,
                 (int) $selectedDay->format('j'),
                 $activityIds,
                 $requestedSeats
@@ -131,12 +146,18 @@ final class AvailabilityService
                     $month
                 );
 
+                $normalizedExtended[$monthKey] = $this->normalizeMonthExtendedData(
+                    $monthData[$monthKey],
+                    $requestedSeats
+                );
+
                 $monthEnd = $searchStart->modify('last day of this month');
                 $period = new DatePeriod($searchStart, new DateInterval('P1D'), $monthEnd->modify('+1 day'));
 
                 foreach ($period as $date) {
                     [$status] = $this->resolveDayStatus(
                         $monthData[$monthKey],
+                        $normalizedExtended[$monthKey] ?? [],
                         (int) $date->format('j'),
                         $activityIds,
                         $requestedSeats
@@ -152,7 +173,7 @@ final class AvailabilityService
             }
         }
 
-        $extendedAvailability = $this->buildExtendedAvailabilityIndex($monthData, $requestedSeats);
+        $extendedAvailability = $this->buildExtendedAvailabilityIndex($normalizedExtended);
         $selectedDateKey = $selectedDay->format('Y-m-d');
         $selectedExtendedEntry = $extendedAvailability[$selectedDateKey] ?? null;
         $availableActivityIdsForSelectedDate = [];
@@ -226,12 +247,12 @@ final class AvailabilityService
         ];
     }
 
-    private function buildExtendedAvailabilityIndex(array $monthData, int $requestedSeats): array
+    private function buildExtendedAvailabilityIndex(array $normalizedExtendedByMonth): array
     {
         $index = [];
 
-        foreach ($monthData as $monthKey => $data) {
-            if (!is_array($data) || !isset($data['extended']) || !is_array($data['extended'])) {
+        foreach ($normalizedExtendedByMonth as $monthKey => $entries) {
+            if (!is_array($entries) || $entries === []) {
                 continue;
             }
 
@@ -244,22 +265,39 @@ final class AvailabilityService
             $year = (int) $monthDate->format('Y');
             $month = (int) $monthDate->format('m');
 
-            foreach ($data['extended'] as $dayKey => $entry) {
+            foreach ($entries as $dayKey => $entry) {
                 if (preg_match('/^d(\d{1,2})$/', (string) $dayKey, $matches) !== 1) {
                     continue;
                 }
 
                 $day = (int) $matches[1];
 
-                $normalized = $this->normalizeExtendedAvailabilityEntry($entry, $requestedSeats);
-
                 $indexKey = sprintf('%04d-%02d-%02d', $year, $month, $day);
 
-                $index[$indexKey] = $normalized;
+                $index[$indexKey] = $entry;
             }
         }
 
         return $index;
+    }
+
+    private function normalizeMonthExtendedData(array $monthData, int $requestedSeats): array
+    {
+        if (!isset($monthData['extended']) || !is_array($monthData['extended'])) {
+            return [];
+        }
+
+        $normalized = [];
+
+        foreach ($monthData['extended'] as $dayKey => $entry) {
+            if (preg_match('/^d(\d{1,2})$/', (string) $dayKey) !== 1) {
+                continue;
+            }
+
+            $normalized[$dayKey] = $this->normalizeExtendedAvailabilityEntry($entry, $requestedSeats);
+        }
+
+        return $normalized;
     }
 
     /**
@@ -1151,8 +1189,13 @@ final class AvailabilityService
     /**
      * @return array{0:string,1:?int}
      */
-    private function resolveDayStatus(array $monthData, int $day, array $activityIds, int $requestedSeats): array
-    {
+    private function resolveDayStatus(
+        array $monthData,
+        array $normalizedExtended,
+        int $day,
+        array $activityIds,
+        int $requestedSeats
+    ): array {
         $key = 'd' . $day;
         $seats = null;
         if (isset($monthData['seats'][$key])) {
@@ -1163,8 +1206,8 @@ final class AvailabilityService
         }
 
         $availableActivities = [];
-        if (isset($monthData['extended'][$key])) {
-            $normalizedEntry = $this->normalizeExtendedAvailabilityEntry($monthData['extended'][$key], $requestedSeats);
+        if (isset($normalizedExtended[$key])) {
+            $normalizedEntry = $normalizedExtended[$key];
             $availableActivities = $normalizedEntry['availableActivityIds'] ?? $normalizedEntry['activityIds'];
         }
 
