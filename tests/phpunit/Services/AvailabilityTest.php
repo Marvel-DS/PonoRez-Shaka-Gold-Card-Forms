@@ -78,7 +78,7 @@ final class AvailabilityTest extends TestCase
         $firstRequest = $capturedRequests[0];
         self::assertSame('COMMON_AVAILABILITYCHECKJSON', $firstRequest['action']);
         self::assertSame('369', $firstRequest['activityid']);
-        self::assertSame('2024_3', $firstRequest['year_months']);
+        self::assertSame('2024_3|2024_4|2024_5|2024_6|2024_7|2024_8', $firstRequest['year_months']);
         self::assertNotEmpty($firstRequest['minavailability']);
 
         $calendar = $result['calendar'];
@@ -972,36 +972,44 @@ final class AvailabilityTest extends TestCase
         $httpFetcher = function (string $url, array $params) use (&$httpCalls): string {
             $httpCalls[] = $params;
 
-            $yearMonth = (string) ($params['year_months'] ?? '2024_1');
-            if (!preg_match('/^(\d{4})_(\d{1,2})$/', $yearMonth, $matches)) {
-                throw new RuntimeException('Unexpected year_months parameter: ' . $yearMonth);
+            $yearMonths = explode('|', (string) ($params['year_months'] ?? ''));
+            if ($yearMonths === [''] || $yearMonths === []) {
+                throw new RuntimeException('Unexpected year_months parameter: ' . ($params['year_months'] ?? ''));
             }
 
-            $year = (int) $matches[1];
-            $month = (int) $matches[2];
+            $payload = [];
 
-            $seats = [];
-            for ($day = 1; $day <= 31; $day++) {
-                $seats['d' . $day] = $month === 3 && $day === 10 ? 12 : 0;
+            foreach ($yearMonths as $token) {
+                if (!preg_match('/^(\d{4})_(\d{1,2})$/', $token, $matches)) {
+                    throw new RuntimeException('Unexpected year_months parameter: ' . $token);
+                }
+
+                $year = (int) $matches[1];
+                $month = (int) $matches[2];
+
+                $seats = [];
+                for ($day = 1; $day <= 31; $day++) {
+                    $seats['d' . $day] = $month === 3 && $day === 10 ? 12 : 0;
+                }
+
+                $extended = [];
+                if ($month === 3) {
+                    $extended['d10'] = [
+                        'times' => [369 => '10:00am Check In'],
+                        'activities' => [[
+                            'activityId' => 369,
+                            'available' => true,
+                            'remaining' => 12,
+                            'details' => ['times' => '10:00am Check In'],
+                        ]],
+                    ];
+                }
+
+                $payload['yearmonth_' . $year . '_' . $month] = $seats;
+                $payload['yearmonth_' . $year . '_' . $month . '_ex'] = $extended;
             }
 
-            $extended = [];
-            if ($month === 3) {
-                $extended['d10'] = [
-                    'times' => [369 => '10:00am Check In'],
-                    'activities' => [[
-                        'activityId' => 369,
-                        'available' => true,
-                        'remaining' => 12,
-                        'details' => ['times' => '10:00am Check In'],
-                    ]],
-                ];
-            }
-
-            return json_encode([
-                'yearmonth_' . $year . '_' . $month => $seats,
-                'yearmonth_' . $year . '_' . $month . '_ex' => $extended,
-            ], JSON_THROW_ON_ERROR);
+            return json_encode($payload, JSON_THROW_ON_ERROR);
         };
 
         $client = new AvailabilityRecordingSoapClient([]);
@@ -1022,7 +1030,7 @@ final class AvailabilityTest extends TestCase
         self::assertSame('available', $result['metadata']['selectedDateStatus']);
         self::assertSame('available', $result['metadata']['timeslotStatus']);
         self::assertCount(1, $result['timeslots']);
-        self::assertSame(6, count($httpCalls));
+        self::assertSame(1, count($httpCalls));
 
         $service->fetchCalendar(
             self::SUPPLIER_SLUG,
@@ -1033,7 +1041,7 @@ final class AvailabilityTest extends TestCase
             '2024-03'
         );
 
-        self::assertSame(6, count($httpCalls));
+        self::assertSame(1, count($httpCalls));
     }
 
     public function testMonthAvailabilityCacheExpiresAfterTtl(): void
@@ -1042,36 +1050,44 @@ final class AvailabilityTest extends TestCase
         $httpFetcher = function (string $url, array $params) use (&$httpCalls): string {
             $httpCalls[] = $params;
 
-            $yearMonth = (string) ($params['year_months'] ?? '2024_1');
-            if (!preg_match('/^(\d{4})_(\d{1,2})$/', $yearMonth, $matches)) {
-                throw new RuntimeException('Unexpected year_months parameter: ' . $yearMonth);
+            $yearMonths = explode('|', (string) ($params['year_months'] ?? ''));
+            if ($yearMonths === [''] || $yearMonths === []) {
+                throw new RuntimeException('Unexpected year_months parameter: ' . ($params['year_months'] ?? ''));
             }
 
-            $year = (int) $matches[1];
-            $month = (int) $matches[2];
+            $payload = [];
 
-            $seats = [];
-            for ($day = 1; $day <= 31; $day++) {
-                $seats['d' . $day] = $month === 3 && $day === 10 ? 12 : 0;
+            foreach ($yearMonths as $token) {
+                if (!preg_match('/^(\d{4})_(\d{1,2})$/', $token, $matches)) {
+                    throw new RuntimeException('Unexpected year_months parameter: ' . $token);
+                }
+
+                $year = (int) $matches[1];
+                $month = (int) $matches[2];
+
+                $seats = [];
+                for ($day = 1; $day <= 31; $day++) {
+                    $seats['d' . $day] = $month === 3 && $day === 10 ? 12 : 0;
+                }
+
+                $extended = [];
+                if ($month === 3) {
+                    $extended['d10'] = [
+                        'times' => [369 => '10:00am Check In'],
+                        'activities' => [[
+                            'activityId' => 369,
+                            'available' => true,
+                            'remaining' => 12,
+                            'details' => ['times' => '10:00am Check In'],
+                        ]],
+                    ];
+                }
+
+                $payload['yearmonth_' . $year . '_' . $month] = $seats;
+                $payload['yearmonth_' . $year . '_' . $month . '_ex'] = $extended;
             }
 
-            $extended = [];
-            if ($month === 3) {
-                $extended['d10'] = [
-                    'times' => [369 => '10:00am Check In'],
-                    'activities' => [[
-                        'activityId' => 369,
-                        'available' => true,
-                        'remaining' => 12,
-                        'details' => ['times' => '10:00am Check In'],
-                    ]],
-                ];
-            }
-
-            return json_encode([
-                'yearmonth_' . $year . '_' . $month => $seats,
-                'yearmonth_' . $year . '_' . $month . '_ex' => $extended,
-            ], JSON_THROW_ON_ERROR);
+            return json_encode($payload, JSON_THROW_ON_ERROR);
         };
 
         $client = new AvailabilityRecordingSoapClient([]);
@@ -1089,7 +1105,7 @@ final class AvailabilityTest extends TestCase
             '2024-03'
         );
 
-        self::assertSame(6, count($httpCalls));
+        self::assertSame(1, count($httpCalls));
 
         $cache->advanceTime(181);
 
@@ -1102,7 +1118,7 @@ final class AvailabilityTest extends TestCase
             '2024-03'
         );
 
-        self::assertSame(12, count($httpCalls));
+        self::assertSame(2, count($httpCalls));
     }
 
     public function testRequestingNewMonthExtendsCacheWindow(): void
@@ -1111,35 +1127,43 @@ final class AvailabilityTest extends TestCase
         $httpFetcher = function (string $url, array $params) use (&$httpCalls): string {
             $httpCalls[] = $params;
 
-            $yearMonth = (string) ($params['year_months'] ?? '2024_1');
-            if (!preg_match('/^(\d{4})_(\d{1,2})$/', $yearMonth, $matches)) {
-                throw new RuntimeException('Unexpected year_months parameter: ' . $yearMonth);
+            $yearMonths = explode('|', (string) ($params['year_months'] ?? ''));
+            if ($yearMonths === [''] || $yearMonths === []) {
+                throw new RuntimeException('Unexpected year_months parameter: ' . ($params['year_months'] ?? ''));
             }
 
-            $year = (int) $matches[1];
-            $month = (int) $matches[2];
+            $payload = [];
 
-            $seats = [];
-            for ($day = 1; $day <= 31; $day++) {
-                $seats['d' . $day] = $day === 10 ? 6 : 0;
+            foreach ($yearMonths as $token) {
+                if (!preg_match('/^(\d{4})_(\d{1,2})$/', $token, $matches)) {
+                    throw new RuntimeException('Unexpected year_months parameter: ' . $token);
+                }
+
+                $year = (int) $matches[1];
+                $month = (int) $matches[2];
+
+                $seats = [];
+                for ($day = 1; $day <= 31; $day++) {
+                    $seats['d' . $day] = $day === 10 ? 6 : 0;
+                }
+
+                $extended = [
+                    'd10' => [
+                        'times' => [369 => '10:00am Check In'],
+                        'activities' => [[
+                            'activityId' => 369,
+                            'available' => true,
+                            'remaining' => 6,
+                            'details' => ['times' => '10:00am Check In'],
+                        ]],
+                    ],
+                ];
+
+                $payload['yearmonth_' . $year . '_' . $month] = $seats;
+                $payload['yearmonth_' . $year . '_' . $month . '_ex'] = $extended;
             }
 
-            $extended = [
-                'd10' => [
-                    'times' => [369 => '10:00am Check In'],
-                    'activities' => [[
-                        'activityId' => 369,
-                        'available' => true,
-                        'remaining' => 6,
-                        'details' => ['times' => '10:00am Check In'],
-                    ]],
-                ],
-            ];
-
-            return json_encode([
-                'yearmonth_' . $year . '_' . $month => $seats,
-                'yearmonth_' . $year . '_' . $month . '_ex' => $extended,
-            ], JSON_THROW_ON_ERROR);
+            return json_encode($payload, JSON_THROW_ON_ERROR);
         };
 
         $client = new AvailabilityRecordingSoapClient([]);
@@ -1158,7 +1182,7 @@ final class AvailabilityTest extends TestCase
         );
 
         self::assertSame('available', $result['metadata']['selectedDateStatus']);
-        self::assertSame(6, count($httpCalls));
+        self::assertSame(1, count($httpCalls));
 
         $result = $service->fetchCalendar(
             self::SUPPLIER_SLUG,
@@ -1170,7 +1194,7 @@ final class AvailabilityTest extends TestCase
         );
 
         self::assertSame('available', $result['metadata']['selectedDateStatus']);
-        self::assertSame(12, count($httpCalls));
+        self::assertSame(2, count($httpCalls));
 
         $service->fetchCalendar(
             self::SUPPLIER_SLUG,
@@ -1181,7 +1205,7 @@ final class AvailabilityTest extends TestCase
             '2024-04'
         );
 
-        self::assertSame(12, count($httpCalls));
+        self::assertSame(2, count($httpCalls));
     }
 }
 

@@ -1177,27 +1177,37 @@ final class AvailabilityService
             $monthStart = $this->createMonthStartDate($year, $month);
             $prefetchMonths = $this->buildCachePrefetchMonths($monthStart);
 
+            $missingMonths = [];
             foreach ($prefetchMonths as $prefetchMonth) {
                 $prefetchKey = $prefetchMonth->format('Y-m');
-                if (isset($cachePayload['months'][$prefetchKey])) {
-                    continue;
+                if (!isset($cachePayload['months'][$prefetchKey])) {
+                    $missingMonths[$prefetchKey] = $prefetchMonth;
                 }
+            }
 
-                $cachePayload['months'][$prefetchKey] = $this->fetchMonthAvailabilityDataFromRemote(
+            if ($missingMonths !== []) {
+                $fetchedMonths = $this->fetchMonthAvailabilityDataFromRemote(
                     $supplierConfig,
                     $activityIds,
                     $guestCounts,
-                    (int) $prefetchMonth->format('Y'),
-                    (int) $prefetchMonth->format('n')
+                    array_values($missingMonths)
                 );
+
+                foreach ($missingMonths as $prefetchKey => $prefetchMonth) {
+                    if (isset($fetchedMonths[$prefetchKey])) {
+                        $cachePayload['months'][$prefetchKey] = $fetchedMonths[$prefetchKey];
+                    } else {
+                        $cachePayload['months'][$prefetchKey] = ['seats' => [], 'extended' => []];
+                    }
+                }
+
+                $cachePayload['months'] = $this->pruneCachedMonths($cachePayload['months']);
+
+                $this->cache->set($cacheKey, $cachePayload, self::CACHE_TTL);
             }
-
-            $cachePayload['months'] = $this->pruneCachedMonths($cachePayload['months']);
-
-            $this->cache->set($cacheKey, $cachePayload, self::CACHE_TTL);
         }
 
-        return $cachePayload['months'][$monthKey];
+        return $cachePayload['months'][$monthKey] ?? ['seats' => [], 'extended' => []];
     }
 
     /**
@@ -1345,19 +1355,42 @@ final class AvailabilityService
      * @param array<string,mixed> $supplierConfig
      * @param array<int>          $activityIds
      * @param array<int|string,int> $guestCounts
-     * @return array<string,mixed>
+     * @param DateTimeImmutable[] $months
+     * @return array<string,array<string,mixed>>
      */
     private function fetchMonthAvailabilityDataFromRemote(
         array $supplierConfig,
         array $activityIds,
         array $guestCounts,
-        int $year,
-        int $month
+        array $months
     ): array {
+        if ($months === []) {
+            return [];
+        }
+
         $baseUrl = UtilityService::getReservationBaseUrl();
         $endpoint = rtrim($baseUrl, '/') . '/companyservlet';
 
-        $yearMonth = sprintf('%d_%d', $year, $month);
+        $lookup = [];
+        $yearMonthParam = [];
+        foreach ($months as $monthDate) {
+            if (!$monthDate instanceof DateTimeImmutable) {
+                continue;
+            }
+
+            $cacheKey = $monthDate->format('Y-m');
+            $lookup[$cacheKey] = [
+                'year' => (int) $monthDate->format('Y'),
+                'month' => (int) $monthDate->format('n'),
+            ];
+            $yearMonthParam[] = sprintf('%d_%d', $lookup[$cacheKey]['year'], $lookup[$cacheKey]['month']);
+        }
+
+        if ($yearMonthParam === []) {
+            return [];
+        }
+
+        $yearMonth = implode('|', $yearMonthParam);
         $minAvailability = $this->buildMinAvailabilityPayload($guestCounts);
 
         $params = [
@@ -1380,21 +1413,27 @@ final class AvailabilityService
         $responseBody = ($this->httpFetcher)($endpoint, $params);
         $decoded = $this->decodeCompanyServletResponse($responseBody);
 
-        $seatsKey = 'yearmonth_' . $yearMonth;
-        $extendedKey = $seatsKey . '_ex';
+        $results = [];
 
-        $seats = isset($decoded[$seatsKey]) && is_array($decoded[$seatsKey])
-            ? $decoded[$seatsKey]
-            : [];
+        foreach ($lookup as $cacheKey => $parts) {
+            $seatsKey = sprintf('yearmonth_%d_%d', $parts['year'], $parts['month']);
+            $extendedKey = $seatsKey . '_ex';
 
-        $extended = isset($decoded[$extendedKey]) && is_array($decoded[$extendedKey])
-            ? $decoded[$extendedKey]
-            : [];
+            $seats = isset($decoded[$seatsKey]) && is_array($decoded[$seatsKey])
+                ? $decoded[$seatsKey]
+                : [];
 
-        return [
-            'seats' => $seats,
-            'extended' => $extended,
-        ];
+            $extended = isset($decoded[$extendedKey]) && is_array($decoded[$extendedKey])
+                ? $decoded[$extendedKey]
+                : [];
+
+            $results[$cacheKey] = [
+                'seats' => $seats,
+                'extended' => $extended,
+            ];
+        }
+
+        return $results;
     }
 
     /**
