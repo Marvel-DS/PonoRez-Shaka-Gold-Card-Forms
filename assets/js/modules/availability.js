@@ -5,6 +5,11 @@ import { qs, clearChildren, toggleHidden, createElement } from '../utility/dom.j
 import { formatDateLong } from '../utility/formating.js';
 import { pluralize } from '../utility/strings.js';
 import { showError } from './alerts.js';
+import {
+    computeGuestBreakdown,
+    computePricingTotals,
+    formatCurrencyForState,
+} from './pricing-utils.js';
 
 let availabilityPanel;
 let timeslotList;
@@ -948,6 +953,35 @@ function renderTimeslots(state) {
     const { timeslots, selectedTimeslotId } = state;
     const isLoading = state.loading?.availability;
     const hasTimeslots = Array.isArray(timeslots) && timeslots.length > 0;
+    const guestBreakdown = computeGuestBreakdown(state);
+    const pricingTotals = computePricingTotals(state);
+    const hasGuestPricing = guestBreakdown.length > 0;
+    const hasGuestDetails = Array.isArray(state.guestTypeDetails) && state.guestTypeDetails.length > 0;
+    const feesAmount = pricingTotals.fees;
+
+    const savingsAmount = (() => {
+        const metadata = state.availabilityMetadata || {};
+        const keys = [
+            'savings',
+            'savingsAmount',
+            'savingsTotal',
+            'discountSavings',
+            'goldCardSavings',
+        ];
+
+        for (const key of keys) {
+            if (metadata[key] === undefined) {
+                continue;
+            }
+
+            const numeric = Number(metadata[key]);
+            if (Number.isFinite(numeric) && numeric > 0) {
+                return numeric;
+            }
+        }
+
+        return 0;
+    })();
 
     toggleHidden(loadingState, !isLoading);
     toggleHidden(emptyState, isLoading || hasTimeslots);
@@ -964,8 +998,12 @@ function renderTimeslots(state) {
             const item = createElement('li', { className: 'flex items-stretch' });
 
             const label = createElement('label', {
-                className: 'flex w-full items-center justify-between gap-4 px-4 py-3',
+                className: 'flex w-full flex-col gap-3 px-4 py-3',
                 attributes: { 'data-timeslot-id': timeslot.id },
+            });
+
+            const headerRow = createElement('div', {
+                className: 'flex items-center justify-between gap-4',
             });
 
             const radioWrapper = createElement('div', { className: 'flex items-center gap-3' });
@@ -1000,8 +1038,134 @@ function renderTimeslots(state) {
                 text: describeAvailability(timeslot),
             });
 
-            label.appendChild(radioWrapper);
-            label.appendChild(availabilityText);
+            headerRow.appendChild(radioWrapper);
+            headerRow.appendChild(availabilityText);
+            label.appendChild(headerRow);
+
+            const summaryContainer = createElement('div', {
+                className: 'w-full rounded-lg bg-slate-50 px-3 py-2',
+            });
+
+            if (!hasGuestDetails) {
+                const placeholder = createElement('p', {
+                    className: 'text-xs text-slate-600',
+                    text: 'Guest pricing will appear once rates finish loading.',
+                });
+                summaryContainer.appendChild(placeholder);
+            } else if (!hasGuestPricing) {
+                const placeholder = createElement('p', {
+                    className: 'text-xs text-slate-600',
+                    text: 'Add guests to see pricing for this departure.',
+                });
+                summaryContainer.appendChild(placeholder);
+            } else {
+                const list = createElement('ul', { className: 'space-y-1' });
+
+                guestBreakdown.forEach((line) => {
+                    const listItem = createElement('li', {
+                        className: 'flex items-baseline justify-between gap-2 text-xs text-slate-600',
+                    });
+
+                    const labelEl = createElement('span', {
+                        className: 'font-medium text-slate-700',
+                        text: `${line.count} × ${line.label}`,
+                    });
+
+                    const valueEl = createElement('span', {
+                        className: 'font-semibold text-slate-900',
+                        text: formatCurrencyForState(state, line.total),
+                    });
+
+                    listItem.appendChild(labelEl);
+                    listItem.appendChild(valueEl);
+                    list.appendChild(listItem);
+                });
+
+                if (pricingTotals.transportation > 0) {
+                    const transportationItem = createElement('li', {
+                        className: 'flex items-baseline justify-between gap-2 text-xs text-slate-600',
+                    });
+
+                    transportationItem.appendChild(createElement('span', {
+                        className: 'font-medium text-slate-700',
+                        text: 'Transportation',
+                    }));
+
+                    transportationItem.appendChild(createElement('span', {
+                        className: 'font-semibold text-slate-900',
+                        text: formatCurrencyForState(state, pricingTotals.transportation),
+                    }));
+
+                    list.appendChild(transportationItem);
+                }
+
+                if (pricingTotals.upgrades > 0) {
+                    const upgradesItem = createElement('li', {
+                        className: 'flex items-baseline justify-between gap-2 text-xs text-slate-600',
+                    });
+
+                    upgradesItem.appendChild(createElement('span', {
+                        className: 'font-medium text-slate-700',
+                        text: 'Upgrades',
+                    }));
+
+                    upgradesItem.appendChild(createElement('span', {
+                        className: 'font-semibold text-slate-900',
+                        text: formatCurrencyForState(state, pricingTotals.upgrades),
+                    }));
+
+                    list.appendChild(upgradesItem);
+                }
+
+                if (feesAmount > 0) {
+                    const feesItem = createElement('li', {
+                        className: 'flex items-baseline justify-between gap-2 text-xs text-slate-600',
+                    });
+
+                    feesItem.appendChild(createElement('span', {
+                        className: 'font-medium text-slate-700',
+                        text: 'Taxes & fees',
+                    }));
+
+                    feesItem.appendChild(createElement('span', {
+                        className: 'font-semibold text-slate-900',
+                        text: formatCurrencyForState(state, feesAmount),
+                    }));
+
+                    list.appendChild(feesItem);
+                }
+
+                summaryContainer.appendChild(list);
+
+                const totalRow = createElement('div', {
+                    className: 'mt-3 flex items-baseline justify-between text-sm font-semibold text-slate-900',
+                });
+
+                totalRow.appendChild(createElement('span', { text: 'Total' }));
+                totalRow.appendChild(createElement('span', {
+                    text: formatCurrencyForState(state, pricingTotals.total),
+                }));
+
+                summaryContainer.appendChild(totalRow);
+
+                const hasFees = feesAmount > 0;
+
+                if (hasFees) {
+                    summaryContainer.appendChild(createElement('p', {
+                        className: 'mt-1 text-[11px] text-slate-500',
+                        text: 'Including taxes and fees',
+                    }));
+                }
+
+                if (savingsAmount > 0) {
+                    summaryContainer.appendChild(createElement('p', {
+                        className: 'mt-2 text-xs font-semibold text-blue-600',
+                        text: `You save ${formatCurrencyForState(state, savingsAmount)} with your Shaka Gold Card`,
+                    }));
+                }
+            }
+
+            label.appendChild(summaryContainer);
             item.appendChild(label);
 
             timeslotList.appendChild(item);
