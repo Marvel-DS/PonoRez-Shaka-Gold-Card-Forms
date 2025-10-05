@@ -8,6 +8,9 @@ use DateInterval;
 use DatePeriod;
 use DateTimeImmutable;
 use JsonException;
+use PonoRez\SGCForms\Cache\CacheInterface;
+use PonoRez\SGCForms\Cache\CacheKeyGenerator;
+use PonoRez\SGCForms\Cache\NullCache;
 use PonoRez\SGCForms\DTO\AvailabilityCalendar;
 use PonoRez\SGCForms\DTO\AvailabilityDay;
 use PonoRez\SGCForms\DTO\Timeslot;
@@ -20,16 +23,23 @@ use stdClass;
 final class AvailabilityService
 {
     private const LIMITED_THRESHOLD = 5;
+    private const CACHE_TTL = 180; // 3 minutes
+    private const CACHE_WINDOW_MONTHS = 6;
+    private const CACHE_KEY_PREFIX = 'availability-months';
+    private const CACHE_KEY_VERSION = 'v1';
 
     /** @var callable */
     private $httpFetcher;
     private bool $certificateVerificationDisabled = false;
+    private CacheInterface $cache;
 
     public function __construct(
         private readonly SoapClientFactory $soapClientBuilder,
-        ?callable $httpFetcher = null
+        ?callable $httpFetcher = null,
+        ?CacheInterface $cache = null
     ) {
         $this->httpFetcher = $httpFetcher ?? [$this, 'defaultHttpFetch'];
+        $this->cache = $cache ?? new NullCache();
     }
 
     /**
@@ -78,11 +88,14 @@ final class AvailabilityService
         $normalizedExtended = [];
         foreach ($monthsToLoad as $monthKey => $monthStart) {
             $monthData[$monthKey] = $this->fetchMonthAvailabilityData(
+                $supplierSlug,
+                $activitySlug,
                 $supplierConfig,
                 $activityIds,
                 $guestCounts,
                 (int) $monthStart->format('Y'),
-                (int) $monthStart->format('n')
+                (int) $monthStart->format('n'),
+                $requestedSeats
             );
 
             $normalizedExtended[$monthKey] = $this->normalizeMonthExtendedData(
@@ -139,11 +152,14 @@ final class AvailabilityService
                 $monthKey = $searchStart->format('Y-m');
 
                 $monthData[$monthKey] = $this->fetchMonthAvailabilityData(
+                    $supplierSlug,
+                    $activitySlug,
                     $supplierConfig,
                     $activityIds,
                     $guestCounts,
                     $year,
-                    $month
+                    $month,
+                    $requestedSeats
                 );
 
                 $normalizedExtended[$monthKey] = $this->normalizeMonthExtendedData(
@@ -1132,11 +1148,206 @@ final class AvailabilityService
     }
 
     /**
-     * @param array<string,mixed> $activityConfig
+     * @param array<string,mixed> $supplierConfig
+     * @param array<int>          $activityIds
+     * @param array<int|string,int> $guestCounts
+     */
+    private function fetchMonthAvailabilityData(
+        string $supplierSlug,
+        string $activitySlug,
+        array $supplierConfig,
+        array $activityIds,
+        array $guestCounts,
+        int $year,
+        int $month,
+        int $requestedSeats
+    ): array {
+        $cacheKey = $this->buildMonthCacheKey(
+            $supplierSlug,
+            $activitySlug,
+            $activityIds,
+            $guestCounts,
+            $requestedSeats
+        );
+
+        $cachePayload = $this->normalizeMonthCachePayload($this->cache->get($cacheKey));
+        $monthKey = sprintf('%04d-%02d', $year, $month);
+
+        if (!isset($cachePayload['months'][$monthKey])) {
+            $monthStart = $this->createMonthStartDate($year, $month);
+            $prefetchMonths = $this->buildCachePrefetchMonths($monthStart);
+
+            foreach ($prefetchMonths as $prefetchMonth) {
+                $prefetchKey = $prefetchMonth->format('Y-m');
+                if (isset($cachePayload['months'][$prefetchKey])) {
+                    continue;
+                }
+
+                $cachePayload['months'][$prefetchKey] = $this->fetchMonthAvailabilityDataFromRemote(
+                    $supplierConfig,
+                    $activityIds,
+                    $guestCounts,
+                    (int) $prefetchMonth->format('Y'),
+                    (int) $prefetchMonth->format('n')
+                );
+            }
+
+            $cachePayload['months'] = $this->pruneCachedMonths($cachePayload['months']);
+
+            $this->cache->set($cacheKey, $cachePayload, self::CACHE_TTL);
+        }
+
+        return $cachePayload['months'][$monthKey];
+    }
+
+    /**
+     * @param array<string,mixed>|null $payload
+     * @return array{months: array<string, array<string, mixed>>}
+     */
+    private function normalizeMonthCachePayload(mixed $payload): array
+    {
+        $normalized = ['months' => []];
+
+        if (!is_array($payload)) {
+            return $normalized;
+        }
+
+        foreach ($payload['months'] ?? [] as $monthKey => $data) {
+            if (!is_string($monthKey) || !is_array($data)) {
+                continue;
+            }
+
+            $seats = [];
+            if (isset($data['seats']) && is_array($data['seats'])) {
+                $seats = $data['seats'];
+            }
+
+            $extended = [];
+            if (isset($data['extended']) && is_array($data['extended'])) {
+                $extended = $data['extended'];
+            }
+
+            $normalized['months'][$monthKey] = [
+                'seats' => $seats,
+                'extended' => $extended,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param array<int> $activityIds
+     * @param array<int|string,int> $guestCounts
+     */
+    private function buildMonthCacheKey(
+        string $supplierSlug,
+        string $activitySlug,
+        array $activityIds,
+        array $guestCounts,
+        int $requestedSeats
+    ): string {
+        $activitySignature = $this->buildActivitySignature($activityIds);
+        $guestSignature = $this->buildGuestCountsSignature($guestCounts);
+
+        return CacheKeyGenerator::fromParts(
+            self::CACHE_KEY_PREFIX,
+            self::CACHE_KEY_VERSION,
+            $supplierSlug,
+            $activitySlug,
+            $activitySignature,
+            $guestSignature,
+            (string) max(0, $requestedSeats)
+        );
+    }
+
+    /**
+     * @param array<int> $activityIds
+     */
+    private function buildActivitySignature(array $activityIds): string
+    {
+        if ($activityIds === []) {
+            return 'none';
+        }
+
+        $normalized = array_values(array_unique(array_map('intval', $activityIds)));
+        sort($normalized);
+
+        return implode('-', $normalized);
+    }
+
+    /**
+     * @param array<int|string,int> $guestCounts
+     */
+    private function buildGuestCountsSignature(array $guestCounts): string
+    {
+        if ($guestCounts === []) {
+            return 'none';
+        }
+
+        ksort($guestCounts);
+
+        $parts = [];
+        foreach ($guestCounts as $guestTypeId => $count) {
+            $parts[] = sprintf('%s-%d', (string) $guestTypeId, max(0, (int) $count));
+        }
+
+        return implode('_', $parts);
+    }
+
+    /**
+     * @return DateTimeImmutable[]
+     */
+    private function buildCachePrefetchMonths(DateTimeImmutable $start): array
+    {
+        $months = [];
+
+        for ($offset = 0; $offset < self::CACHE_WINDOW_MONTHS; $offset++) {
+            $months[] = $start->modify(sprintf('+%d months', $offset));
+        }
+
+        return $months;
+    }
+
+    private function createMonthStartDate(int $year, int $month): DateTimeImmutable
+    {
+        $clampedMonth = max(1, min(12, $month));
+        $formatted = sprintf('%04d-%02d-01', $year, $clampedMonth);
+
+        try {
+            return new DateTimeImmutable($formatted);
+        } catch (\Exception) {
+            return new DateTimeImmutable('first day of this month');
+        }
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $months
+     * @return array<string, array<string, mixed>>
+     */
+    private function pruneCachedMonths(array $months): array
+    {
+        if ($months === []) {
+            return [];
+        }
+
+        ksort($months);
+
+        $limit = self::CACHE_WINDOW_MONTHS * 3; // keep up to 18 months
+        if (count($months) <= $limit) {
+            return $months;
+        }
+
+        return array_slice($months, -$limit, null, true);
+    }
+
+    /**
+     * @param array<string,mixed> $supplierConfig
+     * @param array<int>          $activityIds
      * @param array<int|string,int> $guestCounts
      * @return array<string,mixed>
      */
-    private function fetchMonthAvailabilityData(
+    private function fetchMonthAvailabilityDataFromRemote(
         array $supplierConfig,
         array $activityIds,
         array $guestCounts,
