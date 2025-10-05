@@ -45,9 +45,9 @@ final class AvailabilityTest extends TestCase
             'yearmonth_2024_3_ex' => $extended,
         ], JSON_THROW_ON_ERROR);
 
-        $capturedParams = null;
-        $httpFetcher = function (string $url, array $params) use (&$capturedParams, $httpResponse): string {
-            $capturedParams = $params;
+        $capturedRequests = [];
+        $httpFetcher = function (string $url, array $params) use (&$capturedRequests, $httpResponse): string {
+            $capturedRequests[] = $params;
             return $httpResponse;
         };
 
@@ -73,10 +73,12 @@ final class AvailabilityTest extends TestCase
             '2024-03'
         );
 
-        self::assertSame('COMMON_AVAILABILITYCHECKJSON', $capturedParams['action']);
-        self::assertSame('369', $capturedParams['activityid']);
-        self::assertSame('2024_3', $capturedParams['year_months']);
-        self::assertNotEmpty($capturedParams['minavailability']);
+        self::assertNotEmpty($capturedRequests);
+        $firstRequest = $capturedRequests[0];
+        self::assertSame('COMMON_AVAILABILITYCHECKJSON', $firstRequest['action']);
+        self::assertSame('369', $firstRequest['activityid']);
+        self::assertSame('2024_3', $firstRequest['year_months']);
+        self::assertNotEmpty($firstRequest['minavailability']);
 
         $calendar = $result['calendar'];
         self::assertSame(31, $calendar->count());

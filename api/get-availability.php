@@ -49,7 +49,12 @@ try {
         }
     }
 
-    $service = new AvailabilityService(new SoapClientBuilder());
+    $availabilityCacheDirectory = UtilityService::projectRoot() . '/cache/availability';
+    $availabilityCache = is_writable(dirname($availabilityCacheDirectory))
+        ? new FileCache($availabilityCacheDirectory)
+        : new NullCache();
+
+    $service = new AvailabilityService(new SoapClientBuilder(), null, $availabilityCache);
     $result = $service->fetchCalendar(
         $params['supplier'],
         $params['activity'],
