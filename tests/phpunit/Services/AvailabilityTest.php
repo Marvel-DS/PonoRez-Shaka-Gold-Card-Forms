@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PonoRez\SGCForms\Tests\Services;
 
 use PHPUnit\Framework\TestCase;
+use PonoRez\SGCForms\Cache\CacheInterface;
 use PonoRez\SGCForms\DTO\AvailabilityDay;
 use PonoRez\SGCForms\DTO\Timeslot;
 use PonoRez\SGCForms\Services\AvailabilityService;
@@ -964,6 +965,224 @@ final class AvailabilityTest extends TestCase
         self::assertSame(['times' => '9:30am Check In'], $timeslots[0]->getDetails());
         self::assertSame(5, $timeslots[0]->getAvailable());
     }
+
+    public function testMonthAvailabilityIsRetrievedFromCacheWhenFresh(): void
+    {
+        $httpCalls = [];
+        $httpFetcher = function (string $url, array $params) use (&$httpCalls): string {
+            $httpCalls[] = $params;
+
+            $yearMonth = (string) ($params['year_months'] ?? '2024_1');
+            if (!preg_match('/^(\d{4})_(\d{1,2})$/', $yearMonth, $matches)) {
+                throw new RuntimeException('Unexpected year_months parameter: ' . $yearMonth);
+            }
+
+            $year = (int) $matches[1];
+            $month = (int) $matches[2];
+
+            $seats = [];
+            for ($day = 1; $day <= 31; $day++) {
+                $seats['d' . $day] = $month === 3 && $day === 10 ? 12 : 0;
+            }
+
+            $extended = [];
+            if ($month === 3) {
+                $extended['d10'] = [
+                    'times' => [369 => '10:00am Check In'],
+                    'activities' => [[
+                        'activityId' => 369,
+                        'available' => true,
+                        'remaining' => 12,
+                        'details' => ['times' => '10:00am Check In'],
+                    ]],
+                ];
+            }
+
+            return json_encode([
+                'yearmonth_' . $year . '_' . $month => $seats,
+                'yearmonth_' . $year . '_' . $month . '_ex' => $extended,
+            ], JSON_THROW_ON_ERROR);
+        };
+
+        $client = new AvailabilityRecordingSoapClient([]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+        $cache = new AvailabilityCacheStub();
+
+        $service = new AvailabilityService($factory, $httpFetcher, $cache);
+
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-03-10',
+            ['345' => 2],
+            [369],
+            '2024-03'
+        );
+
+        self::assertSame('available', $result['metadata']['selectedDateStatus']);
+        self::assertSame('available', $result['metadata']['timeslotStatus']);
+        self::assertCount(1, $result['timeslots']);
+        self::assertSame(6, count($httpCalls));
+
+        $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-03-10',
+            ['345' => 2],
+            [369],
+            '2024-03'
+        );
+
+        self::assertSame(6, count($httpCalls));
+    }
+
+    public function testMonthAvailabilityCacheExpiresAfterTtl(): void
+    {
+        $httpCalls = [];
+        $httpFetcher = function (string $url, array $params) use (&$httpCalls): string {
+            $httpCalls[] = $params;
+
+            $yearMonth = (string) ($params['year_months'] ?? '2024_1');
+            if (!preg_match('/^(\d{4})_(\d{1,2})$/', $yearMonth, $matches)) {
+                throw new RuntimeException('Unexpected year_months parameter: ' . $yearMonth);
+            }
+
+            $year = (int) $matches[1];
+            $month = (int) $matches[2];
+
+            $seats = [];
+            for ($day = 1; $day <= 31; $day++) {
+                $seats['d' . $day] = $month === 3 && $day === 10 ? 12 : 0;
+            }
+
+            $extended = [];
+            if ($month === 3) {
+                $extended['d10'] = [
+                    'times' => [369 => '10:00am Check In'],
+                    'activities' => [[
+                        'activityId' => 369,
+                        'available' => true,
+                        'remaining' => 12,
+                        'details' => ['times' => '10:00am Check In'],
+                    ]],
+                ];
+            }
+
+            return json_encode([
+                'yearmonth_' . $year . '_' . $month => $seats,
+                'yearmonth_' . $year . '_' . $month . '_ex' => $extended,
+            ], JSON_THROW_ON_ERROR);
+        };
+
+        $client = new AvailabilityRecordingSoapClient([]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+        $cache = new AvailabilityCacheStub();
+
+        $service = new AvailabilityService($factory, $httpFetcher, $cache);
+
+        $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-03-10',
+            ['345' => 2],
+            [369],
+            '2024-03'
+        );
+
+        self::assertSame(6, count($httpCalls));
+
+        $cache->advanceTime(181);
+
+        $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-03-10',
+            ['345' => 2],
+            [369],
+            '2024-03'
+        );
+
+        self::assertSame(12, count($httpCalls));
+    }
+
+    public function testRequestingNewMonthExtendsCacheWindow(): void
+    {
+        $httpCalls = [];
+        $httpFetcher = function (string $url, array $params) use (&$httpCalls): string {
+            $httpCalls[] = $params;
+
+            $yearMonth = (string) ($params['year_months'] ?? '2024_1');
+            if (!preg_match('/^(\d{4})_(\d{1,2})$/', $yearMonth, $matches)) {
+                throw new RuntimeException('Unexpected year_months parameter: ' . $yearMonth);
+            }
+
+            $year = (int) $matches[1];
+            $month = (int) $matches[2];
+
+            $seats = [];
+            for ($day = 1; $day <= 31; $day++) {
+                $seats['d' . $day] = $day === 10 ? 6 : 0;
+            }
+
+            $extended = [
+                'd10' => [
+                    'times' => [369 => '10:00am Check In'],
+                    'activities' => [[
+                        'activityId' => 369,
+                        'available' => true,
+                        'remaining' => 6,
+                        'details' => ['times' => '10:00am Check In'],
+                    ]],
+                ],
+            ];
+
+            return json_encode([
+                'yearmonth_' . $year . '_' . $month => $seats,
+                'yearmonth_' . $year . '_' . $month . '_ex' => $extended,
+            ], JSON_THROW_ON_ERROR);
+        };
+
+        $client = new AvailabilityRecordingSoapClient([]);
+        $factory = new AvailabilityStubSoapClientFactory($client);
+        $cache = new AvailabilityCacheStub();
+
+        $service = new AvailabilityService($factory, $httpFetcher, $cache);
+
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-03-10',
+            ['345' => 2],
+            [369],
+            '2024-03'
+        );
+
+        self::assertSame('available', $result['metadata']['selectedDateStatus']);
+        self::assertSame(6, count($httpCalls));
+
+        $result = $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-09-10',
+            ['345' => 2],
+            [369],
+            '2024-09'
+        );
+
+        self::assertSame('available', $result['metadata']['selectedDateStatus']);
+        self::assertSame(12, count($httpCalls));
+
+        $service->fetchCalendar(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-04-10',
+            ['345' => 2],
+            [369],
+            '2024-04'
+        );
+
+        self::assertSame(12, count($httpCalls));
+    }
 }
 
 final class AvailabilityStubSoapClientFactory implements SoapClientFactory
@@ -978,6 +1197,59 @@ final class AvailabilityStubSoapClientFactory implements SoapClientFactory
     {
         $this->buildCount++;
         return $this->client;
+    }
+}
+
+final class AvailabilityCacheStub implements CacheInterface
+{
+    /** @var array<string, array{value:mixed, expires_at:?int}> */
+    private array $store = [];
+
+    /** @var list<array{key:string,ttl:int}> */
+    public array $setCalls = [];
+
+    private int $now;
+
+    public function __construct()
+    {
+        $this->now = 0;
+    }
+
+    public function get(string $key, mixed $default = null): mixed
+    {
+        if (!isset($this->store[$key])) {
+            return $default;
+        }
+
+        $item = $this->store[$key];
+        $expiresAt = $item['expires_at'];
+        if ($expiresAt !== null && $expiresAt <= $this->now) {
+            unset($this->store[$key]);
+            return $default;
+        }
+
+        return $item['value'];
+    }
+
+    public function set(string $key, mixed $value, int $ttl = 0): void
+    {
+        $expiresAt = $ttl > 0 ? $this->now + $ttl : null;
+        $this->store[$key] = [
+            'value' => $value,
+            'expires_at' => $expiresAt,
+        ];
+
+        $this->setCalls[] = ['key' => $key, 'ttl' => $ttl];
+    }
+
+    public function delete(string $key): void
+    {
+        unset($this->store[$key]);
+    }
+
+    public function advanceTime(int $seconds): void
+    {
+        $this->now += max(0, $seconds);
     }
 }
 
