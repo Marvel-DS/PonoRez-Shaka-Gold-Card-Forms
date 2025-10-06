@@ -998,7 +998,7 @@ function renderTimeslots(state) {
             const item = createElement('li', { className: 'w-full' });
 
             const label = createElement('label', {
-                className: 'group block w-full cursor-pointer',
+                className: 'group block w-full cursor-pointer focus-visible:outline-none',
                 attributes: { 'data-timeslot-id': timeslot.id },
             });
 
@@ -1021,7 +1021,7 @@ function renderTimeslots(state) {
             }
 
             const card = createElement('div', {
-                className: 'flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition focus-within:border-[color:var(--brand-color)]',
+                className: 'flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition focus-within:border-transparent focus-within:ring-2 focus-within:ring-[color:var(--brand-color)] focus-within:ring-offset-2 focus-within:ring-offset-white',
             });
 
             const headerRow = createElement('div', {
@@ -1169,8 +1169,7 @@ function renderTimeslots(state) {
             }
 
             if (radio.checked) {
-                card.classList.remove('border-slate-200');
-                card.classList.add('border-2', 'border-[color:var(--brand-color)]');
+                card.classList.add('ring-2', 'ring-[color:var(--brand-color)]', 'ring-offset-2', 'ring-offset-white');
                 radioVisual.classList.add('border-transparent', 'bg-[color:var(--brand-color)]');
                 radioDot.classList.add('bg-white');
             }
