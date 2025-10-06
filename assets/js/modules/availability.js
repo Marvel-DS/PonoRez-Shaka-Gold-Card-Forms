@@ -1095,24 +1095,6 @@ function renderTimeslots(state) {
                     list.appendChild(listItem);
                 });
 
-                if (pricingTotals.transportation > 0) {
-                    const transportationItem = createElement('li', {
-                        className: 'flex items-baseline justify-between gap-2 text-xs text-body/70',
-                    });
-
-                    transportationItem.appendChild(createElement('span', {
-                        className: 'font-medium text-body',
-                        text: 'Transportation',
-                    }));
-
-                    transportationItem.appendChild(createElement('span', {
-                        className: 'font-semibold text-body',
-                        text: formatCurrencyForState(state, pricingTotals.transportation),
-                    }));
-
-                    list.appendChild(transportationItem);
-                }
-
                 if (pricingTotals.upgrades > 0) {
                     const upgradesItem = createElement('li', {
                         className: 'flex items-baseline justify-between gap-2 text-xs text-body/70',
