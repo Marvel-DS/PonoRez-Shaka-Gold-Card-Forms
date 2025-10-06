@@ -9,10 +9,11 @@ $currencyCode = strtoupper((string) ($activity['currency']['code'] ?? 'usd'));
 $currencySymbol = $activity['currency']['symbol'] ?? '$';
 $title = $bootstrap['activity']['uiLabels']['pricing'] ?? 'Trip Summary';
 ?>
-<section class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4" data-component="pricing">
-    <header class="flex items-center justify-between gap-3">
+<section class="rounded-3xl bg-white/95 p-6 shadow-card ring-1 ring-slate-200/70" data-component="pricing">
+    <header class="flex items-start justify-between gap-4">
         <div>
-            <h2 class="text-base font-semibold text-slate-900"><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></h2>
+            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Summary</p>
+            <h2 class="mt-1 text-xl font-semibold text-slate-900"><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></h2>
             <p class="text-sm text-slate-500">Totals update automatically as you adjust the form.</p>
         </div>
         <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
@@ -21,7 +22,7 @@ $title = $bootstrap['activity']['uiLabels']['pricing'] ?? 'Trip Summary';
         </span>
     </header>
 
-    <dl class="space-y-3 text-sm" data-pricing-breakdown>
+    <dl class="mt-6 space-y-4 text-sm" data-pricing-breakdown>
         <div class="flex items-center justify-between gap-3">
             <dt class="text-slate-600">Guests</dt>
             <dd class="font-medium text-slate-900" data-pricing-guests>--</dd>
@@ -40,10 +41,10 @@ $title = $bootstrap['activity']['uiLabels']['pricing'] ?? 'Trip Summary';
         </div>
     </dl>
 
-    <div class="flex items-center justify-between border-t border-slate-200 pt-4">
+    <div class="mt-6 flex items-center justify-between border-t border-slate-200 pt-4">
         <span class="text-sm font-semibold text-slate-900">Total due today</span>
-        <span class="text-2xl font-semibold text-slate-900" data-pricing-total>--</span>
+        <span class="text-3xl font-semibold text-slate-900" data-pricing-total>--</span>
     </div>
 
-    <p class="text-xs text-slate-500" data-pricing-note>Rates are displayed in USD and include all required fees.</p>
+    <p class="mt-3 text-xs text-slate-500" data-pricing-note>Rates are displayed in USD and include all required fees.</p>
 </section>
