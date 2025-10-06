@@ -14,7 +14,7 @@ $timeslotEndpoint = $apiEndpoints['availability'] ?? null;
         <p class="text-sm text-slate-600">Pick a departure time after selecting your date.</p>
     </header>
 
-    <div class="bg-white border border-slate-200 rounded-xl shadow-sm" data-timeslot-panel>
+    <div class="rounded-xl border border-slate-200 bg-white" data-timeslot-panel>
         <div class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500" data-state="summary" role="status" aria-live="polite">
             Select a date to load available timeslots.
         </div>
@@ -27,7 +27,7 @@ $timeslotEndpoint = $apiEndpoints['availability'] ?? null;
         <div class="hidden px-4 py-4 text-sm text-slate-500" data-state="empty">
             No departures are available for the selected date. Try another date or adjust your guest counts.
         </div>
-        <ul class="hidden list-none space-y-4 rounded-b-xl bg-slate-50 px-4 py-4" data-timeslot-list role="radiogroup">
+        <ul class="hidden list-none space-y-4 px-4 py-4" data-timeslot-list role="radiogroup">
             <!-- Timeslots injected by JavaScript -->
         </ul>
     </div>
