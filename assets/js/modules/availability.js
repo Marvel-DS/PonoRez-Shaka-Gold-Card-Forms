@@ -939,10 +939,26 @@ function describeAvailability(timeslot) {
     }
 
     if (timeslot.available <= 4) {
-        return `${timeslot.available} ${pluralize('spot', timeslot.available)} left`;
+        return `Only ${timeslot.available} ${pluralize('seat', timeslot.available)} left!`;
     }
 
-    return `${timeslot.available} seats available`;
+    return 'Seats available';
+}
+
+function getAvailabilityMessageClasses(timeslot) {
+    if (timeslot.available === null || timeslot.available === undefined) {
+        return 'text-xs font-medium text-slate-500';
+    }
+
+    if (timeslot.available <= 0) {
+        return 'text-xs font-semibold text-rose-600';
+    }
+
+    if (timeslot.available <= 4) {
+        return 'text-xs font-semibold text-amber-600';
+    }
+
+    return 'text-xs font-medium text-emerald-600';
 }
 
 function renderTimeslots(state) {
@@ -998,16 +1014,18 @@ function renderTimeslots(state) {
             const item = createElement('li', { className: 'w-full' });
 
             const label = createElement('label', {
-                className: 'group block w-full cursor-pointer focus-visible:outline-none',
+                className: 'group relative block cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-card transition duration-150 hover:border-[#1c55db] focus-visible:outline-none focus-within:ring-2 focus-within:ring-[#1c55db] focus-within:ring-offset-2 focus-within:ring-offset-white',
                 attributes: { 'data-timeslot-id': timeslot.id },
             });
+
+            const headerRow = createElement('div', { className: 'flex items-start gap-3' });
 
             const radio = createElement('input', {
                 attributes: {
                     type: 'radio',
                     name: 'timeslotId',
                     value: timeslot.id,
-                    class: 'sr-only',
+                    class: 'mt-0.5 h-4 w-4 accent-[#1c55db] focus-visible:outline-none',
                     'aria-label': `Select ${timeslot.label}`,
                 },
             });
@@ -1020,139 +1038,83 @@ function renderTimeslots(state) {
                 radio.disabled = true;
             }
 
-            const card = createElement('div', {
-                className: 'flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition focus-within:border-transparent focus-within:ring-2 focus-within:ring-[color:var(--brand-color)] focus-within:ring-offset-2 focus-within:ring-offset-white',
-            });
-
-            const headerRow = createElement('div', {
-                className: 'flex items-center justify-between gap-4 px-4 py-4',
-            });
-
-            const radioWrapper = createElement('div', { className: 'flex items-center gap-3' });
-
-            const radioVisual = createElement('span', {
-                className: 'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/20 bg-white transition',
-            });
-
-            const radioDot = createElement('span', {
-                className: 'block h-2.5 w-2.5 rounded-full bg-transparent transition',
-            });
-
-            radioVisual.appendChild(radioDot);
-
-            const labelText = createElement('span', {
-                className: 'text-base font-medium text-body tracking-tight',
+            const titleWrapper = createElement('div', { className: 'flex flex-col gap-1' });
+            titleWrapper.appendChild(createElement('span', {
+                className: 'text-sm font-medium text-[#090b0a]',
                 text: timeslot.label,
-            });
+            }));
 
-            radioWrapper.appendChild(radioVisual);
-            radioWrapper.appendChild(labelText);
+            const availabilityText = describeAvailability(timeslot);
+            if (availabilityText) {
+                titleWrapper.appendChild(createElement('span', {
+                    className: getAvailabilityMessageClasses(timeslot),
+                    text: availabilityText,
+                }));
+            }
 
-            const availabilityText = createElement('span', {
-                className: 'text-right text-xs font-medium text-body/60',
-                text: describeAvailability(timeslot),
-            });
-
-            headerRow.appendChild(radioWrapper);
-            headerRow.appendChild(availabilityText);
+            headerRow.appendChild(radio);
+            headerRow.appendChild(titleWrapper);
+            label.appendChild(headerRow);
 
             const priceInfo = createElement('div', {
-                className: 'flex flex-col gap-3 border-t border-black/10 bg-white px-4 py-4 text-xs text-body/70 sm:flex-row sm:items-start sm:justify-between sm:gap-6',
+                className: 'mt-4 inline-flex w-full flex-col gap-4 border-t border-[#090b0a]/20 pt-4 text-xs text-[#090b0a] sm:flex-row sm:items-start sm:justify-between sm:gap-8',
             });
 
             if (!hasGuestDetails) {
                 priceInfo.appendChild(createElement('p', {
-                    className: 'text-sm font-medium text-body/60',
+                    className: 'text-xs font-medium leading-5 tracking-tight text-[#090b0a]/60',
                     text: 'Guest pricing will appear once rates finish loading.',
                 }));
             } else if (!hasGuestPricing) {
                 priceInfo.appendChild(createElement('p', {
-                    className: 'text-sm font-medium text-body/60',
+                    className: 'text-xs font-medium leading-5 tracking-tight text-[#090b0a]/60',
                     text: 'Add guests to see pricing for this departure.',
                 }));
 
             } else {
-                const breakdownWrapper = createElement('div', { className: 'flex-1 space-y-2' });
-                const list = createElement('ul', { className: 'space-y-1' });
+                const breakdownWrapper = createElement('div', {
+                    className: 'flex-1 space-y-1 text-xs font-medium leading-5 tracking-tight text-[#090b0a]',
+                });
 
                 guestBreakdown.forEach((line) => {
-                    const listItem = createElement('li', {
-                        className: 'flex items-baseline justify-between gap-2 text-xs text-body/70',
-                    });
-
-                    const labelEl = createElement('span', {
-                        className: 'font-medium text-body',
-                        text: `${line.count} × ${line.label}`,
-                    });
-
-                    const valueEl = createElement('span', {
-                        className: 'font-semibold text-body',
-                        text: formatCurrencyForState(state, line.total),
-                    });
-
-                    listItem.appendChild(labelEl);
-                    listItem.appendChild(valueEl);
-                    list.appendChild(listItem);
+                    breakdownWrapper.appendChild(createElement('p', {
+                        text: `${line.count} × ${line.label}: ${formatCurrencyForState(state, line.total)}`,
+                    }));
                 });
 
                 if (pricingTotals.upgrades > 0) {
-                    const upgradesItem = createElement('li', {
-                        className: 'flex items-baseline justify-between gap-2 text-xs text-body/70',
-                    });
-
-                    upgradesItem.appendChild(createElement('span', {
-                        className: 'font-medium text-body',
-                        text: 'Upgrades',
+                    breakdownWrapper.appendChild(createElement('p', {
+                        text: `Upgrades: ${formatCurrencyForState(state, pricingTotals.upgrades)}`,
                     }));
-
-                    upgradesItem.appendChild(createElement('span', {
-                        className: 'font-semibold text-body',
-                        text: formatCurrencyForState(state, pricingTotals.upgrades),
-                    }));
-
-                    list.appendChild(upgradesItem);
                 }
 
                 if (feesAmount > 0) {
-                    const feesItem = createElement('li', {
-                        className: 'flex items-baseline justify-between gap-2 text-xs text-body/70',
-                    });
-
-                    feesItem.appendChild(createElement('span', {
-                        className: 'font-medium text-body',
-                        text: 'Taxes & fees',
+                    breakdownWrapper.appendChild(createElement('p', {
+                        text: `Taxes & fees: ${formatCurrencyForState(state, feesAmount)}`,
                     }));
-
-                    feesItem.appendChild(createElement('span', {
-                        className: 'font-semibold text-body',
-                        text: formatCurrencyForState(state, feesAmount),
-                    }));
-
-                    list.appendChild(feesItem);
                 }
 
-                breakdownWrapper.appendChild(list);
                 priceInfo.appendChild(breakdownWrapper);
 
                 const totalsWrapper = createElement('div', {
-                    className: 'flex flex-col items-end gap-1 text-right text-body',
+                    className: 'flex flex-col items-end justify-start gap-1 text-right text-[#090b0a]',
                 });
 
                 totalsWrapper.appendChild(createElement('span', {
-                    className: 'text-base font-semibold',
+                    className: 'text-base font-semibold leading-normal tracking-tight',
                     text: `Total: ${formatCurrencyForState(state, pricingTotals.total)}`,
                 }));
 
                 if (feesAmount > 0) {
                     totalsWrapper.appendChild(createElement('span', {
-                        className: 'text-xs font-medium text-body/50',
+                        className: 'text-xs font-medium leading-snug tracking-tight text-[#090b0a]/50',
                         text: 'Including taxes and fees',
                     }));
                 }
 
                 if (savingsAmount > 0) {
                     totalsWrapper.appendChild(createElement('span', {
-                        className: 'text-sm font-semibold text-blue-600',
+                        className: 'text-xs font-semibold leading-[21px] tracking-tight text-[#1c55db] lg:text-sm',
                         text: `You save ${formatCurrencyForState(state, savingsAmount)} with your Shaka Gold Card`,
                     }));
 
@@ -1161,24 +1123,16 @@ function renderTimeslots(state) {
                 priceInfo.appendChild(totalsWrapper);
             }
 
+            label.appendChild(priceInfo);
+
             if (radio.disabled) {
-                label.classList.add('cursor-not-allowed');
-                label.classList.remove('cursor-pointer');
-                card.classList.add('opacity-60');
-                radioVisual.classList.add('border-black/10', 'bg-white/70');
+                label.classList.add('cursor-not-allowed', 'opacity-60', 'hover:border-slate-200');
+                label.classList.remove('cursor-pointer', 'hover:border-[#1c55db]');
             }
 
             if (radio.checked) {
-                card.classList.add('ring-2', 'ring-[color:var(--brand-color)]', 'ring-offset-2', 'ring-offset-white');
-                radioVisual.classList.add('border-transparent', 'bg-[color:var(--brand-color)]');
-                radioDot.classList.add('bg-white');
+                label.classList.add('border-[#1c55db]', 'ring-2', 'ring-[#1c55db]', 'ring-offset-2', 'ring-offset-white');
             }
-
-            card.appendChild(radio);
-            card.appendChild(headerRow);
-            card.appendChild(priceInfo);
-
-            label.appendChild(card);
 
             item.appendChild(label);
             timeslotList.appendChild(item);
