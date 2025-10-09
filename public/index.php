@@ -267,13 +267,21 @@ $normalizeGuestTypeEntry = static function (array $guestType, array $detailMap):
     $configLabel = isset($guestType['label']) ? trim((string) $guestType['label']) : '';
     $detailLabel = null;
     if (is_array($detail)) {
-        if (isset($detail['label'])) {
-            $detailLabel = trim((string) $detail['label']);
-        } elseif (isset($detail['name'])) {
-            $detailLabel = trim((string) $detail['name']);
-        }
-        if ($detailLabel === '') {
-            $detailLabel = null;
+        foreach ([
+            $detail['label'] ?? null,
+            $detail['name'] ?? null,
+            $detail['guestTypeName'] ?? null,
+            $detail['guestType'] ?? null,
+        ] as $candidate) {
+            if ($candidate === null) {
+                continue;
+            }
+
+            $trimmed = trim((string) $candidate);
+            if ($trimmed !== '') {
+                $detailLabel = $trimmed;
+                break;
+            }
         }
     }
 
