@@ -9,6 +9,7 @@ use PonoRez\SGCForms\Cache\CacheKeyGenerator;
 use PonoRez\SGCForms\DTO\TransportationRoute;
 use PonoRez\SGCForms\DTO\TransportationSet;
 use PonoRez\SGCForms\UtilityService;
+use RuntimeException;
 use SoapFault;
 use Throwable;
 
@@ -106,13 +107,18 @@ final class TransportationService
     {
         $client = $this->soapClientBuilder->build();
 
+        $primaryActivityId = UtilityService::getPrimaryActivityId($activityConfig);
+        if ($primaryActivityId === null) {
+            throw new RuntimeException('Unable to determine primary activity ID for transportation lookup.');
+        }
+
         $payload = [
             'serviceLogin' => [
                 'username' => $supplierConfig['soapCredentials']['username'],
                 'password' => $supplierConfig['soapCredentials']['password'],
             ],
             'supplierId' => $supplierConfig['supplierId'],
-            'activityId' => $activityConfig['activityId'],
+            'activityId' => $primaryActivityId,
         ];
 
         try {

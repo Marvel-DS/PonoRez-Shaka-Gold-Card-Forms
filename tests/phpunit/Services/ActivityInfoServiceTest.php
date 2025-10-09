@@ -31,8 +31,15 @@ final class ActivityInfoServiceTest extends TestCase
         $this->configPath = $supplierDir . '/' . self::ACTIVITY_SLUG . '.config';
 
         $config = [
-            'activityId' => 369,
-            'activityIds' => [369, 555],
+            'activities' => [
+                [
+                    'id' => 369,
+                    'primary' => true,
+                ],
+                [
+                    'id' => 555,
+                ],
+            ],
         ];
 
         file_put_contents($this->configPath, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));

@@ -23,7 +23,7 @@ declare(strict_types=1);
                 <iframe data-overlay-frame title="Ponorez checkout" class="h-full w-full border-0" loading="lazy"></iframe>
 
                 <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/95 text-center" data-overlay-loading hidden>
-                    <span class="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-blue-500"></span>
+                    <span class="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-[var(--sgc-brand-primary)]"></span>
                     <p class="text-sm text-slate-600">Preparing checkout...</p>
                 </div>
 

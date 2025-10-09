@@ -1,17 +1,5 @@
 import { formatCurrency } from '../utility/formating.js';
 
-function normaliseGuestTypeConfig(config) {
-    if (!config || typeof config !== 'object') {
-        return { labels: {}, descriptions: {}, min: {}, max: {} };
-    }
-
-    const labels = typeof config.labels === 'object' && config.labels !== null ? config.labels : {};
-    const min = typeof config.min === 'object' && config.min !== null ? config.min : {};
-    const max = typeof config.max === 'object' && config.max !== null ? config.max : {};
-
-    return { labels, min, max };
-}
-
 function toNumeric(value, fallback = 0) {
     const numeric = Number(value);
     return Number.isFinite(numeric) ? numeric : fallback;
@@ -35,8 +23,6 @@ export function computeGuestBreakdown(state) {
         return [];
     }
 
-    const config = normaliseGuestTypeConfig(state.bootstrap?.activity?.guestTypes);
-
     return details.reduce((accumulator, detail) => {
         if (!detail || detail.id === undefined) {
             return accumulator;
@@ -48,9 +34,9 @@ export function computeGuestBreakdown(state) {
             return accumulator;
         }
 
-        const label = config.labels[id]
-            ?? (detail.label !== undefined && detail.label !== null ? String(detail.label) : null)
-            ?? id;
+        const label = detail.label !== undefined && detail.label !== null && String(detail.label).trim() !== ''
+            ? String(detail.label)
+            : id;
 
         const unitPrice = toNumeric(detail.price, 0);
         const lineTotal = count * unitPrice;

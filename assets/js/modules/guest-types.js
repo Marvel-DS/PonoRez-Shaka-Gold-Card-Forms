@@ -22,7 +22,8 @@ function showPriceSpinner(priceElement) {
     let spinnerWrapper = priceElement.querySelector('[data-price-spinner]');
     if (!spinnerWrapper) {
         const spinner = document.createElement('span');
-        spinner.className = 'h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600';
+        spinner.className = 'h-4 w-4 animate-spin rounded-full border-2 border-slate-300';
+        spinner.style.borderTopColor = 'var(--sgc-brand-primary, #1C55DB)';
         spinner.setAttribute('aria-hidden', 'true');
 
         const srText = document.createElement('span');
@@ -33,6 +34,11 @@ function showPriceSpinner(priceElement) {
         spinnerWrapper.dataset.priceSpinner = '';
         spinnerWrapper.className = 'inline-flex items-center justify-end';
         spinnerWrapper.append(spinner, srText);
+    } else {
+        const spinner = spinnerWrapper.querySelector('span');
+        if (spinner) {
+            spinner.style.borderTopColor = 'var(--sgc-brand-primary, #1C55DB)';
+        }
     }
 
     priceElement.textContent = '';
@@ -50,28 +56,10 @@ function hidePriceSpinner(priceElement) {
     }
 }
 
-function normaliseGuestTypeConfig(rawConfig) {
-    const safeObject = (value) => (value && typeof value === 'object' ? value : {});
-
-    if (!rawConfig || typeof rawConfig !== 'object') {
-        return {
-            ids: [],
-            labels: {},
-            descriptions: {},
-            min: {},
-            max: {},
-        };
-    }
-
-    const ids = Array.isArray(rawConfig.ids) ? rawConfig.ids.map((value) => String(value)) : [];
-
-    return {
-        ids,
-        labels: safeObject(rawConfig.labels),
-        descriptions: safeObject(rawConfig.descriptions),
-        min: safeObject(rawConfig.min),
-        max: safeObject(rawConfig.max),
-    };
+function getConfiguredGuestTypes(state) {
+    return Array.isArray(state?.bootstrap?.activity?.guestTypes?.collection)
+        ? state.bootstrap.activity.guestTypes.collection
+        : [];
 }
 
 function updateLoading(isLoading) {
@@ -116,7 +104,7 @@ function buildRequestUrl() {
 }
 
 function mergeGuestTypeDetails(state, apiDetails) {
-    const config = normaliseGuestTypeConfig(state.bootstrap?.activity?.guestTypes);
+    const collection = getConfiguredGuestTypes(state);
     const source = new Map();
 
     (Array.isArray(apiDetails) ? apiDetails : []).forEach((detail) => {
@@ -126,67 +114,86 @@ function mergeGuestTypeDetails(state, apiDetails) {
         source.set(String(detail.id), detail);
     });
 
-    if (config.ids.length === 0 && source.size > 0) {
-        return Array.from(source.values()).map((detail) => {
-            const minCandidate = Number(detail.min);
-            const maxCandidate = Number(detail.max);
-            const min = Number.isFinite(minCandidate) ? Math.max(0, Math.floor(minCandidate)) : 0;
-            let max = Number.isFinite(maxCandidate) ? Math.max(min, Math.floor(maxCandidate)) : min;
-            if (max < min) {
-                max = min;
-            }
+    const resolveQuantity = (value, fallback = 0) => {
+        const numeric = Number(value);
+        return Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : fallback;
+    };
 
-            const price = Number(detail.price);
-            return {
-                id: String(detail.id),
-                label: detail.label ? String(detail.label) : String(detail.id),
-                description: detail.description ? String(detail.description) : null,
-                price: Number.isFinite(price) ? price : null,
-                min,
-                max,
-            };
-        });
-    }
+    const buildFromEntry = (entry, detail) => {
+        const id = String(entry.id);
+        const minConfig = entry.minQuantity !== undefined && entry.minQuantity !== null
+            ? resolveQuantity(entry.minQuantity, undefined)
+            : undefined;
+        const maxConfig = entry.maxQuantity !== undefined && entry.maxQuantity !== null
+            ? resolveQuantity(entry.maxQuantity, undefined)
+            : undefined;
 
-    return config.ids.map((id) => {
-        const detail = source.get(id) || null;
+        const minCandidate = minConfig ?? resolveQuantity(detail?.min, 0);
+        let maxCandidate = maxConfig ?? resolveQuantity(detail?.max, minCandidate);
 
-        const configuredLabel = config.labels[id];
-        const configuredDescription = config.descriptions[id];
-
-        const label = configuredLabel !== undefined && configuredLabel !== null && configuredLabel !== ''
-            ? String(configuredLabel)
-            : detail && detail.label ? String(detail.label) : id;
-
-        const description = configuredDescription !== undefined && configuredDescription !== null && configuredDescription !== ''
-            ? String(configuredDescription)
-            : detail && detail.description ? String(detail.description) : '';
-
-        const minConfig = config.min[id];
-        const maxConfig = config.max[id];
-
-        const minCandidate = minConfig !== undefined ? Number(minConfig)
-            : detail && detail.min !== undefined ? Number(detail.min)
-                : 0;
-
-        const maxCandidate = maxConfig !== undefined ? Number(maxConfig)
-            : detail && detail.max !== undefined ? Number(detail.max)
-                : minCandidate;
-
-        const min = Number.isFinite(minCandidate) ? Math.max(0, Math.floor(minCandidate)) : 0;
-        let max = Number.isFinite(maxCandidate) ? Math.max(min, Math.floor(maxCandidate)) : min;
-        if (max < min) {
-            max = min;
+        if (!Number.isFinite(maxCandidate) || maxCandidate < minCandidate) {
+            maxCandidate = minCandidate;
         }
 
-        const rawPrice = detail && detail.price !== undefined ? Number(detail.price) : null;
-        const price = Number.isFinite(rawPrice) ? rawPrice : null;
+        const label = typeof entry.label === 'string' && entry.label.trim() !== ''
+            ? entry.label.trim()
+            : detail && detail.label ? String(detail.label) : id;
+
+        const description = typeof entry.description === 'string' && entry.description.trim() !== ''
+            ? entry.description.trim()
+            : detail && detail.description ? String(detail.description) : null;
+
+        const price = Number.isFinite(Number(entry.price))
+            ? Number(entry.price)
+            : (detail && Number.isFinite(Number(detail.price)) ? Number(detail.price) : null);
 
         return {
             id,
             label,
             description: description || null,
             price,
+            min: minCandidate,
+            max: maxCandidate,
+        };
+    };
+
+    if (collection.length > 0) {
+        return collection.map((entry) => {
+            if (!entry || entry.id === undefined) {
+                return null;
+            }
+
+            const id = String(entry.id);
+            if (id === '') {
+                return null;
+            }
+
+            const detail = source.get(id) || null;
+            const resolved = buildFromEntry(entry, detail);
+            if (resolved.max <= resolved.min) {
+                resolved.max = resolved.min + DEFAULT_GUEST_RANGE;
+            }
+            return resolved;
+        }).filter(Boolean);
+    }
+
+    if (source.size === 0) {
+        return [];
+    }
+
+    return Array.from(source.values()).map((detail) => {
+        const min = resolveQuantity(detail.min, 0);
+        let max = resolveQuantity(detail.max, min);
+        if (max <= min) {
+            max = min;
+        }
+
+        const price = Number(detail.price);
+        return {
+            id: String(detail.id),
+            label: detail.label ? String(detail.label) : String(detail.id),
+            description: detail.description ? String(detail.description) : null,
+            price: Number.isFinite(price) ? price : null,
             min,
             max,
         };
@@ -356,7 +363,12 @@ function syncFromState(state) {
     const detailMap = new Map(details.map((item) => [String(item.id), item]));
     const currencyCode = state.currency?.code || 'USD';
     const currencyLocale = state.currency?.locale || 'en-US';
-    const config = normaliseGuestTypeConfig(state.bootstrap?.activity?.guestTypes);
+    const collection = getConfiguredGuestTypes(state);
+    const collectionMap = new Map(
+        collection
+            .filter((entry) => entry && entry.id !== undefined)
+            .map((entry) => [String(entry.id), entry])
+    );
 
     qsa('[data-guest-type]', root).forEach((container) => {
         const id = container.dataset.guestType;
@@ -373,24 +385,30 @@ function syncFromState(state) {
 
         const detail = detailMap.get(id) || null;
 
-        const configuredLabel = config.labels[id];
-        const configuredDescription = config.descriptions[id];
+        const configEntry = collectionMap.get(id) || null;
+        const configuredLabel = configEntry && typeof configEntry.label === 'string' ? configEntry.label.trim() : '';
+        const configuredDescription = configEntry && typeof configEntry.description === 'string'
+            ? configEntry.description.trim()
+            : '';
 
-        const labelText = configuredLabel !== undefined && configuredLabel !== null && configuredLabel !== ''
-            ? String(configuredLabel)
+        const labelText = configuredLabel !== ''
+            ? configuredLabel
             : detail && detail.label ? String(detail.label) : id;
 
-        const descriptionText = configuredDescription !== undefined && configuredDescription !== null && configuredDescription !== ''
-            ? String(configuredDescription)
+        const descriptionText = configuredDescription !== ''
+            ? configuredDescription
             : detail && detail.description ? String(detail.description) : '';
 
         const min = detail && detail.min !== undefined ? Number(detail.min)
-            : config.min[id] !== undefined ? Number(config.min[id])
+            : configEntry && configEntry.minQuantity !== undefined ? Number(configEntry.minQuantity)
                 : Number(container.dataset.min ?? 0);
 
-        const hasExplicitMax = (detail && detail.max !== undefined) || (config.max[id] !== undefined);
-        const max = detail && detail.max !== undefined ? Number(detail.max)
-            : config.max[id] !== undefined ? Number(config.max[id])
+        const hasConfigMax = configEntry && configEntry.maxQuantity !== undefined && configEntry.maxQuantity !== null;
+        const hasDetailMax = detail && detail.max !== undefined && detail.max !== null;
+        const hasExplicitMax = hasDetailMax || hasConfigMax;
+
+        const max = hasDetailMax ? Number(detail.max)
+            : hasConfigMax ? Number(configEntry.maxQuantity)
                 : Number(container.dataset.max ?? min);
 
         const previousMax = Number(container.dataset.max);

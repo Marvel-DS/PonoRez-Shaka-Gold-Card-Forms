@@ -12,19 +12,26 @@ const initialDate = typeof bootstrapDate === 'string' && bootstrapDate !== ''
     ? bootstrapDate
     : todayIso;
 
-function normaliseGuestCounts(config) {
+function normaliseGuestCounts(collection) {
     const counts = {};
-    if (!config || typeof config !== 'object') {
+    if (!Array.isArray(collection)) {
         return counts;
     }
 
-    const ids = Array.isArray(config.ids) ? config.ids : [];
-    const min = typeof config.min === 'object' && config.min !== null ? config.min : {};
+    collection.forEach((guestType) => {
+        if (!guestType || guestType.id === undefined) {
+            return;
+        }
 
-    ids.forEach((identifier) => {
-        const id = String(identifier);
-        const minValue = Number.isFinite(min[id]) ? Number(min[id]) : 0;
-        counts[id] = minValue;
+        const id = String(guestType.id);
+        if (id === '') {
+            return;
+        }
+
+        const minQuantity = Number.isFinite(guestType.minQuantity)
+            ? Number(guestType.minQuantity)
+            : 0;
+        counts[id] = Math.max(0, Math.floor(minQuantity));
     });
 
     return counts;
@@ -51,7 +58,7 @@ function normaliseUpgradeQuantities(upgrades) {
     }, {});
 }
 
-const guestCounts = normaliseGuestCounts(bootstrap.activity && bootstrap.activity.guestTypes);
+const guestCounts = normaliseGuestCounts(bootstrap.activity && bootstrap.activity.guestTypes && bootstrap.activity.guestTypes.collection);
 const upgradeQuantities = normaliseUpgradeQuantities(bootstrap.activity && bootstrap.activity.upgrades);
 
 const initialState = {
@@ -70,7 +77,9 @@ const initialState = {
     selectedDate: initialDate,
     visibleMonth: initialDate.slice(0, 7),
     guestCounts,
-    guestTypeDetails: [],
+    guestTypeDetails: Array.isArray(bootstrap.activity?.guestTypes?.collection)
+        ? bootstrap.activity.guestTypes.collection.map((entry) => ({ ...entry }))
+        : [],
     calendarDays: [],
     timeslots: [],
     selectedTimeslotId: null,

@@ -61,13 +61,26 @@ final class AvailabilityService
         $this->certificateVerificationDisabled = false;
 
         if ($activityIds === null || $activityIds === []) {
-            $activityIds = $activityConfig['activityIds'] ?? [];
+            $activityIds = UtilityService::getActivityIds($activityConfig);
         }
 
-        $activityIds = array_values(array_map('intval', array_filter(
-            $activityIds,
-            static fn ($value) => $value !== null && $value !== ''
-        )));
+        $activityIds = array_values(array_filter(
+            array_map(
+                static function ($value) {
+                    if (is_numeric($value)) {
+                        return (int) $value;
+                    }
+
+                    if (is_string($value) && ctype_digit($value)) {
+                        return (int) $value;
+                    }
+
+                    return null;
+                },
+                $activityIds
+            ),
+            static fn ($value) => $value !== null
+        ));
 
         if ($activityIds === []) {
             throw new RuntimeException('Unable to determine activity IDs for availability lookup.');
@@ -1522,8 +1535,12 @@ final class AvailabilityService
         }
 
         $minimums = 0;
-        foreach ($activityConfig['minGuestCount'] ?? [] as $min) {
-            $minimums += max(0, (int) $min);
+        foreach (UtilityService::getGuestTypes($activityConfig) as $guestType) {
+            if (!is_array($guestType) || !isset($guestType['minQuantity'])) {
+                continue;
+            }
+
+            $minimums += max(0, (int) $guestType['minQuantity']);
         }
 
         return max($minimums, 1);

@@ -54,7 +54,7 @@ final class GuestTypesTest extends TestCase
         self::assertInstanceOf(GuestType::class, $child);
         self::assertSame('Child', $child->getLabel());
         self::assertSame('Ages 2-16', $child->getDescription());
-        self::assertNull($child->getPrice());
+        self::assertSame(75.0, $child->getPrice());
     }
 
     public function testFetchCachesSoapResponseOnMiss(): void

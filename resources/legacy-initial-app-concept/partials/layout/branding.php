@@ -1,36 +1,45 @@
 <?php
 /**
- * Layout: Branding
+ * Layout: Branding (Legacy Demo)
  *
- * Injects supplier-specific CSS variables for branding.
- * Reads values from $supplierConfig.
+ * Exposes supplier brand colours as CSS variables so they can be
+ * used in conjunction with Tailwind to personalize the form to match the supplier branding colors.
  */
 
-$brandColor      = $supplierConfig['brandColor'] ?? '#156DB9';
-$secondaryColor  = $supplierConfig['secondaryColor'] ?? '#FFD700';
-$fontHeading     = $supplierConfig['fontHeading'] ?? 'Poppins';
-$fontBody        = $supplierConfig['fontBody'] ?? 'Inter';
+declare(strict_types=1);
+
+$brandingConfig = $supplierConfig['branding'] ?? [];
+$brandColor = $brandingConfig['primaryColor'] ?? '#156DB9';
+$accentColor = $brandingConfig['secondaryColor'] ?? '#FFD700';
 
 /**
- * Convert HEX to "R G B" string for alpha-capable CSS vars.
+ * Convert a hex colour to an "R G B" string suitable for CSS colour mixing.
  */
-function hexToRgbString($hex) {
+function legacyHexToRgbString(mixed $hex): string
+{
+    if (!is_string($hex) || $hex === '') {
+        return '0 0 0';
+    }
+
     $hex = ltrim($hex, '#');
     if (strlen($hex) === 3) {
-        $hex = preg_replace('/(.)/', '$1$1', $hex);
+        $hex = preg_replace('/(.)/', '$1$1', $hex) ?? $hex;
     }
+
+    if (strlen($hex) !== 6 || !ctype_xdigit($hex)) {
+        return '0 0 0';
+    }
+
     [$r, $g, $b] = sscanf($hex, "%02x%02x%02x");
-    return "$r $g $b";
+    return sprintf('%d %d %d', $r, $g, $b);
 }
 ?>
 
 <style>
 :root {
-  --brand-colors: <?= hexToRgbString($brandColor); ?>;
-  --brand-color: <?= htmlspecialchars($brandColor); ?>;
-  --secondary-color: <?= hexToRgbString($secondaryColor); ?>;
-  --font-heading: '<?= htmlspecialchars($fontHeading); ?>', sans-serif;
-  --font-body: '<?= htmlspecialchars($fontBody); ?>', sans-serif;
+    --sgc-brand-color: <?= htmlspecialchars($brandColor, ENT_QUOTES, 'UTF-8'); ?>;
+    --sgc-brand-color-rgb: <?= legacyHexToRgbString($brandColor); ?>;
+    --sgc-brand-accent: <?= htmlspecialchars($accentColor, ENT_QUOTES, 'UTF-8'); ?>;
+    --sgc-brand-accent-rgb: <?= legacyHexToRgbString($accentColor); ?>;
 }
-
 </style>

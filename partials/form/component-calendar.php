@@ -35,7 +35,7 @@ $weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     <div class="relative rounded-xl border border-slate-200 p-5 shadow-xs" data-calendar>
         <div class="absolute inset-0 z-10 hidden items-center justify-center rounded-xl bg-white" data-calendar-loading>
-            <div class="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+            <div class="h-10 w-10 animate-spin rounded-full border-4 border-t-transparent border-[var(--sgc-brand-primary)]"></div>
         </div>
 
         <div class="flex items-center justify-between" data-calendar-navigation>

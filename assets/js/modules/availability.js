@@ -910,7 +910,7 @@ function buildAvailabilityUrl() {
         url.searchParams.set('month', state.visibleMonth);
     }
 
-    const activityIds = state.bootstrap?.activity?.ids;
+    const activityIds = state.bootstrap?.activity?.activityIds;
     if (Array.isArray(activityIds) && activityIds.length > 0) {
         url.searchParams.set('activityIds', JSON.stringify(activityIds));
     }
@@ -938,11 +938,11 @@ function describeAvailability(timeslot) {
         return 'Sold out';
     }
 
-    if (timeslot.available <= 4) {
-        return `${timeslot.available} ${pluralize('spot', timeslot.available)} left`;
+    if (timeslot.available <= 5) {
+        return `Only ${timeslot.available} ${pluralize('seat', timeslot.available)} left!`;
     }
 
-    return `${timeslot.available} seats available`;
+    return `${timeslot.available} ${pluralize('seat', timeslot.available)} available`;
 }
 
 function getAvailabilityBadgeClasses(timeslot) {
@@ -1011,10 +1011,10 @@ function renderTimeslots(state) {
         clearChildren(timeslotList);
 
         timeslots.forEach((timeslot) => {
-            const item = createElement('li', { className: 'w-full' });
+            const item = createElement('div', { className: 'w-full' });
 
             const label = createElement('label', {
-                className: 'group block w-full cursor-pointer focus-visible:outline-none',
+                className: 'block w-full cursor-pointer focus-visible:outline-none',
                 attributes: { 'data-timeslot-id': timeslot.id },
             });
 
@@ -1037,7 +1037,7 @@ function renderTimeslots(state) {
             }
 
             const card = createElement('div', {
-                className: 'flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white px-5 pb-5 pt-5 shadow-sm transition duration-150 group-hover:border-[color:var(--brand-color)] group-hover:shadow-md focus-within:ring-2 focus-within:ring-[color:var(--brand-color)] focus-within:ring-offset-2 focus-within:ring-offset-white',
+                className: 'flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white px-5 pb-5 pt-5 shadow-sm transition duration-150 hover:border-[#1C55DB]/60 hover:shadow-md focus-within:ring-2 focus-within:ring-[#1C55DB] focus-within:ring-offset-2 focus-within:ring-offset-white',
             });
 
             const headerRow = createElement('div', {
@@ -1188,8 +1188,8 @@ function renderTimeslots(state) {
             }
 
             if (radio.checked) {
-                card.classList.add('border-[color:var(--brand-color)]', 'shadow-lg');
-                radioVisual.classList.add('border-transparent', 'bg-[color:var(--brand-color)]');
+                card.classList.add('border-[#1C55DB]', 'shadow-lg');
+                radioVisual.classList.add('border-transparent', 'bg-[#1C55DB]');
                 radioDot.classList.add('bg-white');
             }
 

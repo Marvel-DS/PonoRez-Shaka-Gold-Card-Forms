@@ -9,6 +9,7 @@ use PonoRez\SGCForms\Cache\CacheKeyGenerator;
 use PonoRez\SGCForms\DTO\Upgrade;
 use PonoRez\SGCForms\DTO\UpgradeCollection;
 use PonoRez\SGCForms\UtilityService;
+use RuntimeException;
 use SoapFault;
 use Throwable;
 
@@ -99,13 +100,18 @@ final class UpgradeService
     {
         $client = $this->soapClientBuilder->build();
 
+        $primaryActivityId = UtilityService::getPrimaryActivityId($activityConfig);
+        if ($primaryActivityId === null) {
+            throw new RuntimeException('Unable to determine primary activity ID for upgrade lookup.');
+        }
+
         $payload = [
             'serviceLogin' => [
                 'username' => $supplierConfig['soapCredentials']['username'],
                 'password' => $supplierConfig['soapCredentials']['password'],
             ],
             'supplierId' => $supplierConfig['supplierId'],
-            'activityId' => $activityConfig['activityId'],
+            'activityId' => $primaryActivityId,
         ];
 
         try {

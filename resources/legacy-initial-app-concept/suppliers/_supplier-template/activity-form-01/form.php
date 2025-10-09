@@ -51,9 +51,9 @@ UtilityService::validateConfig($formConfig, [
   <form class="BookingForm space-y-6 mt-6" data-activity-ids='<?= json_encode($formConfig["activityIds"]); ?>'>
 
     <?php if (!empty($formConfig['enableActivityInfo'])): ?>
-      <?php include __DIR__ . '/../../../../partials/form/form-advanced.php'; ?>
+      <?php include __DIR__ . '/../../../../partials/layout/form-advanced.php'; ?>
     <?php else: ?>
-      <?php include __DIR__ . '/../../../../partials/form/form-basic.php'; ?>
+      <?php include __DIR__ . '/../../../../partials/layout/form-template.php'; ?>
     <?php endif; ?>
 
     <!-- Calendar -->

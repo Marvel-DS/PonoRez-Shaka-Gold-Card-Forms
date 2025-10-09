@@ -43,6 +43,57 @@ function route_api_request(string $uri): void
     exit;
 }
 
+function serve_supplier_asset(string $uri): void
+{
+    $relative = ltrim(substr($uri, strlen('/suppliers/')), '/');
+
+    if ($relative === '' || str_contains($relative, '..') || str_contains($relative, "\0")) {
+        http_response_code(404);
+        exit;
+    }
+
+    $baseDirectory = realpath(__DIR__ . '/../suppliers');
+    if ($baseDirectory === false) {
+        http_response_code(404);
+        exit;
+    }
+
+    $fullPath = $baseDirectory . '/' . $relative;
+    $realPath = realpath($fullPath);
+
+    if ($realPath === false || !str_starts_with($realPath, $baseDirectory) || !is_file($realPath)) {
+        http_response_code(404);
+        exit;
+    }
+
+    $extension = strtolower(pathinfo($realPath, PATHINFO_EXTENSION));
+    $mimeTypes = [
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        'gif' => 'image/gif',
+        'svg' => 'image/svg+xml',
+        'json' => 'application/json',
+        'txt' => 'text/plain; charset=UTF-8',
+    ];
+
+    $mime = $mimeTypes[$extension] ?? 'application/octet-stream';
+
+    header('Content-Type: ' . $mime);
+    header('Cache-Control: public, max-age=86400');
+
+    $stream = fopen($realPath, 'rb');
+    if ($stream === false) {
+        http_response_code(500);
+        exit;
+    }
+
+    fpassthru($stream);
+    fclose($stream);
+    exit;
+}
+
 function format_activity_info_content(?string $value): ?string
 {
     if ($value === null) {
@@ -93,6 +144,10 @@ function merge_activity_info_blocks(array $infoBlocks, array $activityInfo): arr
     }
 
     return $infoBlocks;
+}
+
+if (preg_match('#^/suppliers/#', $requestUri)) {
+    serve_supplier_asset($requestUri);
 }
 
 if (preg_match('#^/api/(.+)$#', $requestUri)) {
@@ -155,13 +210,123 @@ try {
     ];
 }
 
+
 $activityInfoById = is_array($activityInfoResult['activities'] ?? null)
     ? $activityInfoResult['activities']
     : [];
 
-$primaryActivityId = isset($activityConfig['activityId']) && is_numeric($activityConfig['activityId'])
-    ? (int) $activityConfig['activityId']
-    : null;
+$primaryActivityId = UtilityService::getPrimaryActivityId($activityConfig);
+$activityIds = UtilityService::getActivityIds($activityConfig);
+$activityList = UtilityService::getActivities($activityConfig);
+$departureLabels = UtilityService::getDepartureLabels($activityConfig);
+$guestTypeCollection = UtilityService::getGuestTypes($activityConfig);
+$guestTypesById = UtilityService::getGuestTypesById($activityConfig);
+$normalizeActivityIdentifier = static function (mixed $value): int|string|null {
+    if (is_int($value)) {
+        return $value;
+    }
+
+    if (is_string($value)) {
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        if (ctype_digit($trimmed)) {
+            return (int) $trimmed;
+        }
+
+        return $trimmed;
+    }
+
+    if (is_float($value)) {
+        $intValue = (int) $value;
+        return $intValue >= 0 ? $intValue : null;
+    }
+
+    return null;
+};
+
+$timezone = UtilityService::getActivityTimezone($activityConfig);
+$showInfoColumn = UtilityService::shouldShowInfoColumn($activityConfig);
+$shakaGoldCardNumber = UtilityService::getShakaGoldCardNumber($activityConfig);
+$primaryActivityIdString = $primaryActivityId === null ? null : (string) $primaryActivityId;
+
+$guestTypeCollectionNormalized = [];
+foreach ($guestTypeCollection as $guestType) {
+    if (!is_array($guestType) || !isset($guestType['id'])) {
+        continue;
+    }
+
+    $id = (string) $guestType['id'];
+    if ($id === '') {
+        continue;
+    }
+
+    $guestTypeCollectionNormalized[] = [
+        'id' => $id,
+        'label' => isset($guestType['label']) ? (string) $guestType['label'] : $id,
+        'description' => isset($guestType['description']) && $guestType['description'] !== ''
+            ? (string) $guestType['description']
+            : null,
+        'price' => isset($guestType['price']) && is_numeric($guestType['price'])
+            ? (float) $guestType['price']
+            : null,
+        'minQuantity' => isset($guestType['minQuantity']) ? max(0, (int) $guestType['minQuantity']) : 0,
+        'maxQuantity' => isset($guestType['maxQuantity']) && $guestType['maxQuantity'] !== null && $guestType['maxQuantity'] !== ''
+            ? max(0, (int) $guestType['maxQuantity'])
+            : null,
+    ];
+}
+
+$activityListNormalized = [];
+foreach ($activityList as $activity) {
+    if (!is_array($activity) || !isset($activity['id'])) {
+        continue;
+    }
+
+    $normalizedId = $normalizeActivityIdentifier($activity['id']);
+    if ($normalizedId === null) {
+        continue;
+    }
+
+    $idString = (string) $normalizedId;
+    $isPrimary = $primaryActivityIdString !== null && $primaryActivityIdString === $idString;
+    $activityListNormalized[] = [
+        'id' => $idString,
+        'rawId' => $normalizedId,
+        'label' => isset($activity['label']) && $activity['label'] !== '' ? (string) $activity['label'] : null,
+        'primary' => $isPrimary || (bool) ($activity['primary'] ?? false),
+        'source' => isset($activity['source']) && is_string($activity['source']) ? $activity['source'] : 'config',
+    ];
+}
+
+$guestTypesByIdNormalized = [];
+foreach ($guestTypesById as $id => $guestType) {
+    if (!is_array($guestType) || !isset($guestType['id'])) {
+        continue;
+    }
+
+    $normalizedId = (string) $guestType['id'];
+    if ($normalizedId === '') {
+        continue;
+    }
+
+    $guestTypesByIdNormalized[$normalizedId] = [
+        'id' => $normalizedId,
+        'label' => isset($guestType['label']) ? (string) $guestType['label'] : $normalizedId,
+        'description' => isset($guestType['description']) && $guestType['description'] !== ''
+            ? (string) $guestType['description']
+            : null,
+        'price' => isset($guestType['price']) && is_numeric($guestType['price'])
+            ? (float) $guestType['price']
+            : null,
+        'minQuantity' => isset($guestType['minQuantity']) ? max(0, (int) $guestType['minQuantity']) : 0,
+        'maxQuantity' => isset($guestType['maxQuantity']) && $guestType['maxQuantity'] !== null && $guestType['maxQuantity'] !== ''
+            ? max(0, (int) $guestType['maxQuantity'])
+            : null,
+    ];
+}
 
 $primaryActivityInfo = null;
 if ($primaryActivityId !== null && isset($activityInfoById[(string) $primaryActivityId])) {
@@ -257,16 +422,6 @@ $bootstrapData = [
     ],
     'activity' => [
         'slug' => $activitySlug,
-        'id' => $activityConfig['activityId'] ?? null,
-        'ids' => array_values(array_map(
-            static fn ($value) => is_numeric($value) ? (int) $value : $value,
-            array_filter(
-                is_array($activityConfig['activityIds'] ?? null)
-                    ? $activityConfig['activityIds']
-                    : [$activityConfig['activityId'] ?? null],
-                static fn ($value) => $value !== null && $value !== ''
-            )
-        )),
         'displayName' => $activityConfig['displayName']
             ?? $activityConfig['activityTitle']
             ?? ucfirst(str_replace('-', ' ', $activitySlug)),
@@ -276,32 +431,23 @@ $bootstrapData = [
         'transportation' => $activityConfig['transportation'] ?? [],
         'upgrades' => $activityConfig['upgrades'] ?? [],
         'privateActivity' => filter_var($activityConfig['privateActivity'] ?? false, FILTER_VALIDATE_BOOLEAN),
-        'departureLabels' => array_reduce(
-            array_keys($activityConfig['departureLabels'] ?? []),
-            static function (array $carry, $key) use ($activityConfig): array {
-                $stringKey = (string) $key;
-                $label = $activityConfig['departureLabels'][$key];
-
-                if ($stringKey === '' || $label === null) {
-                    return $carry;
-                }
-
-                $carry[$stringKey] = (string) $label;
-                return $carry;
-            },
-            []
-        ),
+        'timezone' => $timezone,
+        'showInfoColumn' => $showInfoColumn,
+        'shakaGoldCardNumber' => $shakaGoldCardNumber,
+        'primaryActivityId' => $primaryActivityId,
+        'primaryActivityIdString' => $primaryActivityIdString,
+        'activityIds' => $activityIds,
+        'activityIdStrings' => array_map('strval', $activityIds),
+        'activities' => $activityListNormalized,
+        'departureLabels' => $departureLabels,
         'currency' => [
             'code' => strtoupper((string) ($activityConfig['currency']['code'] ?? 'USD')),
             'symbol' => $activityConfig['currency']['symbol'] ?? '$',
             'locale' => $activityConfig['currency']['locale'] ?? 'en-US',
         ],
         'guestTypes' => [
-            'ids' => array_map('strval', $activityConfig['guestTypeIds'] ?? []),
-            'labels' => $activityConfig['guestTypeLabels'] ?? [],
-            'descriptions' => $activityConfig['ponorezGuestTypeDescriptions'] ?? [],
-            'min' => $activityConfig['minGuestCount'] ?? [],
-            'max' => $activityConfig['maxGuestCount'] ?? [],
+            'collection' => $guestTypeCollectionNormalized,
+            'byId' => $guestTypesByIdNormalized,
         ],
         'details' => $activityDetails,
     ],
@@ -311,18 +457,77 @@ $bootstrapData = [
     ],
 ];
 
-foreach ($activityInfoById as $id => $info) {
-    if (!is_array($info) || empty($info['times'])) {
+$activityIndexById = [];
+foreach ($bootstrapData['activity']['activities'] as $index => $activityEntry) {
+    if (!isset($activityEntry['id'])) {
         continue;
     }
 
-    $label = trim((string) $info['times']);
-    if ($label === '') {
-        continue;
-    }
-
-    $bootstrapData['activity']['departureLabels'][(string) $id] = $label;
+    $activityIndexById[$activityEntry['id']] = $index;
 }
+
+foreach ($activityInfoById as $id => $info) {
+    if (!is_array($info)) {
+        continue;
+    }
+
+    $idString = (string) $id;
+    if ($idString === '') {
+        continue;
+    }
+
+    $label = null;
+    if (!empty($info['times'])) {
+        $candidate = trim((string) $info['times']);
+        if ($candidate !== '') {
+            $label = $candidate;
+        }
+    }
+
+    if ($label !== null && !isset($bootstrapData['activity']['departureLabels'][$idString])) {
+        $bootstrapData['activity']['departureLabels'][$idString] = $label;
+    }
+
+    if (isset($activityIndexById[$idString])) {
+        $activityIndex = $activityIndexById[$idString];
+        if ($label !== null && ($bootstrapData['activity']['activities'][$activityIndex]['label'] ?? null) === null) {
+            $bootstrapData['activity']['activities'][$activityIndex]['label'] = $label;
+            if (!isset($bootstrapData['activity']['activities'][$activityIndex]['source'])) {
+                $bootstrapData['activity']['activities'][$activityIndex]['source'] = 'ponorez';
+            }
+        }
+    } else {
+        $rawId = ctype_digit($idString) ? (int) $idString : $idString;
+        $bootstrapData['activity']['activities'][] = [
+            'id' => $idString,
+            'rawId' => $rawId,
+            'label' => $label,
+            'primary' => $primaryActivityIdString === $idString,
+            'source' => 'ponorez',
+        ];
+
+        $newIndex = array_key_last($bootstrapData['activity']['activities']);
+        if ($newIndex !== null) {
+            $activityIndexById[$idString] = $newIndex;
+        }
+
+        if (!in_array($rawId, $bootstrapData['activity']['activityIds'], true)) {
+            $bootstrapData['activity']['activityIds'][] = $rawId;
+        }
+
+        if (!in_array($idString, $bootstrapData['activity']['activityIdStrings'], true)) {
+            $bootstrapData['activity']['activityIdStrings'][] = $idString;
+        }
+    }
+}
+
+$bootstrapData['activity']['activityIds'] = array_values(array_unique(
+    $bootstrapData['activity']['activityIds'],
+    SORT_REGULAR
+));
+$bootstrapData['activity']['activityIdStrings'] = array_values(array_unique(
+    $bootstrapData['activity']['activityIdStrings']
+));
 
 $bootstrapData['activity']['activityInfo'] = [
     'byId' => $activityInfoById,
@@ -341,4 +546,4 @@ $pageContext = [
     'activityInfo' => $activityInfoById,
 ];
 
-include dirname(__DIR__) . '/partials/layout/form-basic.php';
+include dirname(__DIR__) . '/partials/layout/form-template.php';

@@ -7,6 +7,7 @@ namespace PonoRez\SGCForms\Services;
 use PonoRez\SGCForms\DTO\CheckoutInitRequest;
 use PonoRez\SGCForms\DTO\CheckoutInitResponse;
 use PonoRez\SGCForms\UtilityService;
+use RuntimeException;
 use SoapFault;
 
 final class CheckoutInitService
@@ -20,13 +21,18 @@ final class CheckoutInitService
         $supplierConfig = UtilityService::loadSupplierConfig($request->getSupplierSlug());
         $activityConfig = UtilityService::loadActivityConfig($request->getSupplierSlug(), $request->getActivitySlug());
 
+        $primaryActivityId = UtilityService::getPrimaryActivityId($activityConfig);
+        if ($primaryActivityId === null) {
+            throw new RuntimeException('Unable to determine primary activity ID for checkout.');
+        }
+
         $client = $this->soapClientBuilder->build();
         $login = $this->buildLoginPayload($supplierConfig);
         $reservationOrder = $this->buildReservationOrder($request);
 
         $calculationPayload = array_merge($login, [
             'supplierId' => $supplierConfig['supplierId'],
-            'activityId' => $activityConfig['activityId'],
+            'activityId' => $primaryActivityId,
             'reservationOrder' => $reservationOrder,
         ]);
 
@@ -37,7 +43,7 @@ final class CheckoutInitService
 
         $reservationPayload = array_merge($login, [
             'supplierId' => $supplierConfig['supplierId'],
-            'activityId' => $activityConfig['activityId'],
+            'activityId' => $primaryActivityId,
             'reservationOrder' => $reservationOrder,
             'agent' => 'WEB',
             'supplierPaymentAmount' => $supplierPayment,

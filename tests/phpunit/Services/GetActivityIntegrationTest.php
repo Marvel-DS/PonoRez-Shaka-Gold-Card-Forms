@@ -25,13 +25,16 @@ final class GetActivityIntegrationTest extends TestCase
         $activityConfig = UtilityService::loadActivityConfig($supplierSlug, $activitySlug);
 
         $client = $this->buildSoapClient();
+        $primaryActivityId = UtilityService::getPrimaryActivityId($activityConfig);
+        self::assertNotNull($primaryActivityId, 'Primary activity ID is required for the integration test.');
+
         $payload = [
             'serviceLogin' => [
                 'username' => $supplierConfig['soapCredentials']['username'],
                 'password' => $supplierConfig['soapCredentials']['password'],
             ],
             'supplierId' => (int) $supplierConfig['supplierId'],
-            'activityId' => (int) $activityConfig['activityId'],
+            'activityId' => (int) $primaryActivityId,
         ];
 
         $response = $client->__soapCall('getActivity', [$payload]);

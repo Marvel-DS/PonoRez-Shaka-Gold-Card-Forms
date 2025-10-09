@@ -154,21 +154,17 @@ final class ActivityInfoService
      */
     private function extractActivityIds(array $activityConfig): array
     {
-        $ids = [];
-
-        if (isset($activityConfig['activityId'])) {
-            $ids[] = $activityConfig['activityId'];
-        }
-
-        if (isset($activityConfig['activityIds']) && is_array($activityConfig['activityIds'])) {
-            foreach ($activityConfig['activityIds'] as $id) {
-                $ids[] = $id;
-            }
+        $candidates = UtilityService::getActivityIds($activityConfig);
+        $primary = UtilityService::getPrimaryActivityId($activityConfig);
+        if ($primary !== null) {
+            $candidates[] = $primary;
         }
 
         $normalized = [];
-        foreach ($ids as $id) {
+        foreach ($candidates as $id) {
             if (is_numeric($id)) {
+                $normalized[] = (int) $id;
+            } elseif (is_string($id) && ctype_digit($id)) {
                 $normalized[] = (int) $id;
             }
         }

@@ -4,41 +4,33 @@ declare(strict_types=1);
 
 $page = $pageContext ?? [];
 $bootstrap = $page['bootstrap'] ?? [];
-$apiEndpoints = $page['apiEndpoints'] ?? [];
-$label = $bootstrap['activity']['uiLabels']['timeslots'] ?? 'Choose Departure Time';
-$timeslotEndpoint = $apiEndpoints['availability'] ?? null;
+$label = $bootstrap['activity']['uiLabels']['timeslots'] ?? 'Select a Time';
 ?>
-<section class="space-y-6" data-component="timeslots">
-    <header class="space-y-2">
-        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Departure times</p>
-        <h2 class="text-2xl font-semibold text-slate-900"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></h2>
-        <p class="text-sm text-slate-600">Choose your preferred departure to see pricing and savings details.</p>
+<section class="space-y-5" data-component="timeslots">
+    <header class="space-y-1">
+        <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Departure Times</p>
+        <h2 class="text-xl font-semibold text-slate-900"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></h2>
+        <p class="text-sm text-slate-600">Choose the departure that fits your schedule. Availability updates instantly after each change.</p>
     </header>
 
-    <div class="rounded-3xl border border-slate-200 bg-white shadow-sm" data-timeslot-panel>
-        <div class="border-b border-slate-200 px-6 py-4 text-sm text-slate-600" data-state="summary" role="status" aria-live="polite">
-            Select a date to load available departure times.
+    <div class="space-y-4" data-timeslot-panel>
+        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600 shadow-sm" data-state="summary" role="status" aria-live="polite">
+            Select a date to load available departures.
         </div>
-        <div class="hidden px-6 py-6" data-state="loading">
+
+        <div class="hidden rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm" data-state="loading">
             <div class="flex items-center gap-3 text-sm text-slate-600">
-                <span class="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-blue-500"></span>
-                Fetching the latest availability…
+                <span class="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-[var(--sgc-brand-primary)]"></span>
+                Fetching the latest availability&hellip;
             </div>
         </div>
-        <div class="hidden px-6 py-6 text-sm text-slate-600" data-state="empty">
+
+        <div class="hidden rounded-2xl border border-slate-200 bg-white px-5 py-5 text-sm text-slate-600 shadow-sm" data-state="empty">
             No departures are available for the selected date. Try another date or adjust your guest counts.
         </div>
-        <ul class="hidden list-none space-y-4 px-6 py-6" data-timeslot-list role="radiogroup">
-            <!-- Timeslots injected by JavaScript -->
-        </ul>
-    </div>
 
-    <?php if ($timeslotEndpoint): ?>
-        <p class="text-xs text-slate-500">
-            Developer note: availability and timeslots share the same endpoint &mdash;
-            <a class="text-blue-600 underline decoration-dotted" href="<?= htmlspecialchars($timeslotEndpoint, ENT_QUOTES, 'UTF-8') ?>">
-                <?= htmlspecialchars($timeslotEndpoint, ENT_QUOTES, 'UTF-8') ?>
-            </a>
-        </p>
-    <?php endif; ?>
+        <div class="hidden space-y-4" data-timeslot-list role="radiogroup" aria-label="Available departure times">
+            <!-- Timeslots injected by JavaScript -->
+        </div>
+    </div>
 </section>

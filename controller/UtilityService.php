@@ -17,6 +17,9 @@ final class UtilityService
     {
     }
 
+    /** @var array<string,string|null> */
+    private static array $iconCache = [];
+
     public static function projectRoot(): string
     {
         return defined('PONO_SGC_ROOT') ? PONO_SGC_ROOT : dirname(__DIR__);
@@ -107,11 +110,612 @@ final class UtilityService
         $path = self::supplierDirectory($supplierSlug) . '/' . $activitySlug . '.config';
         $config = self::loadJsonConfig($path);
 
-        if (!isset($config['activityId'])) {
-            throw new RuntimeException(sprintf('Activity config missing activityId: %s/%s', $supplierSlug, $activitySlug));
+        if (!isset($config['slug']) || !is_string($config['slug']) || trim($config['slug']) === '') {
+            $config['slug'] = $activitySlug;
+        }
+
+        return self::normalizeActivityConfig($config, $supplierSlug, $activitySlug);
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     * @return array<string, mixed>
+     */
+    private static function normalizeActivityConfig(array $config, string $supplierSlug, string $activitySlug): array
+    {
+        $guestTypes = self::normaliseGuestTypes($config['guestTypes'] ?? []);
+        $config['guestTypes'] = [
+            'collection' => $guestTypes['collection'],
+            'byId' => $guestTypes['byId'],
+            'legacy' => $guestTypes['legacy'],
+        ];
+        $config['guestTypeCollection'] = $guestTypes['collection'];
+        $config['guestTypesById'] = $guestTypes['byId'];
+        $config['guestTypeIds'] = $guestTypes['legacy']['ids'];
+        $config['guestTypeLabels'] = $guestTypes['legacy']['labels'];
+        $config['ponorezGuestTypeDescriptions'] = $guestTypes['legacy']['descriptions'];
+        $config['minGuestCount'] = $guestTypes['legacy']['min'];
+        $config['maxGuestCount'] = $guestTypes['legacy']['max'];
+        if ($guestTypes['legacy']['basePrices'] !== []) {
+            $config['guestTypeBasePrices'] = $guestTypes['legacy']['basePrices'];
+        } else {
+            unset($config['guestTypeBasePrices']);
+        }
+
+        $activities = self::normaliseActivities($config['activities'] ?? [], $config, $supplierSlug, $activitySlug);
+        $config['activities'] = [
+            'collection' => $activities['collection'],
+            'byId' => $activities['byId'],
+        ];
+        $config['primaryActivityId'] = $activities['primaryId'];
+        $config['activityIds'] = $activities['ids'];
+        $config['activityId'] = $activities['primaryId'];
+        $config['departureLabels'] = $activities['departureLabels'];
+
+        $config['timezone'] = self::resolveConfigTimezone($config);
+
+        $showInfoColumn = $config['infoBlocks']['showInfoColumn'] ?? null;
+        $config['showInfoColumn'] = $showInfoColumn === null ? true : (bool) $showInfoColumn;
+        $config['infoBlocks']['showInfoColumn'] = $config['showInfoColumn'];
+
+        if (array_key_exists('shakaGoldCardNumber', $config)) {
+            $config['shakaGoldCardNumber'] = self::stringOrNull($config['shakaGoldCardNumber']);
+        } else {
+            $config['shakaGoldCardNumber'] = null;
         }
 
         return $config;
+    }
+
+    /**
+     * @param array<string, mixed> $activityConfig
+     * @return array<int, array{id:string,label:string,description:?string,price:?float,minQuantity:int,maxQuantity:?int}>
+     */
+    public static function getGuestTypes(array $activityConfig): array
+    {
+        $guestTypes = $activityConfig['guestTypes']['collection']
+            ?? $activityConfig['guestTypeCollection']
+            ?? [];
+
+        if (!is_array($guestTypes)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($guestTypes as $guestType) {
+            if (!is_array($guestType) || !isset($guestType['id'])) {
+                continue;
+            }
+
+            $id = (string) $guestType['id'];
+            if ($id === '') {
+                continue;
+            }
+
+            $label = isset($guestType['label']) ? (string) $guestType['label'] : $id;
+            $description = self::stringOrNull($guestType['description'] ?? null);
+
+            $price = null;
+            if (isset($guestType['price']) && $guestType['price'] !== null && $guestType['price'] !== '') {
+                $price = is_numeric($guestType['price']) ? (float) $guestType['price'] : null;
+            }
+
+            $minQuantity = isset($guestType['minQuantity']) ? max(0, (int) $guestType['minQuantity']) : 0;
+            $maxQuantity = null;
+            if (array_key_exists('maxQuantity', $guestType) && $guestType['maxQuantity'] !== null && $guestType['maxQuantity'] !== '') {
+                $maxQuantity = max($minQuantity, (int) $guestType['maxQuantity']);
+            }
+
+            $normalized[] = [
+                'id' => $id,
+                'label' => $label,
+                'description' => $description,
+                'price' => $price,
+                'minQuantity' => $minQuantity,
+                'maxQuantity' => $maxQuantity,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param array<string, mixed> $activityConfig
+     * @return array<string, array{id:string,label:string,description:?string,price:?float,minQuantity:int,maxQuantity:?int}>
+     */
+    public static function getGuestTypesById(array $activityConfig): array
+    {
+        $guestTypes = $activityConfig['guestTypes']['byId']
+            ?? $activityConfig['guestTypesById']
+            ?? [];
+
+        if (!is_array($guestTypes)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($guestTypes as $key => $guestType) {
+            if (!is_array($guestType) || !isset($guestType['id'])) {
+                continue;
+            }
+
+            $id = (string) $guestType['id'];
+            if ($id === '') {
+                continue;
+            }
+
+            $normalized[$id] = [
+                'id' => $id,
+                'label' => isset($guestType['label']) ? (string) $guestType['label'] : $id,
+                'description' => self::stringOrNull($guestType['description'] ?? null),
+                'price' => isset($guestType['price']) && is_numeric($guestType['price']) ? (float) $guestType['price'] : null,
+                'minQuantity' => isset($guestType['minQuantity']) ? max(0, (int) $guestType['minQuantity']) : 0,
+                'maxQuantity' => isset($guestType['maxQuantity']) && $guestType['maxQuantity'] !== null && $guestType['maxQuantity'] !== ''
+                    ? max(0, (int) $guestType['maxQuantity'])
+                    : null,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param array<string, mixed> $activityConfig
+     * @return array<int, string>
+     */
+    public static function getGuestTypeIds(array $activityConfig): array
+    {
+        $legacy = $activityConfig['guestTypes']['legacy']['ids']
+            ?? $activityConfig['guestTypeIds']
+            ?? [];
+
+        if (!is_array($legacy)) {
+            return [];
+        }
+
+        return array_values(array_map('strval', $legacy));
+    }
+
+    /**
+     * @param array<string, mixed> $activityConfig
+     * @return array<int, array{id:int|string,label:?string,primary:bool,source:string}>
+     */
+    public static function getActivities(array $activityConfig): array
+    {
+        $activities = $activityConfig['activities']['collection']
+            ?? $activityConfig['activities']
+            ?? [];
+
+        if (!is_array($activities)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($activities as $activity) {
+            if (!is_array($activity) || !isset($activity['id'])) {
+                continue;
+            }
+
+            $id = self::normaliseActivityId($activity['id']);
+            if ($id === null) {
+                continue;
+            }
+
+            $normalized[] = [
+                'id' => $id,
+                'label' => self::stringOrNull($activity['label'] ?? null),
+                'primary' => (bool) ($activity['primary'] ?? false),
+                'source' => isset($activity['source']) && is_string($activity['source']) ? $activity['source'] : 'unknown',
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param array<string, mixed> $activityConfig
+     * @return array<int, int|string>
+     */
+    public static function getActivityIds(array $activityConfig): array
+    {
+        $ids = $activityConfig['activityIds'] ?? null;
+        if (!is_array($ids)) {
+            $ids = [];
+        }
+
+        $normalized = [];
+        foreach ($ids as $id) {
+            $normalised = self::normaliseActivityId($id);
+            if ($normalised !== null) {
+                $normalized[] = $normalised;
+            }
+        }
+
+        return $normalized;
+    }
+
+    public static function getPrimaryActivityId(array $activityConfig): int|string|null
+    {
+        $primary = $activityConfig['primaryActivityId'] ?? $activityConfig['activityId'] ?? null;
+        return self::normaliseActivityId($primary);
+    }
+
+    /**
+     * @param array<string, mixed> $activityConfig
+     * @return array<string, string>
+     */
+    public static function getDepartureLabels(array $activityConfig): array
+    {
+        $labels = $activityConfig['departureLabels'] ?? [];
+        if (!is_array($labels)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($labels as $key => $label) {
+            $stringKey = (string) $key;
+            $stringLabel = self::stringOrNull($label);
+            if ($stringKey === '' || $stringLabel === null) {
+                continue;
+            }
+            $normalized[$stringKey] = $stringLabel;
+        }
+
+        return $normalized;
+    }
+
+    public static function getActivityTimezone(array $activityConfig): string
+    {
+        $timezone = $activityConfig['timezone'] ?? $activityConfig['calendar']['timezone'] ?? null;
+        $timezone = self::stringOrNull($timezone);
+
+        if ($timezone !== null && self::isValidTimezone($timezone)) {
+            return $timezone;
+        }
+
+        if ($timezone !== null) {
+            $alias = self::timezoneAliasMap()[$timezone] ?? null;
+            if ($alias !== null && self::isValidTimezone($alias)) {
+                return $alias;
+            }
+        }
+
+        $default = date_default_timezone_get();
+        return self::isValidTimezone($default) ? $default : 'UTC';
+    }
+
+    public static function shouldShowInfoColumn(array $activityConfig): bool
+    {
+        if (isset($activityConfig['showInfoColumn'])) {
+            return (bool) $activityConfig['showInfoColumn'];
+        }
+
+        if (isset($activityConfig['infoBlocks']['showInfoColumn'])) {
+            return (bool) $activityConfig['infoBlocks']['showInfoColumn'];
+        }
+
+        return true;
+    }
+
+    public static function getShakaGoldCardNumber(array $activityConfig): ?string
+    {
+        if (!array_key_exists('shakaGoldCardNumber', $activityConfig)) {
+            return null;
+        }
+
+        return self::stringOrNull($activityConfig['shakaGoldCardNumber']);
+    }
+
+    /**
+     * @param array<int|string, mixed> $value
+     * @return array{
+     *     collection: array<int, array{id:string,label:string,description:?string,price:?float,minQuantity:int,maxQuantity:?int}>,
+     *     byId: array<string, array{id:string,label:string,description:?string,price:?float,minQuantity:int,maxQuantity:?int}>,
+     *     legacy: array{
+     *         ids: array<int, string>,
+     *         labels: array<string, string>,
+     *         descriptions: array<string, string>,
+     *         min: array<string, int>,
+     *         max: array<string, int>,
+     *         basePrices: array<string, float>
+     *     }
+     * }
+     */
+    private static function normaliseGuestTypes(mixed $value): array
+    {
+        $collection = [];
+        $byId = [];
+        $ids = [];
+        $labels = [];
+        $descriptions = [];
+        $min = [];
+        $max = [];
+        $basePrices = [];
+
+        if (!is_array($value)) {
+            return [
+                'collection' => $collection,
+                'byId' => $byId,
+                'legacy' => [
+                    'ids' => $ids,
+                    'labels' => $labels,
+                    'descriptions' => $descriptions,
+                    'min' => $min,
+                    'max' => $max,
+                    'basePrices' => $basePrices,
+                ],
+            ];
+        }
+
+        foreach ($value as $guestType) {
+            if (!is_array($guestType)) {
+                continue;
+            }
+
+            $id = self::stringOrNull($guestType['id'] ?? null);
+            if ($id === null || $id === '') {
+                continue;
+            }
+
+            $label = self::stringOrNull($guestType['label'] ?? null) ?? $id;
+            $description = self::stringOrNull($guestType['description'] ?? null);
+
+            $price = null;
+            if (isset($guestType['price']) && $guestType['price'] !== '') {
+                $price = is_numeric($guestType['price']) ? (float) $guestType['price'] : null;
+            }
+
+            $minCandidate = $guestType['minQuantity'] ?? $guestType['min'] ?? 0;
+            $maxCandidate = $guestType['maxQuantity'] ?? $guestType['max'] ?? null;
+
+            $minQuantity = max(0, (int) $minCandidate);
+            $maxQuantity = null;
+            if ($maxCandidate !== null && $maxCandidate !== '') {
+                $maxQuantity = max($minQuantity, (int) $maxCandidate);
+            }
+
+            $entry = [
+                'id' => $id,
+                'label' => $label,
+                'description' => $description,
+                'price' => $price,
+                'minQuantity' => $minQuantity,
+                'maxQuantity' => $maxQuantity,
+            ];
+
+            $collection[] = $entry;
+            $byId[$id] = $entry;
+            $ids[] = $id;
+            $labels[$id] = $label;
+            if ($description !== null) {
+                $descriptions[$id] = $description;
+            }
+            $min[$id] = $minQuantity;
+            if ($maxQuantity !== null) {
+                $max[$id] = $maxQuantity;
+            }
+            if ($price !== null) {
+                $basePrices[$id] = $price;
+            }
+        }
+
+        return [
+            'collection' => $collection,
+            'byId' => $byId,
+            'legacy' => [
+                'ids' => $ids,
+                'labels' => $labels,
+                'descriptions' => $descriptions,
+                'min' => $min,
+                'max' => $max,
+                'basePrices' => $basePrices,
+            ],
+        ];
+    }
+
+    /**
+     * @param array<int|string, mixed> $value
+     * @param array<string, mixed> $config
+     * @return array{
+     *     collection: array<int, array{id:int|string,label:?string,primary:bool,source:string}>,
+     *     byId: array<string, array{id:int|string,label:?string,primary:bool,source:string}>,
+     *     ids: array<int, int|string>,
+     *     primaryId: int|string,
+     *     departureLabels: array<string, string>
+     * }
+     */
+    private static function normaliseActivities(
+        mixed $value,
+        array $config,
+        string $supplierSlug,
+        string $activitySlug
+    ): array {
+        $collection = [];
+        $byId = [];
+        $ids = [];
+        $departureLabels = [];
+
+        $legacyPrimary = self::normaliseActivityId($config['activityId'] ?? null);
+        $legacyIds = [];
+        if (isset($config['activityIds']) && is_array($config['activityIds'])) {
+            foreach ($config['activityIds'] as $legacyId) {
+                $normalised = self::normaliseActivityId($legacyId);
+                if ($normalised !== null) {
+                    $legacyIds[] = $normalised;
+                }
+            }
+        }
+
+        if (is_array($value)) {
+            foreach ($value as $activity) {
+                if (!is_array($activity)) {
+                    continue;
+                }
+
+                $id = self::normaliseActivityId($activity['id'] ?? null);
+                if ($id === null) {
+                    continue;
+                }
+
+                $label = self::stringOrNull($activity['label'] ?? null);
+                $isPrimary = ($activity['primary'] ?? false) ? true : false;
+
+                if ($isPrimary) {
+                    $legacyPrimary = $id;
+                }
+
+                $entry = [
+                    'id' => $id,
+                    'label' => $label,
+                    'primary' => $isPrimary,
+                    'source' => 'config',
+                ];
+
+                $collection[] = $entry;
+                $byId[(string) $id] = $entry;
+                $ids[] = $id;
+
+                if ($label !== null) {
+                    $departureLabels[(string) $id] = $label;
+                }
+            }
+        }
+
+        foreach ($legacyIds as $legacyId) {
+            if (!in_array($legacyId, $ids, true)) {
+                $ids[] = $legacyId;
+                if (!isset($byId[(string) $legacyId])) {
+                    $byId[(string) $legacyId] = [
+                        'id' => $legacyId,
+                        'label' => null,
+                        'primary' => false,
+                        'source' => 'legacy',
+                    ];
+                }
+            }
+        }
+
+        $ids = array_values(array_unique($ids, SORT_REGULAR));
+
+        if ($legacyPrimary === null && $ids !== []) {
+            $legacyPrimary = $ids[0];
+        }
+
+        if ($legacyPrimary === null) {
+            throw new RuntimeException(sprintf(
+                'Activity config missing activity identifier: %s/%s',
+                $supplierSlug,
+                $activitySlug
+            ));
+        }
+
+        $primaryKey = (string) $legacyPrimary;
+        if (isset($byId[$primaryKey])) {
+            $byId[$primaryKey]['primary'] = true;
+        } else {
+            $byId[$primaryKey] = [
+                'id' => $legacyPrimary,
+                'label' => null,
+                'primary' => true,
+                'source' => 'derived',
+            ];
+        }
+
+        $collection = array_values(array_map(static function (array $entry) use ($primaryKey) {
+            $entry['primary'] = (string) $entry['id'] === $primaryKey;
+            return $entry;
+        }, $byId));
+
+        return [
+            'collection' => $collection,
+            'byId' => $byId,
+            'ids' => $ids,
+            'primaryId' => $legacyPrimary,
+            'departureLabels' => $departureLabels,
+        ];
+    }
+
+    private static function resolveConfigTimezone(array $config): string
+    {
+        $timezone = $config['timezone'] ?? $config['calendar']['timezone'] ?? null;
+        $timezone = self::stringOrNull($timezone);
+
+        if ($timezone !== null && self::isValidTimezone($timezone)) {
+            return $timezone;
+        }
+
+        if ($timezone !== null) {
+            $alias = self::timezoneAliasMap()[$timezone] ?? null;
+            if ($alias !== null && self::isValidTimezone($alias)) {
+                return $alias;
+            }
+        }
+
+        $default = date_default_timezone_get();
+        return self::isValidTimezone($default) ? $default : 'UTC';
+    }
+
+    private static function isValidTimezone(?string $timezone): bool
+    {
+        if ($timezone === null || $timezone === '') {
+            return false;
+        }
+
+        return in_array($timezone, timezone_identifiers_list(), true);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function timezoneAliasMap(): array
+    {
+        return [
+            'Hawaii' => 'Pacific/Honolulu',
+            'HST' => 'Pacific/Honolulu',
+            'Pacific/Hawaii' => 'Pacific/Honolulu',
+        ];
+    }
+
+    private static function normaliseActivityId(mixed $value): int|string|null
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed === '') {
+                return null;
+            }
+
+            if (ctype_digit($trimmed)) {
+                $int = (int) $trimmed;
+                return $int >= 0 ? $int : null;
+            }
+
+            return $trimmed;
+        }
+
+        if (is_float($value)) {
+            $int = (int) $value;
+            return $int >= 0 ? $int : null;
+        }
+
+        return null;
+    }
+
+    private static function stringOrNull(mixed $value): ?string
+    {
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            return $trimmed === '' ? null : $trimmed;
+        }
+
+        if (is_numeric($value)) {
+            return (string) $value;
+        }
+
+        return null;
     }
 
     public static function getReservationBaseUrl(): string
@@ -138,5 +742,203 @@ final class UtilityService
     public static function supplierDirectory(string $supplierSlug): string
     {
         return rtrim(self::projectRoot() . self::SUPPLIERS_PATH, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $supplierSlug;
+    }
+
+    /**
+     * Load an SVG icon and optionally override class and stroke width attributes.
+     *
+     * @param string $path        Relative path to the SVG (e.g. "assets/icons/chevron-left.svg").
+     * @param string $class       Classes to apply to the <svg> element.
+     * @param string $strokeWidth Stroke width override applied when provided.
+     */
+    public static function renderSvgIcon(string $path, string $class = '', string $strokeWidth = ''): string
+    {
+        $relative = ltrim($path, '/');
+
+        $searchPaths = [
+            self::projectRoot() . '/' . $relative,
+            self::projectRoot() . '/assets/icons/' . $relative,
+        ];
+
+        $fullPath = null;
+        foreach ($searchPaths as $candidate) {
+            if (is_file($candidate)) {
+                $fullPath = $candidate;
+                break;
+            }
+        }
+
+        if ($fullPath === null) {
+            return '';
+        }
+
+        if (!array_key_exists($fullPath, self::$iconCache)) {
+            self::$iconCache[$fullPath] = file_get_contents($fullPath) ?: null;
+        }
+
+        $svg = self::$iconCache[$fullPath];
+        if ($svg === null) {
+            return '';
+        }
+
+        if ($class !== '') {
+            $escapedClass = htmlspecialchars($class, ENT_QUOTES, 'UTF-8');
+            if (preg_match('/class="[^"]*"/', $svg)) {
+                $svg = preg_replace('/class="[^"]*"/', 'class="' . $escapedClass . '"', $svg, 1);
+            } else {
+                $svg = preg_replace('/<svg\b/', '<svg class="' . $escapedClass . '"', $svg, 1);
+            }
+        }
+
+        if ($strokeWidth !== '') {
+            $escapedStroke = htmlspecialchars($strokeWidth, ENT_QUOTES, 'UTF-8');
+            if (preg_match('/stroke-width="[^"]*"/', $svg)) {
+                $svg = preg_replace('/stroke-width="[^"]*"/', 'stroke-width="' . $escapedStroke . '"', $svg, 1);
+            } else {
+                $svg = preg_replace('/<svg\b/', '<svg stroke-width="' . $escapedStroke . '"', $svg, 1);
+            }
+        }
+
+        return $svg;
+    }
+
+    /**
+     * Return a list of gallery images for the requested supplier/activity.
+     *
+     * The method prefers an explicit `gallery` configuration array (string paths or
+     * arrays with `src`/`alt`) but falls back to scanning the supplier's `images`
+     * directory. File names containing the activity slug or display name are
+     * prioritised; if none are found the entire directory is used. Results are
+     * returned as web paths rooted at `/suppliers/...`.
+     *
+     * @param string $supplierSlug
+     * @param array<string,mixed> $activityConfig
+     * @return array<int,array{src:string,alt:string}>
+     */
+    public static function getActivityGalleryImages(string $supplierSlug, array $activityConfig): array
+    {
+        $supplierDir = self::supplierDirectory($supplierSlug);
+        $imagesDir = $supplierDir . DIRECTORY_SEPARATOR . 'images';
+
+        $displayName = (string) ($activityConfig['displayName'] ?? '');
+        $activitySlug = (string) ($activityConfig['slug'] ?? '');
+
+        $results = [];
+
+        $configured = $activityConfig['gallery'] ?? null;
+        if (is_array($configured) && $configured !== []) {
+            foreach ($configured as $entry) {
+                if (is_string($entry) && $entry !== '') {
+                    $results[] = [
+                        'src' => self::normalizeSupplierAssetPath($supplierSlug, $entry),
+                        'alt' => $displayName !== '' ? $displayName : basename($entry),
+                    ];
+                    continue;
+                }
+
+                if (is_array($entry) && isset($entry['src']) && is_string($entry['src']) && $entry['src'] !== '') {
+                    $results[] = [
+                        'src' => self::normalizeSupplierAssetPath($supplierSlug, $entry['src']),
+                        'alt' => isset($entry['alt']) && is_string($entry['alt']) && $entry['alt'] !== ''
+                            ? $entry['alt']
+                            : ($displayName !== '' ? $displayName : basename($entry['src'])),
+                    ];
+                }
+            }
+        }
+
+        if ($results !== []) {
+            return $results;
+        }
+
+        if (!is_dir($imagesDir)) {
+            return [];
+        }
+
+        $files = glob($imagesDir . DIRECTORY_SEPARATOR . '*.{jpg,jpeg,png,webp}', GLOB_BRACE);
+        if ($files === false || $files === []) {
+            return [];
+        }
+
+        $normalizedSlug = self::normalizeGalleryKey($activitySlug);
+        $normalizedDisplay = self::normalizeGalleryKey($displayName);
+
+        $matched = [];
+        foreach ($files as $file) {
+            if (!is_file($file)) {
+                continue;
+            }
+
+            $filename = pathinfo($file, PATHINFO_FILENAME) ?? '';
+            $normalizedFilename = self::normalizeGalleryKey((string) $filename);
+
+            $isMatch = false;
+            if ($normalizedSlug !== '' && str_contains($normalizedFilename, $normalizedSlug)) {
+                $isMatch = true;
+            }
+
+            if (!$isMatch && $normalizedDisplay !== '' && str_contains($normalizedFilename, $normalizedDisplay)) {
+                $isMatch = true;
+            }
+
+            if ($isMatch) {
+                $matched[] = $file;
+            }
+        }
+
+        if ($matched === []) {
+            return [];
+        }
+
+        natsort($matched);
+
+        foreach ($matched as $file) {
+            $basename = basename($file);
+            $results[] = [
+                'src' => '/suppliers/' . $supplierSlug . '/images/' . $basename,
+                'alt' => $displayName !== '' ? $displayName : $basename,
+            ];
+        }
+
+        return array_values($results);
+    }
+
+    public static function resolveSupplierAssetUrl(string $supplierSlug, string $path): string
+    {
+        return self::normalizeSupplierAssetPath($supplierSlug, $path);
+    }
+
+    private static function normalizeSupplierAssetPath(string $supplierSlug, string $path): string
+    {
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        if ($path !== '' && $path[0] === '/') {
+            return $path;
+        }
+
+        $trimmed = ltrim($path, '/');
+        if ($trimmed === '') {
+            return '';
+        }
+
+        if (str_starts_with($trimmed, 'suppliers/')) {
+            return '/' . $trimmed;
+        }
+
+        return '/suppliers/' . $supplierSlug . '/' . $trimmed;
+    }
+
+    private static function normalizeGalleryKey(string $value): string
+    {
+        if ($value === '') {
+            return '';
+        }
+
+        $normalized = strtolower($value);
+        $normalized = preg_replace('/[^a-z0-9]+/i', '-', $normalized) ?? '';
+
+        return trim($normalized, '-');
     }
 }

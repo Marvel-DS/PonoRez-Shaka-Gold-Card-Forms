@@ -1,0 +1,11 @@
+[data-component="form-header"] a.home-link {
+    border-color: var(--brand-color, #1C55DB);
+    color: var(--brand-color, #1C55DB);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+[data-component="form-header"] a.home-link:hover,
+[data-component="form-header"] a.home-link:focus-visible {
+    background-color: var(--brand-color, #1C55DB);
+    color: #ffffff;
+}

@@ -42,7 +42,12 @@ $supplierName = $supplier['name']
     ?? $supplier['supplierName']
     ?? ucfirst(str_replace('-', ' ', (string) ($supplier['slug'] ?? 'Supplier')));
 
-$showInfoColumn = UtilityService::shouldShowInfoColumn($activityConfig);
+$showInfoColumn = $bootstrap['activity']['showInfoColumn']
+    ?? UtilityService::shouldShowInfoColumn($activityConfig);
+
+$layoutColumns = $showInfoColumn
+    ? 'lg:grid-cols-[minmax(0,0.95fr),minmax(0,1.2fr)]'
+    : 'lg:grid-cols-1';
 
 ?>
 <!DOCTYPE html>
@@ -55,7 +60,7 @@ $showInfoColumn = UtilityService::shouldShowInfoColumn($activityConfig);
     <link rel="stylesheet" href="/assets/css/main.css">
     <?php include __DIR__ . '/branding.php'; ?>
 </head>
-<body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
+<body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased py-2 md:py-6 px-2 md:px-6">
 <script type="application/json" id="sgc-bootstrap"><?= $bootstrapJson ?></script>
 <script>
     window.__SGC_BOOTSTRAP__ = JSON.parse(document.getElementById('sgc-bootstrap').textContent || '{}');
@@ -68,40 +73,36 @@ $showInfoColumn = UtilityService::shouldShowInfoColumn($activityConfig);
     $homeLink = $supplier['homeLink'] ?? [];
 ?>
 
-<main class="mx-auto max-w-6xl px-6 pb-16">
-<?php include __DIR__ . '/component-hero-gallery.php'; ?>
+<div class="mx-auto max-w-6xl bg-white rounded-xl border border-slate-200 shadow-xs">
 
-<?php include __DIR__ . '/section-description.php'; ?>
+    <?php include __DIR__ . '/section-header.php'; ?>
 
-    <form id="sgc-booking-form" class="mt-8 space-y-8" novalidate>
-        <div class="grid gap-8 lg:grid-cols-2 lg:items-start">
-            <?php if ($showInfoColumn): ?>
-                <div class="space-y-10 lg:pr-4">
-                    <?php include dirname(__DIR__) . '/form/activity-info-column.php'; ?>
-                </div>
-            <?php endif; ?>
+    <main class="px-6 pb-16">
 
-            <div class="space-y-6">
-                <div data-component="alerts" class="space-y-3" role="region" aria-live="polite"></div>
+        <?php include __DIR__ . '/section-hero.php'; ?>
 
-                <section class="rounded-3xl bg-white p-6 shadow-lg ring-1 ring-slate-200/70 sm:p-8 space-y-8">
-                    <?php include dirname(__DIR__) . '/form/component-guest-types.php'; ?>
-                    <?php include dirname(__DIR__) . '/form/component-calendar.php'; ?>
-                    <?php include dirname(__DIR__) . '/form/component-timeslot.php'; ?>
-                    <?php include dirname(__DIR__) . '/form/component-transportation.php'; ?>
-                    <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
-                    <?php include dirname(__DIR__) . '/form/component-pricing.php'; ?>
-                </section>
-            </div>
-        </div>
+        <form id="sgc-booking-form" class="space-y-6" novalidate>
 
-        <?php include dirname(__DIR__) . '/form/component-button.php'; ?>
-    </form>
-</main>
+            <div data-component="alerts" class="space-y-3" role="region" aria-live="polite"></div>
 
-<footer class="px-6 pb-10 text-center text-xs text-slate-500">
-    Powered by Ponorez &middot; <?= htmlspecialchars($supplierName, ENT_QUOTES, 'UTF-8') ?>
-</footer>
+            <?php include dirname(__DIR__) . '/form/component-guest-types.php'; ?>
+            <?php include dirname(__DIR__) . '/form/component-calendar.php'; ?>
+            <?php include dirname(__DIR__) . '/form/component-timeslot.php'; ?>
+            <?php include dirname(__DIR__) . '/form/component-transportation.php'; ?>
+            <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
+            <?php include dirname(__DIR__) . '/form/component-pricing.php'; ?>
+
+            <?php include dirname(__DIR__) . '/form/component-button.php'; ?>
+
+        </form>
+
+    </main>
+
+    <footer class="px-6 pb-10 text-center text-xs text-slate-500">
+        Powered by Ponorez &middot; <?= htmlspecialchars($supplierName, ENT_QUOTES, 'UTF-8') ?>
+    </footer>
+
+</div>
 
 <?php include dirname(__DIR__) . '/shared/component-overlay.php'; ?>
 

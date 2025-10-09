@@ -51,7 +51,7 @@ UtilityService::validateConfig($formConfig, [
   <?php if (!empty($formConfig['enableActivityInfo'])): ?>
     <?php include UtilityService::partialsBaseDir() . '/layout/form-advanced.php'; ?>
   <?php else: ?>
-    <?php include UtilityService::partialsBaseDir() . '/layout/form-basic.php'; ?>
+    <?php include UtilityService::partialsBaseDir() . '/layout/form-template.php'; ?>
   <?php endif; ?>
 
   <!-- Footer -->

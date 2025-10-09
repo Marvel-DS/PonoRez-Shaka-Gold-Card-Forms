@@ -9,6 +9,7 @@ use PonoRez\SGCForms\Cache\CacheKeyGenerator;
 use PonoRez\SGCForms\DTO\GuestType;
 use PonoRez\SGCForms\DTO\GuestTypeCollection;
 use PonoRez\SGCForms\UtilityService;
+use RuntimeException;
 use SoapFault;
 use Throwable;
 
@@ -47,20 +48,30 @@ final class GuestTypeService
     private function buildCollectionFromConfig(array $activityConfig): GuestTypeCollection
     {
         $collection = new GuestTypeCollection();
-        $labels = $activityConfig['guestTypeLabels'] ?? [];
-        $descriptions = $activityConfig['ponorezGuestTypeDescriptions'] ?? [];
-        $min = $activityConfig['minGuestCount'] ?? [];
-        $max = $activityConfig['maxGuestCount'] ?? [];
+        $guestTypes = UtilityService::getGuestTypes($activityConfig);
 
-        foreach ($activityConfig['guestTypeIds'] ?? [] as $guestTypeId) {
-            $id = (string) $guestTypeId;
+        foreach ($guestTypes as $guestType) {
+            if (!isset($guestType['id'])) {
+                continue;
+            }
+
+            $id = (string) $guestType['id'];
+            if ($id === '') {
+                continue;
+            }
+
+            $minQuantity = isset($guestType['minQuantity']) ? (int) $guestType['minQuantity'] : 0;
+            $maxQuantity = isset($guestType['maxQuantity']) && $guestType['maxQuantity'] !== null
+                ? (int) $guestType['maxQuantity']
+                : 0;
+
             $collection->add(new GuestType(
                 $id,
-                $labels[$id] ?? $id,
-                $descriptions[$id] ?? null,
-                null,
-                isset($min[$id]) ? (int) $min[$id] : 0,
-                isset($max[$id]) ? (int) $max[$id] : 0
+                isset($guestType['label']) ? (string) $guestType['label'] : $id,
+                isset($guestType['description']) ? $guestType['description'] : null,
+                isset($guestType['price']) && is_numeric($guestType['price']) ? (float) $guestType['price'] : null,
+                max(0, $minQuantity),
+                max(0, $maxQuantity)
             ));
         }
 
@@ -95,13 +106,18 @@ final class GuestTypeService
     {
         $client = $this->soapClientBuilder->build();
 
+        $primaryActivityId = UtilityService::getPrimaryActivityId($activityConfig);
+        if ($primaryActivityId === null) {
+            throw new RuntimeException('Unable to determine primary activity ID for guest type lookup.');
+        }
+
         $payload = [
             'serviceLogin' => [
                 'username' => $supplierConfig['soapCredentials']['username'],
                 'password' => $supplierConfig['soapCredentials']['password'],
             ],
             'supplierId' => $supplierConfig['supplierId'],
-            'activityId' => $activityConfig['activityId'],
+            'activityId' => $primaryActivityId,
             'date' => $date,
         ];
 

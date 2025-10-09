@@ -11,7 +11,7 @@ This roadmap outlines the sequential task list for modernizing the booking appli
 4. [Done] Install Node dependencies; configure Tailwind/Vite build scripts in `package.json`.
 5. [Done] Implement `controller/Setup.php` to load `.env`, configs, autoloaders, and logging defaults.
 6. [In progress] Update all entry points (`index.php`, `public/index.php`, each file in `api/`) to require `Setup.php`.
-7. [Done] Render a minimal page using `partials/layout/form-basic.php` and `partials/form/component-button.php` to verify bootstrap + asset pipeline.
+7. [Done] Render a minimal page using `partials/layout/form-template.php` and `partials/form/component-button.php` to verify bootstrap + asset pipeline.
 8. [Done] Run smoke tests: ensure `npm run build` (or equivalent) and `composer dump-autoload` succeed.
 
 ## Sprint 1 – Core Data Services _(Weeks 2–3)_

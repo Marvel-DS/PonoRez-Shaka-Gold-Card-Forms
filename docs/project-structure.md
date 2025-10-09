@@ -222,7 +222,7 @@ Server-rendered PHP fragments composing the booking page(s).
 | File | Description |
 |------|-------------|
 | `branding.php` | Injects CSS variables and link tags based on supplier branding. |
-| `form-advanced.php` / `form-basic.php` | Two layout variants wrapping form components. |
+| `form-advanced.php` / `form-template.php` | Two layout variants wrapping form components. |
 | `section-footer.php` / `section-header.php` / `section-hero.php` | Surrounding UI elements (hero banner, navigation, footer). |
 
 ### 8.3 `partials/shared/`

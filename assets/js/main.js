@@ -6,6 +6,7 @@ import { initTransportation } from './modules/transportation.js';
 import { initUpgrades } from './modules/upgrades.js';
 import { initPricing } from './modules/pricing.js';
 import { initBooking } from './modules/booking.js';
+import { initGallery } from './modules/gallery.js';
 
 function removeAvailabilityMetadataDebug() {
     document.querySelectorAll('[data-availability-metadata]').forEach((element) => {
@@ -14,6 +15,7 @@ function removeAvailabilityMetadataDebug() {
 }
 
 function bootstrap() {
+    initGallery();
     initAlerts();
     initGuestTypes();
     initCalendar();
