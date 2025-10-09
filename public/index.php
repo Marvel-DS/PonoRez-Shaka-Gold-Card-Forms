@@ -5,6 +5,7 @@ declare(strict_types=1);
 use PonoRez\SGCForms\Cache\FileCache;
 use PonoRez\SGCForms\Cache\NullCache;
 use PonoRez\SGCForms\Services\ActivityInfoService;
+use PonoRez\SGCForms\Services\GuestTypeService;
 use PonoRez\SGCForms\Services\SoapClientBuilder;
 use PonoRez\SGCForms\UtilityService;
 
@@ -215,12 +216,158 @@ $activityInfoById = is_array($activityInfoResult['activities'] ?? null)
     ? $activityInfoResult['activities']
     : [];
 
+$currentDate = date('Y-m-d');
+
 $primaryActivityId = UtilityService::getPrimaryActivityId($activityConfig);
 $activityIds = UtilityService::getActivityIds($activityConfig);
 $activityList = UtilityService::getActivities($activityConfig);
 $departureLabels = UtilityService::getDepartureLabels($activityConfig);
 $guestTypeCollection = UtilityService::getGuestTypes($activityConfig);
 $guestTypesById = UtilityService::getGuestTypesById($activityConfig);
+
+$guestTypeDetailMap = [];
+
+try {
+    $guestTypeCacheDirectory = UtilityService::projectRoot() . '/cache/guest-types';
+    $guestTypeCache = is_writable(dirname($guestTypeCacheDirectory))
+        ? new FileCache($guestTypeCacheDirectory)
+        : new NullCache();
+
+    $guestTypeService = new GuestTypeService($guestTypeCache, new SoapClientBuilder());
+    $guestTypeCollectionFromPonorez = $guestTypeService->fetch($supplierSlug, $activitySlug, $currentDate);
+
+    foreach ($guestTypeCollectionFromPonorez->toArray() as $detail) {
+        if (!is_array($detail)) {
+            continue;
+        }
+
+        $id = isset($detail['id']) ? (string) $detail['id'] : '';
+        if ($id === '') {
+            continue;
+        }
+
+        $guestTypeDetailMap[$id] = $detail;
+    }
+} catch (Throwable) {
+    $guestTypeDetailMap = [];
+}
+
+$normalizeGuestTypeEntry = static function (array $guestType, array $detailMap): ?array {
+    if (!isset($guestType['id'])) {
+        return null;
+    }
+
+    $id = (string) $guestType['id'];
+    if ($id === '') {
+        return null;
+    }
+
+    $detail = $detailMap[$id] ?? null;
+
+    $configLabel = isset($guestType['label']) ? trim((string) $guestType['label']) : '';
+    $detailLabel = null;
+    if (is_array($detail)) {
+        if (isset($detail['label'])) {
+            $detailLabel = trim((string) $detail['label']);
+        } elseif (isset($detail['name'])) {
+            $detailLabel = trim((string) $detail['name']);
+        }
+        if ($detailLabel === '') {
+            $detailLabel = null;
+        }
+    }
+
+    if ($configLabel !== '') {
+        $label = $configLabel;
+        $labelSource = 'config';
+    } elseif ($detailLabel !== null) {
+        $label = $detailLabel;
+        $labelSource = 'ponorez';
+    } else {
+        $label = $id;
+        $labelSource = 'fallback';
+    }
+
+    $configDescription = isset($guestType['description']) ? trim((string) $guestType['description']) : '';
+    $detailDescription = null;
+    if (is_array($detail) && array_key_exists('description', $detail)) {
+        $detailDescriptionCandidate = trim((string) $detail['description']);
+        if ($detailDescriptionCandidate !== '') {
+            $detailDescription = $detailDescriptionCandidate;
+        }
+    }
+
+    if ($configDescription !== '') {
+        $description = $configDescription;
+        $descriptionSource = 'config';
+    } elseif ($detailDescription !== null) {
+        $description = $detailDescription;
+        $descriptionSource = 'ponorez';
+    } else {
+        $description = null;
+        $descriptionSource = 'fallback';
+    }
+
+    $price = null;
+    if (isset($guestType['price']) && $guestType['price'] !== '' && is_numeric($guestType['price'])) {
+        $price = (float) $guestType['price'];
+    } elseif (is_array($detail) && isset($detail['price']) && is_numeric($detail['price'])) {
+        $price = (float) $detail['price'];
+    }
+
+    $minQuantity = isset($guestType['minQuantity']) ? max(0, (int) $guestType['minQuantity']) : 0;
+    $maxQuantity = null;
+    if (array_key_exists('maxQuantity', $guestType) && $guestType['maxQuantity'] !== null && $guestType['maxQuantity'] !== '') {
+        $maxQuantity = max($minQuantity, (int) $guestType['maxQuantity']);
+    }
+
+    return [
+        'id' => $id,
+        'label' => $label,
+        'labelSource' => $labelSource,
+        'description' => $description,
+        'descriptionSource' => $descriptionSource,
+        'price' => $price,
+        'minQuantity' => $minQuantity,
+        'maxQuantity' => $maxQuantity,
+    ];
+};
+
+$guestTypeCollectionNormalized = [];
+foreach ($guestTypeCollection as $guestType) {
+    if (!is_array($guestType)) {
+        continue;
+    }
+
+    $normalized = $normalizeGuestTypeEntry($guestType, $guestTypeDetailMap);
+    if ($normalized === null) {
+        continue;
+    }
+
+    $guestTypeCollectionNormalized[] = $normalized;
+}
+
+$guestTypesByIdNormalized = [];
+foreach ($guestTypesById as $guestType) {
+    if (!is_array($guestType)) {
+        continue;
+    }
+
+    $normalized = $normalizeGuestTypeEntry($guestType, $guestTypeDetailMap);
+    if ($normalized === null) {
+        continue;
+    }
+
+    $guestTypesByIdNormalized[$normalized['id']] = $normalized;
+}
+
+foreach ($guestTypeCollectionNormalized as $entry) {
+    $guestTypesByIdNormalized[$entry['id']] = $entry;
+}
+
+$activityConfig['guestTypes']['collection'] = $guestTypeCollectionNormalized;
+$activityConfig['guestTypes']['byId'] = $guestTypesByIdNormalized;
+
 $normalizeActivityIdentifier = static function (mixed $value): int|string|null {
     if (is_int($value)) {
         return $value;
@@ -252,39 +399,6 @@ $showInfoColumn = UtilityService::shouldShowInfoColumn($activityConfig);
 $shakaGoldCardNumber = UtilityService::getShakaGoldCardNumber($activityConfig);
 $primaryActivityIdString = $primaryActivityId === null ? null : (string) $primaryActivityId;
 
-$guestTypeCollectionNormalized = [];
-foreach ($guestTypeCollection as $guestType) {
-    if (!is_array($guestType) || !isset($guestType['id'])) {
-        continue;
-    }
-
-    $id = (string) $guestType['id'];
-    if ($id === '') {
-        continue;
-    }
-
-    $guestTypeCollectionNormalized[] = [
-        'id' => $id,
-        'label' => isset($guestType['label']) ? (string) $guestType['label'] : $id,
-        'labelSource' => isset($guestType['labelSource']) && is_string($guestType['labelSource'])
-            ? $guestType['labelSource']
-            : 'fallback',
-        'description' => isset($guestType['description']) && $guestType['description'] !== ''
-            ? (string) $guestType['description']
-            : null,
-        'descriptionSource' => isset($guestType['descriptionSource']) && is_string($guestType['descriptionSource'])
-            ? $guestType['descriptionSource']
-            : 'fallback',
-        'price' => isset($guestType['price']) && is_numeric($guestType['price'])
-            ? (float) $guestType['price']
-            : null,
-        'minQuantity' => isset($guestType['minQuantity']) ? max(0, (int) $guestType['minQuantity']) : 0,
-        'maxQuantity' => isset($guestType['maxQuantity']) && $guestType['maxQuantity'] !== null && $guestType['maxQuantity'] !== ''
-            ? max(0, (int) $guestType['maxQuantity'])
-            : null,
-    ];
-}
-
 $activityListNormalized = [];
 foreach ($activityList as $activity) {
     if (!is_array($activity) || !isset($activity['id'])) {
@@ -304,39 +418,6 @@ foreach ($activityList as $activity) {
         'label' => isset($activity['label']) && $activity['label'] !== '' ? (string) $activity['label'] : null,
         'primary' => $isPrimary || (bool) ($activity['primary'] ?? false),
         'source' => isset($activity['source']) && is_string($activity['source']) ? $activity['source'] : 'config',
-    ];
-}
-
-$guestTypesByIdNormalized = [];
-foreach ($guestTypesById as $id => $guestType) {
-    if (!is_array($guestType) || !isset($guestType['id'])) {
-        continue;
-    }
-
-    $normalizedId = (string) $guestType['id'];
-    if ($normalizedId === '') {
-        continue;
-    }
-
-    $guestTypesByIdNormalized[$normalizedId] = [
-        'id' => $normalizedId,
-        'label' => isset($guestType['label']) ? (string) $guestType['label'] : $normalizedId,
-        'labelSource' => isset($guestType['labelSource']) && is_string($guestType['labelSource'])
-            ? $guestType['labelSource']
-            : 'fallback',
-        'description' => isset($guestType['description']) && $guestType['description'] !== ''
-            ? (string) $guestType['description']
-            : null,
-        'descriptionSource' => isset($guestType['descriptionSource']) && is_string($guestType['descriptionSource'])
-            ? $guestType['descriptionSource']
-            : 'fallback',
-        'price' => isset($guestType['price']) && is_numeric($guestType['price'])
-            ? (float) $guestType['price']
-            : null,
-        'minQuantity' => isset($guestType['minQuantity']) ? max(0, (int) $guestType['minQuantity']) : 0,
-        'maxQuantity' => isset($guestType['maxQuantity']) && $guestType['maxQuantity'] !== null && $guestType['maxQuantity'] !== ''
-            ? max(0, (int) $guestType['maxQuantity'])
-            : null,
     ];
 }
 
@@ -465,7 +546,7 @@ $bootstrapData = [
     ],
     'api' => $apiEndpoints,
     'environment' => [
-        'currentDate' => date('Y-m-d'),
+        'currentDate' => $currentDate,
     ],
 ];
 
