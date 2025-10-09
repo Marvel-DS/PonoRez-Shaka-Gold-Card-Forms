@@ -78,6 +78,22 @@ final class GuestTypeService
         return $collection;
     }
 
+    private static function firstNonEmptyString(array $candidates): ?string
+    {
+        foreach ($candidates as $candidate) {
+            if ($candidate === null) {
+                continue;
+            }
+
+            $string = trim((string) $candidate);
+            if ($string !== '') {
+                return $string;
+            }
+        }
+
+        return null;
+    }
+
     private function mergeCollection(GuestTypeCollection $collection, array $soapData): GuestTypeCollection
     {
         foreach ($soapData as $row) {
@@ -87,12 +103,26 @@ final class GuestTypeService
             }
 
             $guestType = $collection->get($id) ?? new GuestType($id, (string) ($row['name'] ?? $id));
-            if (isset($row['name'])) {
-                $guestType->setLabel((string) $row['name']);
+            $label = self::firstNonEmptyString([
+                $row['label'] ?? null,
+                $row['name'] ?? null,
+                $row['guestTypeName'] ?? null,
+                $row['guestType'] ?? null,
+            ]);
+
+            if ($label !== null) {
+                $guestType->setLabel($label);
             }
-            if (isset($row['description'])) {
-                $guestType->setDescription((string) $row['description']);
+
+            $description = self::firstNonEmptyString([
+                $row['description'] ?? null,
+                $row['guestTypeDescription'] ?? null,
+            ]);
+
+            if ($description !== null) {
+                $guestType->setDescription($description);
             }
+
             if (isset($row['price'])) {
                 $guestType->setPrice(is_numeric($row['price']) ? (float) $row['price'] : null);
             }

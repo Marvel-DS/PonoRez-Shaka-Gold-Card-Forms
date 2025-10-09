@@ -163,6 +163,26 @@ final class GuestTypesTest extends TestCase
         self::assertSame(50.0, $child->getPrice());
     }
 
+    public function testFetchUsesAlternateLabelFieldsWhenNameMissing(): void
+    {
+        $soapRow = new stdClass();
+        $soapRow->guestTypeId = 999;
+        $soapRow->label = 'General Admission';
+        $soapRow->guestTypeDescription = 'Label-provided description';
+
+        $client = new RecordingSoapClient($soapRow);
+        $builder = new StubSoapClientFactory($client);
+        $cache = new CacheSpy();
+
+        $service = new GuestTypeService($cache, $builder);
+        $collection = $service->fetch(self::SUPPLIER_SLUG, self::ACTIVITY_SLUG, self::TRAVEL_DATE);
+
+        $entry = $collection->get('999');
+        self::assertInstanceOf(GuestType::class, $entry);
+        self::assertSame('General Admission', $entry->getLabel());
+        self::assertSame('Label-provided description', $entry->getDescription());
+    }
+
     public function testFetchReturnsConfigWhenSoapThrows(): void
     {
         $fault = new SoapFault('Server', 'Failure');
