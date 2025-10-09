@@ -10,6 +10,14 @@ $activityConfig = $page['activity'] ?? [];
 $isPrivateActivity = filter_var($bootstrap['activity']['privateActivity'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
 $guestTypeEntries = UtilityService::getGuestTypes($activityConfig);
+$bootstrapGuestTypes = [];
+
+if (isset($bootstrap['activity']['guestTypes']['byId'])
+    && is_array($bootstrap['activity']['guestTypes']['byId'])
+) {
+    $bootstrapGuestTypes = $bootstrap['activity']['guestTypes']['byId'];
+}
+
 if ($guestTypeEntries === []) {
     $guestTypeEntries = $bootstrap['activity']['guestTypes']['collection'] ?? [];
 }
@@ -32,9 +40,25 @@ foreach ($guestTypeEntries as $guestType) {
         ? (string) $guestType['label']
         : $stringId;
 
+    $bootstrapLabel = $bootstrapGuestTypes[$stringId]['label'] ?? null;
+    if (is_string($bootstrapLabel)) {
+        $trimmedLabel = trim($bootstrapLabel);
+        if ($trimmedLabel !== '') {
+            $label = $trimmedLabel;
+        }
+    }
+
     $description = isset($guestType['description']) && $guestType['description'] !== ''
         ? (string) $guestType['description']
         : null;
+
+    $bootstrapDescription = $bootstrapGuestTypes[$stringId]['description'] ?? null;
+    if (($description === null || $description === '') && is_string($bootstrapDescription)) {
+        $trimmedDescription = trim($bootstrapDescription);
+        if ($trimmedDescription !== '') {
+            $description = $trimmedDescription;
+        }
+    }
 
     $minValue = isset($guestType['minQuantity']) ? max(0, (int) $guestType['minQuantity']) : 0;
     $maxCandidate = isset($guestType['maxQuantity']) && $guestType['maxQuantity'] !== null && $guestType['maxQuantity'] !== ''
