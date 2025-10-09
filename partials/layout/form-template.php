@@ -45,9 +45,20 @@ $supplierName = $supplier['name']
 $showInfoColumn = $bootstrap['activity']['showInfoColumn']
     ?? UtilityService::shouldShowInfoColumn($activityConfig);
 
-$layoutColumns = $showInfoColumn
-    ? 'lg:grid-cols-[minmax(0,0.95fr),minmax(0,1.2fr)]'
-    : 'lg:grid-cols-1';
+// Pre-render activity info blocks so we can collapse the column when nothing is configured.
+$activityInfoBlocksHtml = '';
+if ($showInfoColumn) {
+    ob_start();
+    include dirname(__DIR__) . '/form/activity-info-blocks.php';
+    $activityInfoBlocksHtml = trim((string) ob_get_clean());
+
+    if ($activityInfoBlocksHtml === '') {
+        $showInfoColumn = false;
+    }
+}
+
+// Ensure the top-level title still reflects the activity after any includes.
+$title = $activity['displayName'] ?? 'SGC Booking Forms';
 
 ?>
 <!DOCTYPE html>
@@ -60,7 +71,7 @@ $layoutColumns = $showInfoColumn
     <link rel="stylesheet" href="/assets/css/main.css">
     <?php include __DIR__ . '/branding.php'; ?>
 </head>
-<body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased py-2 md:py-6 px-2 md:px-6">
+<body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased py-3 md:py-6 px-2 md:px-6">
 <script type="application/json" id="sgc-bootstrap"><?= $bootstrapJson ?></script>
 <script>
     window.__SGC_BOOTSTRAP__ = JSON.parse(document.getElementById('sgc-bootstrap').textContent || '{}');
@@ -77,20 +88,45 @@ $layoutColumns = $showInfoColumn
 
     <?php include __DIR__ . '/section-header.php'; ?>
 
-    <main class="px-6 pb-16">
+    <main class="px-4 md:px-6 pb-16 space-y-8">
 
         <?php include __DIR__ . '/section-hero.php'; ?>
 
-        <form id="sgc-booking-form" class="space-y-6" novalidate>
+        <div data-component="alerts" class="space-y-3" role="region" aria-live="polite"></div>
 
-            <div data-component="alerts" class="space-y-3" role="region" aria-live="polite"></div>
+        <form id="sgc-booking-form" class="space-y-8" novalidate>
 
-            <?php include dirname(__DIR__) . '/form/component-guest-types.php'; ?>
-            <?php include dirname(__DIR__) . '/form/component-calendar.php'; ?>
-            <?php include dirname(__DIR__) . '/form/component-timeslot.php'; ?>
-            <?php include dirname(__DIR__) . '/form/component-transportation.php'; ?>
-            <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
-            <?php include dirname(__DIR__) . '/form/component-pricing.php'; ?>
+            <?php if ($showInfoColumn): ?>
+
+                <div class="grid gap-8 lg:grid-cols-2 lg:items-start">
+
+                    <div class="space-y-8 order-2 md:order-1" aria-label="Activity information">
+                        <?= $activityInfoBlocksHtml ?>
+                    </div>
+
+                    <div class="space-y-8 order-1 md:order-2" aria-label="Booking form">
+
+                        <?php include dirname(__DIR__) . '/form/component-guest-types.php'; ?>
+                        <?php include dirname(__DIR__) . '/form/component-calendar.php'; ?>
+                        <?php include dirname(__DIR__) . '/form/component-timeslot.php'; ?>
+                        <?php include dirname(__DIR__) . '/form/component-transportation.php'; ?>
+                        <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
+                        <?php include dirname(__DIR__) . '/form/component-pricing.php'; ?>
+
+                    </div>
+
+                </div>
+
+            <?php else: ?>
+
+                <?php include dirname(__DIR__) . '/form/component-guest-types.php'; ?>
+                <?php include dirname(__DIR__) . '/form/component-calendar.php'; ?>
+                <?php include dirname(__DIR__) . '/form/component-timeslot.php'; ?>
+                <?php include dirname(__DIR__) . '/form/component-transportation.php'; ?>
+                <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
+                <?php include dirname(__DIR__) . '/form/component-pricing.php'; ?>
+                
+            <?php endif; ?>
 
             <?php include dirname(__DIR__) . '/form/component-button.php'; ?>
 

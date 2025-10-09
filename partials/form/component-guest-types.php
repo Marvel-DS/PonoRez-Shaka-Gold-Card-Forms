@@ -4,22 +4,27 @@ declare(strict_types=1);
 
 use PonoRez\SGCForms\UtilityService;
 
+/**
+ * Component: Guest types list 
+ * 
+ * Render the guest types fields.
+ */
+
 $page = $pageContext ?? [];
 $bootstrap = $page['bootstrap'] ?? [];
 $activityConfig = $page['activity'] ?? [];
 $isPrivateActivity = filter_var($bootstrap['activity']['privateActivity'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
-$guestTypeEntries = UtilityService::getGuestTypes($activityConfig);
+// Prefer the normalized collection coming from the server bootstrap.
+$guestTypeEntries = $bootstrap['activity']['guestTypes']['collection'] ?? [];
 $bootstrapGuestTypes = [];
 
-if (isset($bootstrap['activity']['guestTypes']['byId'])
-    && is_array($bootstrap['activity']['guestTypes']['byId'])
-) {
-    $bootstrapGuestTypes = $bootstrap['activity']['guestTypes']['byId'];
+if ($guestTypeEntries === []) {
+    $guestTypeEntries = UtilityService::getGuestTypes($activityConfig);
 }
 
-if ($guestTypeEntries === []) {
-    $guestTypeEntries = $bootstrap['activity']['guestTypes']['collection'] ?? [];
+if (isset($bootstrap['activity']['guestTypes']['byId']) && is_array($bootstrap['activity']['guestTypes']['byId'])) {
+    $bootstrapGuestTypes = $bootstrap['activity']['guestTypes']['byId'];
 }
 
 $defaultGuestRange = 10;
@@ -102,7 +107,8 @@ $label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people ar
             ?>
             <?php $isCheckboxControl = $guestType['control'] === 'checkbox'; ?>
             <?php if ($isCheckboxControl && $minValue === 1 && $maxValue === 1): ?>
-                <div class="flex flex-wrap items-center justify-between hidden"
+                <?php // Single-quantity guest types are rendered as hidden checkboxes so they remain counted but don't clutter the UI. ?>
+                <div class="hidden"
                      data-guest-type="<?= htmlspecialchars($guestType['id'], ENT_QUOTES, 'UTF-8') ?>"
                      data-min="<?= $minValue ?>"
                      data-max="<?= $maxValue ?>"
@@ -127,6 +133,7 @@ $label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people ar
                     </div>
                 </div>
             <?php else: ?>
+                <?php // Standard select-driven guest type row. ?>
                 <div class="flex flex-wrap items-center justify-between gap-6 pe-3 rounded-xl border border-slate-200 shadow-xs"
                      data-guest-type="<?= htmlspecialchars($guestType['id'], ENT_QUOTES, 'UTF-8') ?>"
                      data-min="<?= $minValue ?>"

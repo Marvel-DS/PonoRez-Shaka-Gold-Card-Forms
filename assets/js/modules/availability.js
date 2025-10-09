@@ -11,6 +11,9 @@ import {
     formatCurrencyForState,
 } from './pricing-utils.js';
 
+const CHECK_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="h-full w-full"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>';
+
+
 let availabilityPanel;
 let timeslotList;
 let summaryBanner;
@@ -1037,40 +1040,47 @@ function renderTimeslots(state) {
             }
 
             const card = createElement('div', {
-                className: 'flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white px-5 pb-5 pt-5 shadow-sm transition duration-150 hover:border-[#1C55DB]/60 hover:shadow-md focus-within:ring-2 focus-within:ring-[#1C55DB] focus-within:ring-offset-2 focus-within:ring-offset-white',
+                className: 'flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white px-5 pb-5 pt-5 shadow-xs hover:border-[var(--sgc-brand-primary)]/25 hover:shadow-xl transition-all duration-300',
             });
 
             const headerRow = createElement('div', {
                 className: 'flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between',
             });
 
-            const radioWrapper = createElement('div', { className: 'flex items-center gap-4' });
+            const radioWrapper = createElement('div', { className: 'flex items-center gap-4 items-start' });
 
             const radioVisual = createElement('span', {
-                className: 'relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white transition duration-150',
+                className: 'relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white transition-all duration-300',
             });
 
-            const radioDot = createElement('span', {
-                className: 'block h-2.5 w-2.5 rounded-full bg-transparent transition duration-150',
+            const radioIcon = createElement('span', {
+                className: 'flex h-4 w-4 items-center justify-center transition-all duration-300 text-white',
+                attributes: { 'aria-hidden': 'true' },
             });
 
-            radioVisual.appendChild(radioDot);
+            radioVisual.appendChild(radioIcon);
 
             const labelText = createElement('span', {
                 className: 'text-lg font-semibold tracking-tight text-slate-900',
                 text: timeslot.label,
             });
 
-            radioWrapper.appendChild(radioVisual);
-            radioWrapper.appendChild(labelText);
-
             const availabilityText = createElement('span', {
-                className: getAvailabilityBadgeClasses(timeslot),
+                className: 'text-xs font-normal text-slate-600',
                 text: describeAvailability(timeslot),
             });
 
+            const labelGroup = createElement('div', {
+                className: 'flex flex-col gap-0',
+            });
+
+            labelGroup.appendChild(labelText);
+            labelGroup.appendChild(availabilityText);
+
+            radioWrapper.appendChild(radioVisual);
+            radioWrapper.appendChild(labelGroup);
+
             headerRow.appendChild(radioWrapper);
-            headerRow.appendChild(availabilityText);
 
             const priceInfo = createElement('div', {
                 className: 'flex flex-col gap-6 border-t border-slate-200 pt-4 text-sm text-slate-600 sm:flex-row sm:items-end sm:justify-between',
@@ -1089,21 +1099,16 @@ function renderTimeslots(state) {
 
             } else {
                 const breakdownWrapper = createElement('div', { className: 'flex-1 space-y-3' });
-                const list = createElement('dl', { className: 'space-y-2 text-sm text-slate-600' });
+                const list = createElement('dl', { className: 'space-y-0 text-xs text-slate-900' });
 
                 guestBreakdown.forEach((line) => {
                     const row = createElement('div', {
                         className: 'flex items-center justify-between gap-6',
                     });
 
-                    row.appendChild(createElement('dt', {
-                        className: 'font-medium text-slate-700',
-                        text: `${line.count} × ${line.label}`,
-                    }));
-
-                    row.appendChild(createElement('dd', {
-                        className: 'font-semibold text-slate-900',
-                        text: formatCurrencyForState(state, line.total),
+                    row.appendChild(createElement('span', {
+                        className: 'font-medium text-slate-900',
+                        text: `${line.count} × ${line.label}: ${formatCurrencyForState(state, line.total)}`,
                     }));
 
                     list.appendChild(row);
@@ -1153,13 +1158,8 @@ function renderTimeslots(state) {
                 });
 
                 totalsWrapper.appendChild(createElement('span', {
-                    className: 'text-xs font-semibold uppercase tracking-[0.2em] text-slate-500',
-                    text: 'Total',
-                }));
-
-                totalsWrapper.appendChild(createElement('span', {
                     className: 'text-xl font-semibold text-slate-900',
-                    text: formatCurrencyForState(state, pricingTotals.total),
+                    text: `Total: ${formatCurrencyForState(state, pricingTotals.total)}`,
                 }));
 
                 if (feesAmount > 0) {
@@ -1180,17 +1180,25 @@ function renderTimeslots(state) {
                 priceInfo.appendChild(totalsWrapper);
             }
 
+            if (radio.checked) {
+                card.classList.add('border-[#1C55DB]', 'bg-[#1C55DB]/10', 'shadow-lg');
+                radioVisual.classList.remove('border-slate-300', 'bg-white', 'border-slate-200', 'bg-slate-100');
+                radioVisual.classList.add('border-transparent', 'bg-[var(--sgc-brand-primary)]');
+                radioIcon.innerHTML = CHECK_ICON_SVG;
+            } else {
+                card.classList.remove('border-[#1C55DB]', 'bg-[#1C55DB]/10', 'shadow-lg');
+                radioVisual.classList.remove('border-transparent', 'bg-[var(--sgc-brand-primary)]');
+                radioVisual.classList.add('border-slate-300', 'bg-white');
+                radioIcon.innerHTML = '';
+            }
+
             if (radio.disabled) {
                 label.classList.add('cursor-not-allowed');
                 label.classList.remove('cursor-pointer');
                 card.classList.add('border-slate-200/60', 'bg-slate-50', 'opacity-70');
+                radioVisual.classList.remove('border-transparent', 'bg-[var(--sgc-brand-primary)]');
                 radioVisual.classList.add('border-slate-200', 'bg-slate-100');
-            }
-
-            if (radio.checked) {
-                card.classList.add('border-[#1C55DB]', 'shadow-lg');
-                radioVisual.classList.add('border-transparent', 'bg-[#1C55DB]');
-                radioDot.classList.add('bg-white');
+                radioIcon.innerHTML = '';
             }
 
             card.appendChild(radio);
@@ -1209,7 +1217,7 @@ function renderTimeslots(state) {
         const readableDate = formatDateLong(state.selectedDate, state.currency?.locale || 'en-US');
 
         if (selected) {
-            summaryBanner.textContent = `Selected departure: ${selected.label} on ${readableDate}`;
+            summaryBanner.innerHTML = `Selected departure: <span class="font-medium">${selected.label} on ${readableDate}</sspan>`;
         } else if (hasTimeslots) {
             summaryBanner.textContent = 'Pick a departure time to continue.';
         } else {

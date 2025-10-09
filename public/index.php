@@ -265,6 +265,9 @@ $normalizeGuestTypeEntry = static function (array $guestType, array $detailMap):
     $detail = $detailMap[$id] ?? null;
 
     $configLabel = isset($guestType['label']) ? trim((string) $guestType['label']) : '';
+    if ($configLabel !== '' && strcasecmp($configLabel, $id) === 0) {
+        $configLabel = '';
+    }
     $detailLabel = null;
     if (is_array($detail)) {
         foreach ([
