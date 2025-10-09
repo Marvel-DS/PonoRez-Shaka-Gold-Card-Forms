@@ -5,8 +5,10 @@ declare(strict_types=1);
 use PonoRez\SGCForms\Cache\FileCache;
 use PonoRez\SGCForms\Cache\NullCache;
 use PonoRez\SGCForms\Services\ActivityInfoService;
+use PonoRez\SGCForms\DTO\TransportationSet;
 use PonoRez\SGCForms\Services\GuestTypeService;
 use PonoRez\SGCForms\Services\SoapClientBuilder;
+use PonoRez\SGCForms\Services\TransportationService;
 use PonoRez\SGCForms\UtilityService;
 
 $requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
@@ -379,6 +381,24 @@ foreach ($guestTypeCollectionNormalized as $entry) {
 $activityConfig['guestTypes']['collection'] = $guestTypeCollectionNormalized;
 $activityConfig['guestTypes']['byId'] = $guestTypesByIdNormalized;
 
+$transportationSet = null;
+$transportationData = is_array($activityConfig['transportation'] ?? null)
+    ? $activityConfig['transportation']
+    : [];
+
+try {
+    $transportationCacheDirectory = UtilityService::projectRoot() . '/cache/transportation';
+    $transportationCache = is_writable(dirname($transportationCacheDirectory))
+        ? new FileCache($transportationCacheDirectory)
+        : new NullCache();
+
+    $transportationService = new TransportationService($transportationCache, new SoapClientBuilder());
+    $transportationSet = $transportationService->fetch($supplierSlug, $activitySlug);
+    $transportationData = $transportationSet->toArray();
+} catch (Throwable) {
+    $transportationSet = null;
+}
+
 $normalizeActivityIdentifier = static function (mixed $value): int|string|null {
     if (is_int($value)) {
         return $value;
@@ -477,6 +497,24 @@ if (is_array($primaryActivityInfo)) {
     }
 }
 
+if ($transportationSet instanceof TransportationSet && is_array($primaryActivityInfo)) {
+    $mandatoryRaw = $primaryActivityInfo['transportationMandatory'] ?? null;
+    if ($mandatoryRaw !== null) {
+        $mandatory = filter_var(
+            $mandatoryRaw,
+            FILTER_VALIDATE_BOOLEAN,
+            FILTER_NULL_ON_FAILURE
+        );
+
+        if ($mandatory !== null) {
+            $transportationSet->setMandatory($mandatory);
+            $transportationData = $transportationSet->toArray();
+        }
+    }
+}
+
+$activityConfig['transportation'] = $transportationData;
+
 $brandingConfig = $supplierConfig['branding'] ?? [];
 $branding = [
     'primaryColor' => $brandingConfig['primaryColor'] ?? '#1C55DB',
@@ -532,7 +570,7 @@ $bootstrapData = [
         'summary' => $activityConfig['summary'] ?? null,
         'uiLabels' => $activityConfig['uiLabels'] ?? [],
         'infoBlocks' => $infoBlocksFromConfig,
-        'transportation' => $activityConfig['transportation'] ?? [],
+        'transportation' => $transportationData,
         'upgrades' => $activityConfig['upgrades'] ?? [],
         'privateActivity' => filter_var($activityConfig['privateActivity'] ?? false, FILTER_VALIDATE_BOOLEAN),
         'timezone' => $timezone,
