@@ -127,20 +127,7 @@ final class UtilityService
         $config['guestTypes'] = [
             'collection' => $guestTypes['collection'],
             'byId' => $guestTypes['byId'],
-            'legacy' => $guestTypes['legacy'],
         ];
-        $config['guestTypeCollection'] = $guestTypes['collection'];
-        $config['guestTypesById'] = $guestTypes['byId'];
-        $config['guestTypeIds'] = $guestTypes['legacy']['ids'];
-        $config['guestTypeLabels'] = $guestTypes['legacy']['labels'];
-        $config['ponorezGuestTypeDescriptions'] = $guestTypes['legacy']['descriptions'];
-        $config['minGuestCount'] = $guestTypes['legacy']['min'];
-        $config['maxGuestCount'] = $guestTypes['legacy']['max'];
-        if ($guestTypes['legacy']['basePrices'] !== []) {
-            $config['guestTypeBasePrices'] = $guestTypes['legacy']['basePrices'];
-        } else {
-            unset($config['guestTypeBasePrices']);
-        }
 
         $activities = self::normaliseActivities($config['activities'] ?? [], $config, $supplierSlug, $activitySlug);
         $config['activities'] = [
@@ -169,13 +156,20 @@ final class UtilityService
 
     /**
      * @param array<string, mixed> $activityConfig
-     * @return array<int, array{id:string,label:string,description:?string,price:?float,minQuantity:int,maxQuantity:?int}>
+     * @return array<int, array{
+     *     id: string,
+     *     label: string,
+     *     labelSource: string,
+     *     description: ?string,
+     *     descriptionSource: string,
+     *     price: ?float,
+     *     minQuantity: int,
+     *     maxQuantity: ?int
+     * }>
      */
     public static function getGuestTypes(array $activityConfig): array
     {
-        $guestTypes = $activityConfig['guestTypes']['collection']
-            ?? $activityConfig['guestTypeCollection']
-            ?? [];
+        $guestTypes = $activityConfig['guestTypes']['collection'] ?? [];
 
         if (!is_array($guestTypes)) {
             return [];
@@ -192,8 +186,17 @@ final class UtilityService
                 continue;
             }
 
-            $label = isset($guestType['label']) ? (string) $guestType['label'] : $id;
-            $description = self::stringOrNull($guestType['description'] ?? null);
+            $rawLabel = self::stringOrNull($guestType['label'] ?? null);
+            $label = $rawLabel ?? $id;
+            $labelSource = isset($guestType['labelSource']) && is_string($guestType['labelSource'])
+                ? $guestType['labelSource']
+                : ($rawLabel === null ? 'fallback' : 'config');
+
+            $rawDescription = self::stringOrNull($guestType['description'] ?? null);
+            $description = $rawDescription;
+            $descriptionSource = isset($guestType['descriptionSource']) && is_string($guestType['descriptionSource'])
+                ? $guestType['descriptionSource']
+                : ($rawDescription === null ? 'fallback' : 'config');
 
             $price = null;
             if (isset($guestType['price']) && $guestType['price'] !== null && $guestType['price'] !== '') {
@@ -209,7 +212,9 @@ final class UtilityService
             $normalized[] = [
                 'id' => $id,
                 'label' => $label,
+                'labelSource' => $labelSource,
                 'description' => $description,
+                'descriptionSource' => $descriptionSource,
                 'price' => $price,
                 'minQuantity' => $minQuantity,
                 'maxQuantity' => $maxQuantity,
@@ -221,13 +226,20 @@ final class UtilityService
 
     /**
      * @param array<string, mixed> $activityConfig
-     * @return array<string, array{id:string,label:string,description:?string,price:?float,minQuantity:int,maxQuantity:?int}>
+     * @return array<string, array{
+     *     id: string,
+     *     label: string,
+     *     labelSource: string,
+     *     description: ?string,
+     *     descriptionSource: string,
+     *     price: ?float,
+     *     minQuantity: int,
+     *     maxQuantity: ?int
+     * }>
      */
     public static function getGuestTypesById(array $activityConfig): array
     {
-        $guestTypes = $activityConfig['guestTypes']['byId']
-            ?? $activityConfig['guestTypesById']
-            ?? [];
+        $guestTypes = $activityConfig['guestTypes']['byId'] ?? [];
 
         if (!is_array($guestTypes)) {
             return [];
@@ -244,10 +256,22 @@ final class UtilityService
                 continue;
             }
 
+            $rawLabel = self::stringOrNull($guestType['label'] ?? null);
+            $labelSource = isset($guestType['labelSource']) && is_string($guestType['labelSource'])
+                ? $guestType['labelSource']
+                : ($rawLabel === null ? 'fallback' : 'config');
+
+            $rawDescription = self::stringOrNull($guestType['description'] ?? null);
+            $descriptionSource = isset($guestType['descriptionSource']) && is_string($guestType['descriptionSource'])
+                ? $guestType['descriptionSource']
+                : ($rawDescription === null ? 'fallback' : 'config');
+
             $normalized[$id] = [
                 'id' => $id,
-                'label' => isset($guestType['label']) ? (string) $guestType['label'] : $id,
-                'description' => self::stringOrNull($guestType['description'] ?? null),
+                'label' => $rawLabel ?? $id,
+                'labelSource' => $labelSource,
+                'description' => $rawDescription,
+                'descriptionSource' => $descriptionSource,
                 'price' => isset($guestType['price']) && is_numeric($guestType['price']) ? (float) $guestType['price'] : null,
                 'minQuantity' => isset($guestType['minQuantity']) ? max(0, (int) $guestType['minQuantity']) : 0,
                 'maxQuantity' => isset($guestType['maxQuantity']) && $guestType['maxQuantity'] !== null && $guestType['maxQuantity'] !== ''
@@ -257,23 +281,6 @@ final class UtilityService
         }
 
         return $normalized;
-    }
-
-    /**
-     * @param array<string, mixed> $activityConfig
-     * @return array<int, string>
-     */
-    public static function getGuestTypeIds(array $activityConfig): array
-    {
-        $legacy = $activityConfig['guestTypes']['legacy']['ids']
-            ?? $activityConfig['guestTypeIds']
-            ?? [];
-
-        if (!is_array($legacy)) {
-            return [];
-        }
-
-        return array_values(array_map('strval', $legacy));
     }
 
     /**
@@ -409,41 +416,37 @@ final class UtilityService
     /**
      * @param array<int|string, mixed> $value
      * @return array{
-     *     collection: array<int, array{id:string,label:string,description:?string,price:?float,minQuantity:int,maxQuantity:?int}>,
-     *     byId: array<string, array{id:string,label:string,description:?string,price:?float,minQuantity:int,maxQuantity:?int}>,
-     *     legacy: array{
-     *         ids: array<int, string>,
-     *         labels: array<string, string>,
-     *         descriptions: array<string, string>,
-     *         min: array<string, int>,
-     *         max: array<string, int>,
-     *         basePrices: array<string, float>
-     *     }
+     *     collection: array<int, array{
+     *         id: string,
+     *         label: string,
+     *         labelSource: string,
+     *         description: ?string,
+     *         descriptionSource: string,
+     *         price: ?float,
+     *         minQuantity: int,
+     *         maxQuantity: ?int
+     *     }>,
+     *     byId: array<string, array{
+     *         id: string,
+     *         label: string,
+     *         labelSource: string,
+     *         description: ?string,
+     *         descriptionSource: string,
+     *         price: ?float,
+     *         minQuantity: int,
+     *         maxQuantity: ?int
+     *     }>
      * }
      */
     private static function normaliseGuestTypes(mixed $value): array
     {
         $collection = [];
         $byId = [];
-        $ids = [];
-        $labels = [];
-        $descriptions = [];
-        $min = [];
-        $max = [];
-        $basePrices = [];
 
         if (!is_array($value)) {
             return [
                 'collection' => $collection,
                 'byId' => $byId,
-                'legacy' => [
-                    'ids' => $ids,
-                    'labels' => $labels,
-                    'descriptions' => $descriptions,
-                    'min' => $min,
-                    'max' => $max,
-                    'basePrices' => $basePrices,
-                ],
             ];
         }
 
@@ -457,8 +460,12 @@ final class UtilityService
                 continue;
             }
 
-            $label = self::stringOrNull($guestType['label'] ?? null) ?? $id;
-            $description = self::stringOrNull($guestType['description'] ?? null);
+            $rawLabel = self::stringOrNull($guestType['label'] ?? null);
+            $label = $rawLabel ?? $id;
+            $labelSource = $rawLabel === null ? 'fallback' : 'config';
+
+            $rawDescription = self::stringOrNull($guestType['description'] ?? null);
+            $descriptionSource = $rawDescription === null ? 'fallback' : 'config';
 
             $price = null;
             if (isset($guestType['price']) && $guestType['price'] !== '') {
@@ -477,7 +484,9 @@ final class UtilityService
             $entry = [
                 'id' => $id,
                 'label' => $label,
-                'description' => $description,
+                'labelSource' => $labelSource,
+                'description' => $rawDescription,
+                'descriptionSource' => $descriptionSource,
                 'price' => $price,
                 'minQuantity' => $minQuantity,
                 'maxQuantity' => $maxQuantity,
@@ -485,31 +494,11 @@ final class UtilityService
 
             $collection[] = $entry;
             $byId[$id] = $entry;
-            $ids[] = $id;
-            $labels[$id] = $label;
-            if ($description !== null) {
-                $descriptions[$id] = $description;
-            }
-            $min[$id] = $minQuantity;
-            if ($maxQuantity !== null) {
-                $max[$id] = $maxQuantity;
-            }
-            if ($price !== null) {
-                $basePrices[$id] = $price;
-            }
         }
 
         return [
             'collection' => $collection,
             'byId' => $byId,
-            'legacy' => [
-                'ids' => $ids,
-                'labels' => $labels,
-                'descriptions' => $descriptions,
-                'min' => $min,
-                'max' => $max,
-                'basePrices' => $basePrices,
-            ],
         ];
     }
 

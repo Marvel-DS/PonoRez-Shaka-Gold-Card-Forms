@@ -135,13 +135,24 @@ function mergeGuestTypeDetails(state, apiDetails) {
             maxCandidate = minCandidate;
         }
 
-        const label = typeof entry.label === 'string' && entry.label.trim() !== ''
-            ? entry.label.trim()
-            : detail && detail.label ? String(detail.label) : id;
+        const entryLabelSource = typeof entry.labelSource === 'string' ? entry.labelSource : null;
+        const entryLabelValue = typeof entry.label === 'string' ? entry.label.trim() : '';
+        const hasConfigLabel = entryLabelSource === 'config' && entryLabelValue !== '';
+        const fallbackLabel = entryLabelValue !== '' ? entryLabelValue : id;
+        const label = hasConfigLabel
+            ? entryLabelValue
+            : detail && detail.label ? String(detail.label) : fallbackLabel;
 
-        const description = typeof entry.description === 'string' && entry.description.trim() !== ''
+        const entryDescriptionSource = typeof entry.descriptionSource === 'string'
+            ? entry.descriptionSource
+            : null;
+        const entryDescriptionValue = typeof entry.description === 'string'
             ? entry.description.trim()
-            : detail && detail.description ? String(detail.description) : null;
+            : '';
+        const hasConfigDescription = entryDescriptionSource === 'config' && entryDescriptionValue !== '';
+        const description = hasConfigDescription
+            ? entryDescriptionValue
+            : detail && detail.description ? String(detail.description) : (entryDescriptionValue || null);
 
         const price = Number.isFinite(Number(entry.price))
             ? Number(entry.price)
@@ -387,17 +398,27 @@ function syncFromState(state) {
 
         const configEntry = collectionMap.get(id) || null;
         const configuredLabel = configEntry && typeof configEntry.label === 'string' ? configEntry.label.trim() : '';
+        const configuredLabelSource = configEntry && typeof configEntry.labelSource === 'string'
+            ? configEntry.labelSource
+            : (configuredLabel !== '' ? 'config' : 'fallback');
+        const hasConfigLabel = configuredLabelSource === 'config' && configuredLabel !== '';
+
         const configuredDescription = configEntry && typeof configEntry.description === 'string'
             ? configEntry.description.trim()
             : '';
+        const configuredDescriptionSource = configEntry && typeof configEntry.descriptionSource === 'string'
+            ? configEntry.descriptionSource
+            : (configuredDescription !== '' ? 'config' : 'fallback');
+        const hasConfigDescription = configuredDescriptionSource === 'config' && configuredDescription !== '';
 
-        const labelText = configuredLabel !== ''
+        const fallbackLabel = configuredLabel !== '' ? configuredLabel : id;
+        const labelText = hasConfigLabel
             ? configuredLabel
-            : detail && detail.label ? String(detail.label) : id;
+            : detail && detail.label ? String(detail.label) : fallbackLabel;
 
-        const descriptionText = configuredDescription !== ''
+        const descriptionText = hasConfigDescription
             ? configuredDescription
-            : detail && detail.description ? String(detail.description) : '';
+            : detail && detail.description ? String(detail.description) : configuredDescription;
 
         const min = detail && detail.min !== undefined ? Number(detail.min)
             : configEntry && configEntry.minQuantity !== undefined ? Number(configEntry.minQuantity)

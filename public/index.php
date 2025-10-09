@@ -266,9 +266,15 @@ foreach ($guestTypeCollection as $guestType) {
     $guestTypeCollectionNormalized[] = [
         'id' => $id,
         'label' => isset($guestType['label']) ? (string) $guestType['label'] : $id,
+        'labelSource' => isset($guestType['labelSource']) && is_string($guestType['labelSource'])
+            ? $guestType['labelSource']
+            : 'fallback',
         'description' => isset($guestType['description']) && $guestType['description'] !== ''
             ? (string) $guestType['description']
             : null,
+        'descriptionSource' => isset($guestType['descriptionSource']) && is_string($guestType['descriptionSource'])
+            ? $guestType['descriptionSource']
+            : 'fallback',
         'price' => isset($guestType['price']) && is_numeric($guestType['price'])
             ? (float) $guestType['price']
             : null,
@@ -315,9 +321,15 @@ foreach ($guestTypesById as $id => $guestType) {
     $guestTypesByIdNormalized[$normalizedId] = [
         'id' => $normalizedId,
         'label' => isset($guestType['label']) ? (string) $guestType['label'] : $normalizedId,
+        'labelSource' => isset($guestType['labelSource']) && is_string($guestType['labelSource'])
+            ? $guestType['labelSource']
+            : 'fallback',
         'description' => isset($guestType['description']) && $guestType['description'] !== ''
             ? (string) $guestType['description']
             : null,
+        'descriptionSource' => isset($guestType['descriptionSource']) && is_string($guestType['descriptionSource'])
+            ? $guestType['descriptionSource']
+            : 'fallback',
         'price' => isset($guestType['price']) && is_numeric($guestType['price'])
             ? (float) $guestType['price']
             : null,
