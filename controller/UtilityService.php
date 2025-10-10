@@ -151,6 +151,11 @@ final class UtilityService
             $config['shakaGoldCardNumber'] = null;
         }
 
+        $config['disableUpgrades'] = filter_var(
+            $config['disableUpgrades'] ?? false,
+            FILTER_VALIDATE_BOOLEAN
+        );
+
         return $config;
     }
 

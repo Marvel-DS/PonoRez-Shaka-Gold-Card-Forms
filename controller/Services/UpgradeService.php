@@ -36,6 +36,10 @@ final class UpgradeService
         $supplierConfig = UtilityService::loadSupplierConfig($supplierSlug);
         $activityConfig = UtilityService::loadActivityConfig($supplierSlug, $activitySlug);
 
+        if (!empty($activityConfig['disableUpgrades'])) {
+            return new UpgradeCollection();
+        }
+
         [$collection, $disabledIds] = $this->buildCollectionFromConfig($activityConfig['upgrades'] ?? []);
 
         try {
