@@ -6,6 +6,7 @@ import { formatDateLong } from '../utility/formating.js';
 import { pluralize } from '../utility/strings.js';
 import { showError } from './alerts.js';
 import {
+    computeDiscountSavings,
     computeGuestBreakdown,
     computePricingTotals,
     formatCurrencyForState,
@@ -978,30 +979,6 @@ function renderTimeslots(state) {
     const hasGuestDetails = Array.isArray(state.guestTypeDetails) && state.guestTypeDetails.length > 0;
     const feesAmount = pricingTotals.fees;
 
-    const savingsAmount = (() => {
-        const metadata = state.availabilityMetadata || {};
-        const keys = [
-            'savings',
-            'savingsAmount',
-            'savingsTotal',
-            'discountSavings',
-            'goldCardSavings',
-        ];
-
-        for (const key of keys) {
-            if (metadata[key] === undefined) {
-                continue;
-            }
-
-            const numeric = Number(metadata[key]);
-            if (Number.isFinite(numeric) && numeric > 0) {
-                return numeric;
-            }
-        }
-
-        return 0;
-    })();
-
     toggleHidden(loadingState, !isLoading);
     toggleHidden(emptyState, isLoading || hasTimeslots);
     toggleHidden(timeslotList, isLoading || !hasTimeslots);
@@ -1153,6 +1130,8 @@ function renderTimeslots(state) {
                 breakdownWrapper.appendChild(list);
                 priceInfo.appendChild(breakdownWrapper);
 
+                const discountSavings = computeDiscountSavings(state, pricingTotals.total);
+
                 const totalsWrapper = createElement('div', {
                     className: 'flex flex-col items-end gap-1 text-right text-slate-900',
                 });
@@ -1162,20 +1141,15 @@ function renderTimeslots(state) {
                     text: `Total: ${formatCurrencyForState(state, pricingTotals.total)}`,
                 }));
 
-                if (feesAmount > 0) {
-                    totalsWrapper.appendChild(createElement('span', {
-                        className: 'text-xs font-medium text-slate-500',
-                        text: 'Including taxes and fees',
-                    }));
-                }
+                totalsWrapper.appendChild(createElement('span', {
+                    className: 'text-xs font-medium text-slate-500',
+                    text: 'Including taxes and fees',
+                }));
 
-                if (savingsAmount > 0) {
-                    totalsWrapper.appendChild(createElement('span', {
-                        className: 'mt-2 inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700',
-                        text: `You save ${formatCurrencyForState(state, savingsAmount)} with your Shaka Gold Card`,
-                    }));
-
-                }
+                totalsWrapper.appendChild(createElement('span', {
+                    className: 'mt-1 text-xs font-semibold text-[var(--sgc-brand-primary)]',
+                    text: `You can save ${formatCurrencyForState(state, discountSavings)} with Shaka Gold Card`,
+                }));
 
                 priceInfo.appendChild(totalsWrapper);
             }
