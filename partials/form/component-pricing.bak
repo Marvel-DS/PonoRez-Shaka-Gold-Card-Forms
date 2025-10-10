@@ -38,6 +38,10 @@ $title = $bootstrap['activity']['uiLabels']['pricing'] ?? 'Reservation';
             <dt class="text-slate-600">Taxes &amp; fees</dt>
             <dd class="font-medium text-slate-900" data-pricing-fees>--</dd>
         </div>
+        <div class="flex items-center justify-between gap-3">
+            <dt class="text-slate-600">Shaka Gold Card</dt>
+            <dd class="font-medium text-slate-900" data-pricing-goldcard>--</dd>
+        </div>
     </dl>
 
     <div class="mt-6 flex items-center justify-between border-t border-slate-200 pt-4">

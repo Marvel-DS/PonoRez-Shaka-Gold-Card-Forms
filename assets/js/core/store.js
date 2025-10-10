@@ -60,6 +60,9 @@ function normaliseUpgradeQuantities(upgrades) {
 
 const guestCounts = normaliseGuestCounts(bootstrap.activity && bootstrap.activity.guestTypes && bootstrap.activity.guestTypes.collection);
 const upgradeQuantities = normaliseUpgradeQuantities(bootstrap.activity && bootstrap.activity.upgrades);
+const initialGoldCardNumber = typeof bootstrap.activity?.shakaGoldCardNumber === 'string'
+    ? bootstrap.activity.shakaGoldCardNumber.trim()
+    : '';
 
 const initialState = {
     bootstrap,
@@ -90,6 +93,8 @@ const initialState = {
             ? String(bootstrap.activity.transportation.defaultRouteId)
             : null,
     upgradeQuantities,
+    shakaGoldCardNumber: initialGoldCardNumber,
+    buyGoldCard: false,
     loading: {
         guestTypes: false,
         availability: false,

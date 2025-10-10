@@ -949,6 +949,7 @@ function describeAvailability(timeslot) {
     return `${timeslot.available} ${pluralize('seat', timeslot.available)} available`;
 }
 
+// eslint-disable-next-line no-unused-vars
 function getAvailabilityBadgeClasses(timeslot) {
     if (timeslot.available === null || timeslot.available === undefined) {
         return 'inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600';
@@ -1107,6 +1108,24 @@ function renderTimeslots(state) {
                     }));
 
                     list.appendChild(upgradesRow);
+                }
+
+                if (pricingTotals.goldCard > 0) {
+                    const goldCardRow = createElement('div', {
+                        className: 'flex items-center justify-between gap-6',
+                    });
+
+                    goldCardRow.appendChild(createElement('dt', {
+                        className: 'font-medium text-slate-700',
+                        text: 'Shaka Gold Card',
+                    }));
+
+                    goldCardRow.appendChild(createElement('dd', {
+                        className: 'font-semibold text-slate-900',
+                        text: formatCurrencyForState(state, pricingTotals.goldCard),
+                    }));
+
+                    list.appendChild(goldCardRow);
                 }
 
                 if (feesAmount > 0) {

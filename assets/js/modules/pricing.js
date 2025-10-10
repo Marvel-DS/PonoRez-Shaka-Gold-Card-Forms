@@ -11,12 +11,13 @@ let guestsEl;
 let transportationEl;
 let upgradesEl;
 let feesEl;
+let goldCardEl;
 let totalEl;
 let noteEl;
 
 function updatePricingState(state, totals) {
     const existing = state.pricing || {};
-    const keys = ['guests', 'transportation', 'upgrades', 'fees', 'total'];
+    const keys = ['guests', 'transportation', 'upgrades', 'fees', 'goldCard', 'total'];
     const changed = keys.some((key) => {
         const previous = Number(existing[key] ?? 0);
         const next = Number(totals[key] ?? 0);
@@ -55,6 +56,10 @@ function renderPricing(state) {
         feesEl.textContent = formatCurrency(totals.fees, currencyOptions);
     }
 
+    if (goldCardEl) {
+        goldCardEl.textContent = formatCurrency(totals.goldCard, currencyOptions);
+    }
+
     if (totalEl) {
         totalEl.textContent = formatCurrency(totals.total, currencyOptions);
     }
@@ -82,6 +87,7 @@ export function initPricing() {
     feesEl = qs('[data-pricing-fees]', root);
     totalEl = qs('[data-pricing-total]', root);
     noteEl = qs('[data-pricing-note]', root);
+    goldCardEl = qs('[data-pricing-goldcard]', root);
 
     subscribe((state) => renderPricing(state));
     renderPricing(getState());

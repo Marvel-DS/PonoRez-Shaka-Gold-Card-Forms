@@ -7,6 +7,7 @@ import { initUpgrades } from './modules/upgrades.js';
 import { initPricing } from './modules/pricing.js';
 import { initBooking } from './modules/booking.js';
 import { initGallery } from './modules/gallery.js';
+import { initGoldCard } from './modules/gold-card.js';
 
 function removeAvailabilityMetadataDebug() {
     document.querySelectorAll('[data-availability-metadata]').forEach((element) => {
@@ -21,6 +22,7 @@ function bootstrap() {
     initCalendar();
     initAvailability();
     initTransportation();
+    initGoldCard();
     initUpgrades();
     initPricing();
     initBooking();

@@ -5,6 +5,7 @@ import { qs, toggleHidden } from '../utility/dom.js';
 import { formatCurrency } from '../utility/formating.js';
 import { showError, showSuccess } from './alerts.js';
 import { initCheckoutOverlay, openOverlay } from '../overlay/checkout-overlay.js';
+import { computeGoldCardPrice, computeTotalGuestCount } from './pricing-utils.js';
 
 let form;
 let submitButton;
@@ -66,6 +67,25 @@ function buildPayload(state) {
     const guestCounts = pruneZeroEntries(state.guestCounts);
     const upgrades = pruneZeroEntries(state.upgradeQuantities);
 
+    const metadata = {
+        source: 'sgc-forms',
+        generatedAt: new Date().toISOString(),
+    };
+
+    const rawGoldCard = state.shakaGoldCardNumber || '';
+    const voucherId = typeof rawGoldCard === 'string' ? rawGoldCard.trim() : '';
+    if (voucherId !== '') {
+        metadata.voucherId = voucherId;
+    }
+
+    if (state.buyGoldCard) {
+        metadata.buyGoldCard = true;
+        metadata.goldCard = {
+            guestCount: computeTotalGuestCount(state),
+            price: computeGoldCardPrice(state),
+        };
+    }
+
     const payload = {
         supplier: state.bootstrap?.supplier?.slug,
         activity: state.bootstrap?.activity?.slug,
@@ -73,10 +93,7 @@ function buildPayload(state) {
         timeslotId: state.selectedTimeslotId,
         guestCounts,
         upgrades,
-        metadata: {
-            source: 'sgc-forms',
-            generatedAt: new Date().toISOString(),
-        },
+        metadata,
     };
 
     if (state.transportationRouteId) {
