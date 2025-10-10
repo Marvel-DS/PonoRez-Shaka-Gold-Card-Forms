@@ -255,10 +255,12 @@ try {
     $guestTypeDetailMap = [];
 }
 
-$upgradesFromConfig = [];
+$upgradesConfigOriginal = [];
 if (isset($activityConfig['upgrades']) && is_array($activityConfig['upgrades'])) {
-    $upgradesFromConfig = $activityConfig['upgrades'];
+    $upgradesConfigOriginal = $activityConfig['upgrades'];
 }
+
+$upgradesFromConfig = $upgradesConfigOriginal;
 
 try {
     $upgradeCacheDirectory = UtilityService::projectRoot() . '/cache/upgrades';
@@ -273,6 +275,7 @@ try {
     // Fall back to any upgrade definitions from the activity config.
 }
 
+$activityConfig['upgradesConfig'] = $upgradesConfigOriginal;
 $activityConfig['upgrades'] = $upgradesFromConfig;
 
 
