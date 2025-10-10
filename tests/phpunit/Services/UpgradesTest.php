@@ -10,6 +10,7 @@ use PonoRez\SGCForms\DTO\Upgrade;
 use PonoRez\SGCForms\DTO\UpgradeCollection;
 use PonoRez\SGCForms\Services\SoapClientFactory;
 use PonoRez\SGCForms\Services\UpgradeService;
+use ReflectionMethod;
 use RuntimeException;
 use SoapClient;
 use SoapFault;
@@ -139,6 +140,49 @@ final class UpgradesTest extends TestCase
         self::assertNull($collection->get('upgrade-lunch'));
         self::assertNotNull($collection->get('upgrade-photos'));
         self::assertNotNull($collection->get('upgrade-video'));
+    }
+
+    public function testMergeCollectionPreservesConfiguredQuantitiesAndBackfillsMissingValues(): void
+    {
+        $collection = new UpgradeCollection();
+        $configured = new Upgrade('upgrade-config', 'Configured Upgrade', [
+            'maxQuantity' => 2,
+            'minQuantity' => 1,
+        ]);
+        $collection->add($configured);
+
+        $missingQuantities = new Upgrade('upgrade-missing', 'Missing Quantities');
+        $collection->add($missingQuantities);
+
+        $soapData = [
+            [
+                'upgradeId' => 'upgrade-config',
+                'name' => 'Configured Upgrade',
+                'maxQuantity' => 5,
+                'minQuantity' => 0,
+            ],
+            [
+                'id' => 'upgrade-missing',
+                'label' => 'Missing Quantities',
+                'maxQuantity' => 4,
+                'minQuantity' => 3,
+            ],
+        ];
+
+        $service = new UpgradeService(new UpgradeCacheSpy(), new UpgradeStubSoapClientFactory());
+        $mergeCollection = new ReflectionMethod($service, 'mergeCollection');
+        $mergeCollection->setAccessible(true);
+        $mergeCollection->invoke($service, $collection, $soapData, []);
+
+        $configuredUpgrade = $collection->get('upgrade-config');
+        self::assertInstanceOf(Upgrade::class, $configuredUpgrade);
+        self::assertSame(2, $configuredUpgrade->getMaxQuantity());
+        self::assertSame(1, $configuredUpgrade->getMinQuantity());
+
+        $backfilledUpgrade = $collection->get('upgrade-missing');
+        self::assertInstanceOf(Upgrade::class, $backfilledUpgrade);
+        self::assertSame(4, $backfilledUpgrade->getMaxQuantity());
+        self::assertSame(3, $backfilledUpgrade->getMinQuantity());
     }
 }
 

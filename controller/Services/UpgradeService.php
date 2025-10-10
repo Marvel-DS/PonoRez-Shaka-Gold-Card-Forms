@@ -176,11 +176,11 @@ final class UpgradeService
                 $upgrade->setPrice(is_numeric($row['price']) ? (float) $row['price'] : null);
             }
 
-            if (isset($row['maxQuantity'])) {
+            if ($upgrade->getMaxQuantity() === null && array_key_exists('maxQuantity', $row)) {
                 $upgrade->setMaxQuantity(is_numeric($row['maxQuantity']) ? (int) $row['maxQuantity'] : null);
             }
 
-            if (isset($row['minQuantity'])) {
+            if ($upgrade->getMinQuantity() === null && array_key_exists('minQuantity', $row)) {
                 $upgrade->setMinQuantity(is_numeric($row['minQuantity']) ? (int) $row['minQuantity'] : null);
             }
 
