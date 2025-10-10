@@ -66,11 +66,11 @@ $label = $bootstrap['activity']['uiLabels']['upgrades'] ?? 'Optional Upgrades';
                                 <span class="flex h-5 w-5 items-center justify-center" data-upgrade-icon></span>
                             </span>
 
-                            <div class="flex flex-col text-left">
-                                <p class="text-lg font-semibold tracking-tight text-slate-90 mb-0">
+                            <div class="flex flex-col text-left w-full">
+                                <p class="flex flex-col md:flex-row text-lg font-semibold tracking-tight text-slate-90 mb-0 w-full justify-between md:items-center">
                                     <?= htmlspecialchars($labelText, ENT_QUOTES, 'UTF-8') ?>
                                     <?php if ($priceDisplay && $price > 0.0): ?>
-                                        <span class="ml-2 text-sm font-medium text-slate-500"><?= htmlspecialchars($priceDisplay, ENT_QUOTES, 'UTF-8') ?></span>
+                                        <span class="ml-2 text-base font-medium text-slate-900"><?= htmlspecialchars($priceDisplay, ENT_QUOTES, 'UTF-8') ?></span>
                                     <?php elseif ($priceDisplay): ?>
                                         <span class="ml-2 text-sm font-semibold text-green-600"><?= htmlspecialchars($priceDisplay, ENT_QUOTES, 'UTF-8') ?></span>
                                     <?php endif; ?>
