@@ -160,14 +160,19 @@ final class UpgradeService
             }
 
             $label = (string) ($row['label'] ?? $row['name'] ?? $id);
-            $upgrade = $collection->get($id) ?? new Upgrade($id, $label);
-            $upgrade->setLabel($label);
+            $upgrade = $collection->get($id);
 
-            if (isset($row['description'])) {
+            if ($upgrade === null) {
+                $upgrade = new Upgrade($id, $label);
+            } elseif ($upgrade->getLabel() === $upgrade->getId()) {
+                $upgrade->setLabel($label);
+            }
+
+            if ($upgrade->getDescription() === null && isset($row['description'])) {
                 $upgrade->setDescription((string) $row['description']);
             }
 
-            if (isset($row['price']) && $row['price'] !== '') {
+            if ($upgrade->getPrice() === null && isset($row['price']) && $row['price'] !== '') {
                 $upgrade->setPrice(is_numeric($row['price']) ? (float) $row['price'] : null);
             }
 
