@@ -1,8 +1,45 @@
 import { formatCurrency } from '../utility/formating.js';
 
+const GOLD_CARD_BASE_PRICE = 30;
+const GOLD_CARD_BASE_GUEST_LIMIT = 4;
+const GOLD_CARD_EXTRA_GUEST_PRICE = 7.5;
+
 function toNumeric(value, fallback = 0) {
     const numeric = Number(value);
     return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function computeTotalGuestCount(state) {
+    const guestCounts = state.guestCounts || {};
+
+    return Object.values(guestCounts).reduce((sum, value) => sum + toNumeric(value, 0), 0);
+}
+
+export function calculateGoldCardPrice(guestCount) {
+    const normalizedCount = Number.isFinite(guestCount) ? Math.max(0, Math.floor(guestCount)) : 0;
+
+    if (normalizedCount <= 0) {
+        return GOLD_CARD_BASE_PRICE;
+    }
+
+    if (normalizedCount <= GOLD_CARD_BASE_GUEST_LIMIT) {
+        return GOLD_CARD_BASE_PRICE;
+    }
+
+    const additionalGuests = normalizedCount - GOLD_CARD_BASE_GUEST_LIMIT;
+    return GOLD_CARD_BASE_PRICE + additionalGuests * GOLD_CARD_EXTRA_GUEST_PRICE;
+}
+
+export function computeGoldCardPrice(state) {
+    return calculateGoldCardPrice(computeTotalGuestCount(state));
+}
+
+export function computeGoldCardTotal(state) {
+    if (!state || !state.buyGoldCard) {
+        return 0;
+    }
+
+    return computeGoldCardPrice(state);
 }
 
 export function getCurrencyOptions(state) {
@@ -128,9 +165,10 @@ export function computePricingTotals(state) {
         transportation: computeTransportationTotal(state),
         upgrades: computeUpgradesTotal(state),
         fees: computeFees(state),
+        goldCard: computeGoldCardTotal(state),
     };
 
-    totals.total = totals.guests + totals.transportation + totals.upgrades + totals.fees;
+    totals.total = totals.guests + totals.transportation + totals.upgrades + totals.fees + totals.goldCard;
     return totals;
 }
 
@@ -144,4 +182,14 @@ export default {
     computeFees,
     computeDiscountSavings,
     computePricingTotals,
+    computeGoldCardPrice,
+    computeGoldCardTotal,
+    calculateGoldCardPrice,
+};
+
+export {
+    GOLD_CARD_BASE_PRICE,
+    GOLD_CARD_BASE_GUEST_LIMIT,
+    GOLD_CARD_EXTRA_GUEST_PRICE,
+    computeTotalGuestCount,
 };

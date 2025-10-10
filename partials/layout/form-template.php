@@ -110,6 +110,7 @@ $title = $activity['displayName'] ?? 'SGC Booking Forms';
                         <?php include dirname(__DIR__) . '/form/component-calendar.php'; ?>
                         <?php include dirname(__DIR__) . '/form/component-timeslot.php'; ?>
                         <?php include dirname(__DIR__) . '/form/component-transportation.php'; ?>
+                        <?php include dirname(__DIR__) . '/form/component-gold-card.php'; ?>
                         <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
                         <?php include dirname(__DIR__) . '/form/component-button.php'; ?>
 
@@ -123,6 +124,7 @@ $title = $activity['displayName'] ?? 'SGC Booking Forms';
                 <?php include dirname(__DIR__) . '/form/component-calendar.php'; ?>
                 <?php include dirname(__DIR__) . '/form/component-timeslot.php'; ?>
                 <?php include dirname(__DIR__) . '/form/component-transportation.php'; ?>
+                <?php include dirname(__DIR__) . '/form/component-gold-card.php'; ?>
                 <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
                 <?php include dirname(__DIR__) . '/form/component-button.php'; ?>
                 
