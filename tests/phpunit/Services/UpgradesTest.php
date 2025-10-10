@@ -82,13 +82,13 @@ final class UpgradesTest extends TestCase
         self::assertSame('getActivityUpgrades', $method);
         $payload = $arguments[0];
         self::assertSame([
-            'serviceLogin' => [
-                'username' => 'apiUsername',
-                'password' => 'apiPassword',
-            ],
-            'supplierId' => 123,
-            'activityId' => 369,
-        ], $payload);
+            'username' => 'apiUsername',
+            'password' => 'apiPassword',
+        ], $payload['serviceLogin']);
+        self::assertSame(123, $payload['supplierId']);
+        self::assertSame(369, $payload['activityId']);
+        self::assertArrayHasKey('date', $payload);
+        self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}$/', (string) $payload['date']);
 
         self::assertCount(2, $collection);
         $photos = $collection->get('upgrade-photos');

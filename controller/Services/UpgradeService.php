@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace PonoRez\SGCForms\Services;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use PonoRez\SGCForms\Cache\CacheInterface;
 use PonoRez\SGCForms\Cache\CacheKeyGenerator;
 use PonoRez\SGCForms\DTO\Upgrade;
@@ -105,6 +107,8 @@ final class UpgradeService
             throw new RuntimeException('Unable to determine primary activity ID for upgrade lookup.');
         }
 
+        $date = $this->resolveLookupDate($activityConfig);
+
         $payload = [
             'serviceLogin' => [
                 'username' => $supplierConfig['soapCredentials']['username'],
@@ -112,6 +116,7 @@ final class UpgradeService
             ],
             'supplierId' => $supplierConfig['supplierId'],
             'activityId' => $primaryActivityId,
+            'date' => $date,
         ];
 
         try {
@@ -188,5 +193,24 @@ final class UpgradeService
 
             $collection->add($upgrade);
         }
+    }
+
+    private function resolveLookupDate(array $activityConfig): string
+    {
+        $override = UtilityService::getEnvironmentSetting('currentDate');
+        if (is_string($override) && $override !== '') {
+            return $override;
+        }
+
+        $timezone = $activityConfig['timezone'] ?? null;
+
+        try {
+            $zone = $timezone ? new DateTimeZone($timezone) : null;
+        } catch (Throwable) {
+            $zone = null;
+        }
+
+        $now = new DateTimeImmutable('now', $zone ?? null);
+        return $now->format('Y-m-d');
     }
 }
