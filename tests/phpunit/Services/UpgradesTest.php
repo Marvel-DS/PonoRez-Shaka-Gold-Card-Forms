@@ -65,8 +65,15 @@ final class UpgradesTest extends TestCase
         $extra->price = '15.00';
         $extra->maxQuantity = 5;
 
+        $video = new stdClass();
+        $video->upgradeId = 'upgrade-video';
+        $video->name = 'Video Package Deluxe';
+        $video->description = 'High-def video package';
+        $video->price = '89.99';
+        $video->maxQuantity = 2;
+
         $response = new stdClass();
-        $response->return = [$primary, $extra];
+        $response->return = [$primary, $extra, $video];
 
         $client = new UpgradeRecordingSoapClient($response);
         $factory = new UpgradeStubSoapClientFactory($client);
@@ -90,17 +97,25 @@ final class UpgradesTest extends TestCase
         self::assertArrayHasKey('date', $payload);
         self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}$/', (string) $payload['date']);
 
-        self::assertCount(2, $collection);
+        self::assertCount(3, $collection);
         $photos = $collection->get('upgrade-photos');
         self::assertInstanceOf(Upgrade::class, $photos);
-        self::assertSame('Photo Package Updated', $photos->getLabel());
-        self::assertSame(59.25, $photos->getPrice());
+        self::assertSame('Photo Package', $photos->getLabel());
+        self::assertSame('Digital photo bundle', $photos->getDescription());
+        self::assertSame(49.99, $photos->getPrice());
 
         $snacks = $collection->get('upgrade-snacks');
         self::assertInstanceOf(Upgrade::class, $snacks);
         self::assertSame('Snack Pack', $snacks->getLabel());
         self::assertSame(15.0, $snacks->getPrice());
         self::assertSame(5, $snacks->getMaxQuantity());
+
+        $videoUpgrade = $collection->get('upgrade-video');
+        self::assertInstanceOf(Upgrade::class, $videoUpgrade);
+        self::assertSame('Video Package', $videoUpgrade->getLabel());
+        self::assertSame('High-def video package', $videoUpgrade->getDescription());
+        self::assertSame(89.99, $videoUpgrade->getPrice());
+        self::assertSame(2, $videoUpgrade->getMaxQuantity());
 
         self::assertNotEmpty($cache->setCalls);
         $write = $cache->setCalls[0];
@@ -120,9 +135,10 @@ final class UpgradesTest extends TestCase
 
         self::assertSame(1, $factory->buildCount);
         self::assertSame([], $cache->setCalls);
-        self::assertCount(1, $collection);
+        self::assertCount(2, $collection);
         self::assertNull($collection->get('upgrade-lunch'));
         self::assertNotNull($collection->get('upgrade-photos'));
+        self::assertNotNull($collection->get('upgrade-video'));
     }
 }
 
