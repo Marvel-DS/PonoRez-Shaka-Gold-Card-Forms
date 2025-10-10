@@ -34,6 +34,17 @@ final class ReservationTest extends TestCase
                 'lastName' => 'Jordan',
                 'email' => 'kai@example.com',
                 'phone' => '800-555-0000',
+                'address' => [
+                    'streetAddress' => '123 Beach Rd',
+                    'city' => 'Honolulu',
+                    'state' => 'HI',
+                    'zipCode' => '96815',
+                ],
+                'stayingAtHotelId' => '55',
+                'room' => '1201',
+                'transportationComments' => 'Please pick up at lobby',
+                'arrivalDate' => '2023-12-30',
+                'comments' => 'Vegetarian meal',
             ],
             'route-shuttle',
             [
@@ -82,6 +93,21 @@ final class ReservationTest extends TestCase
         self::assertSame('2024-01-01', $calcPayload['reservationOrder']['date']);
         self::assertSame('timeslot-101', $calcPayload['reservationOrder']['timeslotId']);
         self::assertSame('route-shuttle', $calcPayload['reservationOrder']['transportationRouteId']);
+        self::assertSame('Kai', $calcPayload['reservationOrder']['firstName']);
+        self::assertSame('Jordan', $calcPayload['reservationOrder']['lastName']);
+        self::assertSame('kai@example.com', $calcPayload['reservationOrder']['email']);
+        self::assertSame('800-555-0000', $calcPayload['reservationOrder']['contactPhone']);
+        self::assertSame([
+            'streetAddress' => '123 Beach Rd',
+            'city' => 'Honolulu',
+            'state' => 'HI',
+            'zipCode' => '96815',
+        ], $calcPayload['reservationOrder']['address']);
+        self::assertSame(55, $calcPayload['reservationOrder']['stayingAtHotelId']);
+        self::assertSame('1201', $calcPayload['reservationOrder']['room']);
+        self::assertSame('Please pick up at lobby', $calcPayload['reservationOrder']['transportationComments']);
+        self::assertSame('2023-12-30', $calcPayload['reservationOrder']['arrivalDate']);
+        self::assertSame('Vegetarian meal', $calcPayload['reservationOrder']['comments']);
         self::assertSame([
             [
                 'guestTypeId' => 345,
@@ -92,11 +118,10 @@ final class ReservationTest extends TestCase
         ], $calcPayload['reservationOrder']['guestCounts']);
         self::assertSame([
             [
-                'upgradeId' => 'upgrade-photos',
                 'id' => 'upgrade-photos',
-                'quantity' => 1,
+                'count' => 1,
             ],
-        ], $calcPayload['reservationOrder']['upgrades']);
+        ], $calcPayload['reservationOrder']['upgradeCounts']);
         self::assertSame([
             [
                 'checklistItemId' => 10,
