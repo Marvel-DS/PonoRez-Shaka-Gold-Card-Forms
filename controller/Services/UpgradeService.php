@@ -202,15 +202,14 @@ final class UpgradeService
             return $override;
         }
 
-        $timezone = $activityConfig['timezone'] ?? null;
-
         try {
-            $zone = $timezone ? new DateTimeZone($timezone) : null;
+            $timezone = UtilityService::getActivityTimezone($activityConfig);
+            $zone = new DateTimeZone($timezone);
         } catch (Throwable) {
             $zone = null;
         }
 
-        $now = new DateTimeImmutable('now', $zone ?? null);
+        $now = new DateTimeImmutable('now', $zone);
         return $now->format('Y-m-d');
     }
 }
