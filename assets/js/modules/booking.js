@@ -178,11 +178,13 @@ function buildPonorezCheckoutUrl(state) {
         params.set(`guests_t${id}`, String(guestCounts[id]));
     });
 
-    const upgrades = prunePositiveIntegers(state.upgradeQuantities);
-    params.set('upgradesfixed', '1');
-    Object.keys(upgrades).sort().forEach((id) => {
-        params.set(`upgrades_u${id}`, String(upgrades[id]));
-    });
+    if (!state.bootstrap?.activity?.disableUpgrades) {
+        const upgrades = prunePositiveIntegers(state.upgradeQuantities);
+        params.set('upgradesfixed', '1');
+        Object.keys(upgrades).sort().forEach((id) => {
+            params.set(`upgrades_u${id}`, String(upgrades[id]));
+        });
+    }
 
     if (state.transportationRouteId) {
         const routeId = String(state.transportationRouteId);

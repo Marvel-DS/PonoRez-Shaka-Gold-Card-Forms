@@ -10,6 +10,7 @@ use PonoRez\SGCForms\DTO\Upgrade;
 use PonoRez\SGCForms\DTO\UpgradeCollection;
 use PonoRez\SGCForms\Services\SoapClientFactory;
 use PonoRez\SGCForms\Services\UpgradeService;
+use PonoRez\SGCForms\UtilityService;
 use ReflectionMethod;
 use RuntimeException;
 use SoapClient;
@@ -140,6 +141,37 @@ final class UpgradesTest extends TestCase
         self::assertNull($collection->get('upgrade-lunch'));
         self::assertNotNull($collection->get('upgrade-photos'));
         self::assertNotNull($collection->get('upgrade-video'));
+    }
+
+    public function testFetchReturnsEmptyCollectionWhenDisabled(): void
+    {
+        $factory = new UpgradeStubSoapClientFactory();
+        $cache = new UpgradeCacheSpy();
+
+        $service = new UpgradeService($cache, $factory);
+        $projectRoot = UtilityService::projectRoot();
+        $basePath = sprintf('%s/suppliers/%s/activity-slug.config', $projectRoot, self::SUPPLIER_SLUG);
+        $fixturePath = sprintf('%s/suppliers/%s/activity-upgrades-disabled.config', $projectRoot, self::SUPPLIER_SLUG);
+
+        $baseConfigContents = file_get_contents($basePath);
+        self::assertNotFalse($baseConfigContents, 'Expected base activity config to be readable.');
+
+        $config = json_decode($baseConfigContents, true, 512, JSON_THROW_ON_ERROR);
+        $config['disableUpgrades'] = true;
+
+        file_put_contents(
+            $fixturePath,
+            json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+        );
+
+        try {
+            $collection = $service->fetch(self::SUPPLIER_SLUG, 'activity-upgrades-disabled');
+
+            self::assertSame(0, $factory->buildCount);
+            self::assertCount(0, $collection);
+        } finally {
+            @unlink($fixturePath);
+        }
     }
 
     public function testMergeCollectionPreservesConfiguredQuantitiesAndBackfillsMissingValues(): void

@@ -16,6 +16,14 @@ use PonoRez\SGCForms\UtilityService;
 try {
     $params = RequestValidator::requireParams($_GET, ['supplier', 'activity']);
 
+    $activityConfig = UtilityService::loadActivityConfig($params['supplier'], $params['activity']);
+    if (!empty($activityConfig['disableUpgrades'])) {
+        ResponseFormatter::success([
+            'upgrades' => [],
+        ]);
+        return;
+    }
+
     $cacheDirectory = UtilityService::projectRoot() . '/cache/upgrades';
     $cache = is_writable(dirname($cacheDirectory)) ? new FileCache($cacheDirectory) : new NullCache();
 

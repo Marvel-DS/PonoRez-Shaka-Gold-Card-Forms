@@ -193,6 +193,8 @@ try {
     exit;
 }
 
+$disableUpgrades = (bool) ($activityConfig['disableUpgrades'] ?? false);
+
 $activityInfoResult = [
     'activities' => [],
     'checkedAt' => null,
@@ -256,27 +258,30 @@ try {
 }
 
 $upgradesConfigOriginal = [];
-if (isset($activityConfig['upgrades']) && is_array($activityConfig['upgrades'])) {
-    $upgradesConfigOriginal = $activityConfig['upgrades'];
+$upgradesFromConfig = [];
+
+if (!$disableUpgrades) {
+    if (isset($activityConfig['upgrades']) && is_array($activityConfig['upgrades'])) {
+        $upgradesConfigOriginal = $activityConfig['upgrades'];
+        $upgradesFromConfig = $upgradesConfigOriginal;
+    }
+
+    try {
+        $upgradeCacheDirectory = UtilityService::projectRoot() . '/cache/upgrades';
+        $upgradeCache = is_writable(dirname($upgradeCacheDirectory))
+            ? new FileCache($upgradeCacheDirectory)
+            : new NullCache();
+
+        $upgradeService = new UpgradeService($upgradeCache, new SoapClientBuilder());
+        $upgradesCollection = $upgradeService->fetch($supplierSlug, $activitySlug);
+        $upgradesFromConfig = $upgradesCollection->toArray();
+    } catch (Throwable) {
+        // Fall back to any upgrade definitions from the activity config.
+    }
 }
 
-$upgradesFromConfig = $upgradesConfigOriginal;
-
-try {
-    $upgradeCacheDirectory = UtilityService::projectRoot() . '/cache/upgrades';
-    $upgradeCache = is_writable(dirname($upgradeCacheDirectory))
-        ? new FileCache($upgradeCacheDirectory)
-        : new NullCache();
-
-    $upgradeService = new UpgradeService($upgradeCache, new SoapClientBuilder());
-    $upgradesCollection = $upgradeService->fetch($supplierSlug, $activitySlug);
-    $upgradesFromConfig = $upgradesCollection->toArray();
-} catch (Throwable) {
-    // Fall back to any upgrade definitions from the activity config.
-}
-
-$activityConfig['upgradesConfig'] = $upgradesConfigOriginal;
-$activityConfig['upgrades'] = $upgradesFromConfig;
+$activityConfig['upgradesConfig'] = $disableUpgrades ? [] : $upgradesConfigOriginal;
+$activityConfig['upgrades'] = $disableUpgrades ? [] : $upgradesFromConfig;
 
 
 $normalizeGuestTypeEntry = static function (array $guestType, array $detailMap): ?array {
@@ -588,11 +593,13 @@ $apiEndpoints = [
         rawurlencode($supplierSlug),
         rawurlencode($activitySlug)
     ),
-    'upgrades' => sprintf(
-        '/api/get-upgrades.php?supplier=%s&activity=%s',
-        rawurlencode($supplierSlug),
-        rawurlencode($activitySlug)
-    ),
+    'upgrades' => $disableUpgrades
+        ? null
+        : sprintf(
+            '/api/get-upgrades.php?supplier=%s&activity=%s',
+            rawurlencode($supplierSlug),
+            rawurlencode($activitySlug)
+        ),
     'initCheckout' => '/api/init-checkout.php',
 ];
 
@@ -615,6 +622,7 @@ $bootstrapData = [
         'infoBlocks' => $infoBlocksFromConfig,
         'transportation' => $transportationData,
         'upgrades' => $activityConfig['upgrades'] ?? [],
+        'disableUpgrades' => $disableUpgrades,
         'privateActivity' => filter_var($activityConfig['privateActivity'] ?? false, FILTER_VALIDATE_BOOLEAN),
         'timezone' => $timezone,
         'showInfoColumn' => $showInfoColumn,

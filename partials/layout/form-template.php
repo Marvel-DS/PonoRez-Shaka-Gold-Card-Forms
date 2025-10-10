@@ -13,6 +13,11 @@ $apiEndpoints = $page['apiEndpoints'] ?? [];
 
 $title = $activity['displayName'] ?? 'SGC Booking Forms';
 
+$disableUpgrades = (
+    ($activity['disableUpgrades'] ?? false)
+    || ($page['activity']['disableUpgrades'] ?? false)
+);
+
 try {
     $bootstrapJson = json_encode($bootstrap, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 } catch (\JsonException) {
@@ -111,7 +116,9 @@ $title = $activity['displayName'] ?? 'SGC Booking Forms';
                         <?php include dirname(__DIR__) . '/form/component-timeslot.php'; ?>
                         <?php include dirname(__DIR__) . '/form/component-transportation.php'; ?>
                         <?php include dirname(__DIR__) . '/form/component-gold-card.php'; ?>
-                        <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
+                        <?php if (!$disableUpgrades) { ?>
+                            <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
+                        <?php } ?>
                         <?php include dirname(__DIR__) . '/form/component-button.php'; ?>
 
                     </div>
@@ -125,7 +132,9 @@ $title = $activity['displayName'] ?? 'SGC Booking Forms';
                 <?php include dirname(__DIR__) . '/form/component-timeslot.php'; ?>
                 <?php include dirname(__DIR__) . '/form/component-transportation.php'; ?>
                 <?php include dirname(__DIR__) . '/form/component-gold-card.php'; ?>
-                <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
+                <?php if (!$disableUpgrades) { ?>
+                    <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
+                <?php } ?>
                 <?php include dirname(__DIR__) . '/form/component-button.php'; ?>
                 
             <?php endif; ?>

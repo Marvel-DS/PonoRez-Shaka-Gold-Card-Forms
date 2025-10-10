@@ -1,4 +1,4 @@
-import { setState, subscribe } from '../core/store.js';
+import { getState, setState, subscribe } from '../core/store.js';
 import { qs, qsa, clamp } from '../utility/dom.js';
 
 let root;
@@ -68,6 +68,11 @@ function syncFromState(state) {
 }
 
 export function initUpgrades() {
+    const state = getState();
+    if (state?.bootstrap?.activity?.disableUpgrades) {
+        return;
+    }
+
     root = qs('[data-component="upgrades"]');
     if (!root) {
         return;

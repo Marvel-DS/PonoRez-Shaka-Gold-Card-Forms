@@ -8,6 +8,15 @@ $page = $pageContext ?? [];
 $bootstrap = $page['bootstrap'] ?? [];
 $activityConfig = $page['activity'] ?? [];
 
+$disableUpgrades = (
+    ($activityConfig['disableUpgrades'] ?? false)
+    || ($bootstrap['activity']['disableUpgrades'] ?? false)
+);
+
+if ($disableUpgrades) {
+    return;
+}
+
 $bootstrapUpgrades = is_array($bootstrap['activity']['upgrades'] ?? null)
     ? $bootstrap['activity']['upgrades']
     : [];
