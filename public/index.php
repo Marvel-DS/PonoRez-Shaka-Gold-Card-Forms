@@ -430,6 +430,23 @@ $showInfoColumn = UtilityService::shouldShowInfoColumn($activityConfig);
 $shakaGoldCardNumber = UtilityService::getShakaGoldCardNumber($activityConfig);
 $primaryActivityIdString = $primaryActivityId === null ? null : (string) $primaryActivityId;
 
+$rawDiscount = $activityConfig['discount'] ?? null;
+$discount = null;
+
+if (is_numeric($rawDiscount)) {
+    $discount = (float) $rawDiscount;
+} elseif (is_string($rawDiscount)) {
+    $trimmedDiscount = trim($rawDiscount);
+
+    if ($trimmedDiscount !== '') {
+        $normalizedDiscount = str_replace('%', '', $trimmedDiscount);
+
+        if (is_numeric($normalizedDiscount)) {
+            $discount = (float) $normalizedDiscount;
+        }
+    }
+}
+
 $activityListNormalized = [];
 foreach ($activityList as $activity) {
     if (!is_array($activity) || !isset($activity['id'])) {

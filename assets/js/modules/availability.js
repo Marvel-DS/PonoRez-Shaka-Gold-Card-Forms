@@ -1060,7 +1060,7 @@ function renderTimeslots(state) {
             headerRow.appendChild(radioWrapper);
 
             const priceInfo = createElement('div', {
-                className: 'flex flex-col gap-6 border-t border-slate-200 pt-4 text-sm text-slate-600 sm:flex-row sm:items-end sm:justify-between',
+                className: 'flex flex-col gap-2 border-t border-slate-200 pt-4 text-sm text-slate-600 sm:flex-row sm:items-end sm:justify-between',
             });
 
             if (!hasGuestDetails) {
@@ -1076,7 +1076,7 @@ function renderTimeslots(state) {
 
             } else {
                 const breakdownWrapper = createElement('div', { className: 'flex-1 space-y-3' });
-                const list = createElement('dl', { className: 'space-y-0 text-xs text-slate-900' });
+                const list = createElement('dl', { className: 'space-y-0 text-sm text-slate-900' });
 
                 guestBreakdown.forEach((line) => {
                     const row = createElement('div', {
@@ -1133,11 +1133,11 @@ function renderTimeslots(state) {
                 const discountSavings = computeDiscountSavings(state, pricingTotals.total);
 
                 const totalsWrapper = createElement('div', {
-                    className: 'flex flex-col items-end gap-1 text-right text-slate-900',
+                    className: 'flex flex-col items-start md:items-end gap-0 text-left md:text-right text-slate-900',
                 });
 
                 totalsWrapper.appendChild(createElement('span', {
-                    className: 'text-xl font-semibold text-slate-900',
+                    className: 'text-base font-semibold text-slate-900',
                     text: `Total: ${formatCurrencyForState(state, pricingTotals.total)}`,
                 }));
 
