@@ -273,6 +273,8 @@ try {
     // Fall back to any upgrade definitions from the activity config.
 }
 
+$activityConfig['upgrades'] = $upgradesFromConfig;
+
 
 $normalizeGuestTypeEntry = static function (array $guestType, array $detailMap): ?array {
     if (!isset($guestType['id'])) {
