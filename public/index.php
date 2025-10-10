@@ -585,6 +585,7 @@ $bootstrapData = [
             ?? $activityConfig['activityTitle']
             ?? ucfirst(str_replace('-', ' ', $activitySlug)),
         'summary' => $activityConfig['summary'] ?? null,
+        'discount' => $discount,
         'uiLabels' => $activityConfig['uiLabels'] ?? [],
         'infoBlocks' => $infoBlocksFromConfig,
         'transportation' => $transportationData,
