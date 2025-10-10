@@ -136,6 +136,55 @@ final class ReservationTest extends TestCase
         self::assertSame(75.25, $createPayload['supplierPaymentAmount']);
     }
 
+    public function testReservationOrderIncludesNullHotelIdWhenNotProvided(): void
+    {
+        $request = new CheckoutInitRequest(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-05-01',
+            '',
+            ['100' => 2],
+            [],
+            [
+                'firstName' => 'Ava',
+                'lastName' => 'Lee',
+                'email' => 'ava@example.com',
+                'phone' => '808-111-2222',
+                'address' => [
+                    'streetAddress' => '456 Ocean Ave',
+                    'city' => 'Kahului',
+                    'state' => 'HI',
+                    'zipCode' => '96732',
+                ],
+            ],
+        );
+
+        $responses = [
+            'calculatePriceAndPaymentAndTransactionFee' => (object) [
+                'return' => (object) [
+                    'out_price' => 100.0,
+                    'out_requiredPaymentWithoutTransactionFee' => 25.0,
+                ],
+            ],
+            'createReservation' => (object) [
+                'return' => (object) [
+                    'id' => 'RES-456',
+                ],
+            ],
+        ];
+
+        $client = new CheckoutRecordingSoapClient($responses);
+        $factory = new CheckoutStubSoapClientFactory($client);
+
+        $service = new CheckoutInitService($factory);
+        $service->initiate($request);
+
+        $reservationOrder = $client->calls[0][1][0]['reservationOrder'];
+
+        self::assertArrayHasKey('stayingAtHotelId', $reservationOrder);
+        self::assertNull($reservationOrder['stayingAtHotelId']);
+    }
+
     public function testInitiateCheckoutPropagatesSoapFault(): void
     {
         $request = new CheckoutInitRequest(
