@@ -111,7 +111,7 @@ $title = $activity['displayName'] ?? 'SGC Booking Forms';
                         <?php include dirname(__DIR__) . '/form/component-timeslot.php'; ?>
                         <?php include dirname(__DIR__) . '/form/component-transportation.php'; ?>
                         <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
-                        <?php include dirname(__DIR__) . '/form/component-pricing.php'; ?>
+                        <?php include dirname(__DIR__) . '/form/component-button.php'; ?>
 
                     </div>
 
@@ -124,11 +124,9 @@ $title = $activity['displayName'] ?? 'SGC Booking Forms';
                 <?php include dirname(__DIR__) . '/form/component-timeslot.php'; ?>
                 <?php include dirname(__DIR__) . '/form/component-transportation.php'; ?>
                 <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
-                <?php include dirname(__DIR__) . '/form/component-pricing.php'; ?>
+                <?php include dirname(__DIR__) . '/form/component-button.php'; ?>
                 
             <?php endif; ?>
-
-            <?php include dirname(__DIR__) . '/form/component-button.php'; ?>
 
         </form>
 

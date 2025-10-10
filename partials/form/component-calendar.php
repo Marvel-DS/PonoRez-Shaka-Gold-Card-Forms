@@ -11,7 +11,7 @@ use PonoRez\SGCForms\UtilityService;
 $page = $pageContext ?? [];
 $bootstrap = $page['bootstrap'] ?? [];
 $apiEndpoints = $page['apiEndpoints'] ?? [];
-$label = $bootstrap['activity']['uiLabels']['calendar'] ?? 'Choose Your Date';
+$label = $bootstrap['activity']['uiLabels']['calendar'] ?? 'When would you like to go?';
 $currentDate = $bootstrap['environment']['currentDate'] ?? date('Y-m-d');
 $calendarEndpoint = $apiEndpoints['availability'] ?? null;
 $showDeveloperHints = UtilityService::getEnvironmentSetting('showDeveloperHints', false);
@@ -42,7 +42,7 @@ $calendarDescriptionId = 'calendar-instructions-' . md5($currentDateKey);
 <section class="space-y-3" data-component="calendar">
     <header>
         <h2 id="<?= htmlspecialchars($calendarLabelId, ENT_QUOTES, 'UTF-8') ?>" class="text-lg font-semibold text-slate-900 mb-0"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></h2>
-        <p id="<?= htmlspecialchars($calendarDescriptionId, ENT_QUOTES, 'UTF-8') ?>" class="text-sm text-slate-600 mb-0">Select a date to see available departure/start times.</p>
+        <p id="<?= htmlspecialchars($calendarDescriptionId, ENT_QUOTES, 'UTF-8') ?>" class="text-sm text-slate-600 mb-0">Pick your preferred date to view available times.</p>
     </header>
 
     <div class="relative rounded-xl border border-slate-200 p-2 md:p-6 shadow-xs" data-calendar>

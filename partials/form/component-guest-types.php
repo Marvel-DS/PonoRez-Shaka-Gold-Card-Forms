@@ -84,13 +84,13 @@ foreach ($guestTypeEntries as $guestType) {
     ];
 }
 
-$label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people are in your group?';
+$label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people in your group?';
 ?>
 <section class="space-y-4" data-component="guest-types">
 
     <header>
         <h2 class="text-lg font-semibold mb-0"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></h2>
-        <p class="text-sm text-slate-600 mb-0">Adjust the number of guests for each category.</p>
+        <p class="text-sm text-slate-600 mb-0">Tell us who is joining your tour.</p>
     </header>
 
     <div class="space-y-4" data-guest-types>

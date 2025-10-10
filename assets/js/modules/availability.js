@@ -1060,7 +1060,7 @@ function renderTimeslots(state) {
             headerRow.appendChild(radioWrapper);
 
             const priceInfo = createElement('div', {
-                className: 'flex flex-col gap-2 border-t border-slate-200 pt-4 text-sm text-slate-600 sm:flex-row sm:items-end sm:justify-between',
+                className: 'flex flex-col gap-2 border-t border-slate-200 pt-4 text-sm text-slate-600 sm:flex-row items-start md:justify-between',
             });
 
             if (!hasGuestDetails) {

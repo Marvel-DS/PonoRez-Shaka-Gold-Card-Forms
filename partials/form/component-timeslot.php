@@ -12,13 +12,13 @@ declare(strict_types=1);
 
 $page = $pageContext ?? [];
 $bootstrap = $page['bootstrap'] ?? [];
-$label = $bootstrap['activity']['uiLabels']['timeslots'] ?? 'Select a Time';
+$label = $bootstrap['activity']['uiLabels']['timeslots'] ?? 'Select a Departure Time';
 ?>
 <section class="space-y-5" data-component="timeslots">
 
     <header>
         <h2 class="text-xl font-semibold text-slate-900"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></h2>
-        <p class="text-sm text-slate-600">Choose the departure that fits your schedule.</p>
+        <p class="text-sm text-slate-600">Pick a check-in time that works best for your group.</p>
     </header>
 
     <div class="space-y-4" data-timeslot-panel>

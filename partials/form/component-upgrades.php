@@ -15,7 +15,7 @@ $label = $bootstrap['activity']['uiLabels']['upgrades'] ?? 'Optional Upgrades';
 <section class="space-y-4" data-component="upgrades">
     <header>
         <h2 class="text-lg font-semibold text-slate-900"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></h2>
-        <p class="text-sm text-slate-600">Enhance your experience with optional add-ons.</p>
+        <p class="text-sm text-slate-600">Enhance your experience with optional upgrades.</p>
     </header>
 
     <div class="space-y-3" data-upgrade-items>
