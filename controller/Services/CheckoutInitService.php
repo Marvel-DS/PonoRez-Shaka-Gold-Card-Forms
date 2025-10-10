@@ -36,10 +36,9 @@ final class CheckoutInitService
             'reservationOrder' => $reservationOrder,
         ]);
 
-        $calculation = $this->callSoap($client, 'calculatePricesAndPayment', $calculationPayload);
-        $calcArray = $this->normalizeResult($calculation);
-        $totalPrice = isset($calcArray['out_price']) ? (float) $calcArray['out_price'] : 0.0;
-        $supplierPayment = isset($calcArray['out_requiredSupplierPayment']) ? (float) $calcArray['out_requiredSupplierPayment'] : 0.0;
+        $calcArray = $this->callPriceCalculation($client, $calculationPayload);
+        $totalPrice = $this->extractTotalPrice($calcArray);
+        $supplierPayment = $this->extractSupplierPaymentAmount($calcArray);
 
         $reservationPayload = array_merge($login, [
             'supplierId' => $supplierConfig['supplierId'],
@@ -173,6 +172,25 @@ final class CheckoutInitService
         return $items;
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function callPriceCalculation(\SoapClient $client, array $payload): array
+    {
+        try {
+            $calculation = $this->callSoap($client, 'calculatePriceAndPaymentAndTransactionFee', $payload);
+        } catch (SoapFault $exception) {
+            if (!$this->isInvalidMethodFault($exception)) {
+                throw $exception;
+            }
+
+            $calculation = $this->callSoap($client, 'calculatePricesAndPayment', $payload);
+        }
+
+        return $this->normalizeResult($calculation);
+    }
+
     private function callSoap(\SoapClient $client, string $method, array $payload): mixed
     {
         try {
@@ -180,6 +198,53 @@ final class CheckoutInitService
         } catch (SoapFault $exception) {
             throw $exception;
         }
+    }
+
+    /**
+     * @param array<string, mixed> $calculation
+     */
+    private function extractTotalPrice(array $calculation): float
+    {
+        if (isset($calculation['out_price'])) {
+            return (float) $calculation['out_price'];
+        }
+
+        if (isset($calculation['out_newPrice'])) {
+            return (float) $calculation['out_newPrice'];
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * @param array<string, mixed> $calculation
+     */
+    private function extractSupplierPaymentAmount(array $calculation): float
+    {
+        if (isset($calculation['out_requiredSupplierPayment'])) {
+            return (float) $calculation['out_requiredSupplierPayment'];
+        }
+
+        if (isset($calculation['out_requiredPaymentWithoutTransactionFee'])) {
+            return (float) $calculation['out_requiredPaymentWithoutTransactionFee'];
+        }
+
+        if (isset($calculation['out_requiredPayment'])) {
+            return (float) $calculation['out_requiredPayment'];
+        }
+
+        if (isset($calculation['out_requiredPaymentWithTransactionFee'])) {
+            return (float) $calculation['out_requiredPaymentWithTransactionFee'];
+        }
+
+        return 0.0;
+    }
+
+    private function isInvalidMethodFault(SoapFault $exception): bool
+    {
+        $message = $exception->getMessage();
+
+        return is_string($message) && stripos($message, 'not a valid method') !== false;
     }
 
     /**

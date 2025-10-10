@@ -43,10 +43,10 @@ final class ReservationTest extends TestCase
         );
 
         $responses = [
-            'calculatePricesAndPayment' => (object) [
+            'calculatePriceAndPaymentAndTransactionFee' => (object) [
                 'return' => (object) [
                     'out_price' => 199.5,
-                    'out_requiredSupplierPayment' => 75.25,
+                    'out_requiredPaymentWithoutTransactionFee' => 75.25,
                 ],
             ],
             'createReservation' => (object) [
@@ -74,7 +74,7 @@ final class ReservationTest extends TestCase
         self::assertCount(2, $client->calls);
 
         [$calcMethod, $calcArgs] = $client->calls[0];
-        self::assertSame('calculatePricesAndPayment', $calcMethod);
+        self::assertSame('calculatePriceAndPaymentAndTransactionFee', $calcMethod);
         $calcPayload = $calcArgs[0];
         self::assertSame('apiUsername', $calcPayload['serviceLogin']['username']);
         self::assertSame(123, $calcPayload['supplierId']);
@@ -128,9 +128,9 @@ final class ReservationTest extends TestCase
 
         $fault = new SoapFault('Server', 'Checkout failed');
         $client = new CheckoutRecordingSoapClient([
-            'calculatePricesAndPayment' => null,
+            'calculatePriceAndPaymentAndTransactionFee' => null,
         ], [
-            'calculatePricesAndPayment' => $fault,
+            'calculatePriceAndPaymentAndTransactionFee' => $fault,
         ]);
         $factory = new CheckoutStubSoapClientFactory($client);
 
@@ -138,6 +138,59 @@ final class ReservationTest extends TestCase
 
         $this->expectException(SoapFault::class);
         $service->initiate($request);
+    }
+
+    public function testInitiateCheckoutFallsBackToLegacyCalculationMethod(): void
+    {
+        $request = new CheckoutInitRequest(
+            self::SUPPLIER_SLUG,
+            self::ACTIVITY_SLUG,
+            '2024-01-01',
+            'timeslot-101',
+            ['345' => 2],
+            [],
+            [],
+            null,
+            [],
+            []
+        );
+
+        $responses = [
+            'calculatePricesAndPayment' => (object) [
+                'return' => (object) [
+                    'out_price' => 150.0,
+                    'out_requiredSupplierPayment' => 60.0,
+                ],
+            ],
+            'createReservation' => (object) [
+                'return' => (object) [
+                    'id' => 'RES-LEGACY',
+                ],
+            ],
+        ];
+
+        $fault = new SoapFault('Client', 'Function ("calculatePriceAndPaymentAndTransactionFee") is not a valid method for this service');
+
+        $client = new CheckoutRecordingSoapClient(
+            $responses,
+            ['calculatePriceAndPaymentAndTransactionFee' => $fault]
+        );
+        $factory = new CheckoutStubSoapClientFactory($client);
+
+        $service = new CheckoutInitService($factory);
+        $response = $service->initiate($request);
+
+        self::assertSame(150.0, $response->getTotalPrice());
+        self::assertSame(60.0, $response->getSupplierPaymentAmount());
+        self::assertSame('RES-LEGACY', $response->getReservationId());
+
+        self::assertCount(3, $client->calls);
+
+        [$primaryMethod] = $client->calls[0];
+        self::assertSame('calculatePriceAndPaymentAndTransactionFee', $primaryMethod);
+
+        [$fallbackMethod] = $client->calls[1];
+        self::assertSame('calculatePricesAndPayment', $fallbackMethod);
     }
 }
 
