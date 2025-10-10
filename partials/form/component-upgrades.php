@@ -2,11 +2,191 @@
 
 declare(strict_types=1);
 
+use PonoRez\SGCForms\UtilityService;
+
 $page = $pageContext ?? [];
 $bootstrap = $page['bootstrap'] ?? [];
-$upgrades = $bootstrap['activity']['upgrades'] ?? [];
+$activityConfig = $page['activity'] ?? [];
 
-if ($upgrades === []) {
+$bootstrapUpgrades = is_array($bootstrap['activity']['upgrades'] ?? null)
+    ? $bootstrap['activity']['upgrades']
+    : [];
+
+if ($bootstrapUpgrades === []) {
+    return;
+}
+
+$configUpgrades = is_array($activityConfig['upgradesConfig'] ?? null)
+    ? $activityConfig['upgradesConfig']
+    : [];
+
+$configUpgradesById = [];
+foreach ($configUpgrades as $configUpgrade) {
+    if (!is_array($configUpgrade) || !isset($configUpgrade['id'])) {
+        continue;
+    }
+
+    $configId = (string) $configUpgrade['id'];
+    if ($configId === '') {
+        continue;
+    }
+
+    $configUpgradesById[$configId] = $configUpgrade;
+}
+
+$firstNonEmptyString = static function (array $candidates): ?string {
+    foreach ($candidates as $candidate) {
+        if ($candidate === null) {
+            continue;
+        }
+
+        if (is_scalar($candidate)) {
+            $string = trim((string) $candidate);
+            if ($string !== '') {
+                return $string;
+            }
+        }
+    }
+
+    return null;
+};
+
+$firstNumericValue = static function (array $candidates): ?float {
+    foreach ($candidates as $candidate) {
+        if ($candidate === null || $candidate === '') {
+            continue;
+        }
+
+        if (is_string($candidate)) {
+            $candidate = trim($candidate);
+            if ($candidate === '') {
+                continue;
+            }
+        }
+
+        if (is_numeric($candidate)) {
+            return (float) $candidate;
+        }
+    }
+
+    return null;
+};
+
+$sanitizeQuantity = static function (mixed $value): ?int {
+    if ($value === null || $value === '') {
+        return null;
+    }
+
+    if (!is_numeric($value)) {
+        return null;
+    }
+
+    $intValue = (int) $value;
+    return $intValue < 0 ? 0 : $intValue;
+};
+
+$currencySymbol = $bootstrap['activity']['currency']['symbol'] ?? '$';
+$chevronIcon = UtilityService::renderSvgIcon('outline/chevron-up-down.svg', 'h-5 w-5', '2');
+
+$normalizedUpgrades = [];
+
+foreach ($bootstrapUpgrades as $upgrade) {
+    if (!is_array($upgrade) || !isset($upgrade['id'])) {
+        continue;
+    }
+
+    if (($upgrade['enabled'] ?? true) === false) {
+        continue;
+    }
+
+    $id = (string) $upgrade['id'];
+    if ($id === '') {
+        continue;
+    }
+
+    $configEntry = $configUpgradesById[$id] ?? null;
+    if (is_array($configEntry) && ($configEntry['enabled'] ?? true) === false) {
+        continue;
+    }
+
+    $label = $firstNonEmptyString([
+        $configEntry['label'] ?? null,
+        $configEntry['name'] ?? null,
+        $configEntry['title'] ?? null,
+        $upgrade['label'] ?? null,
+        $upgrade['name'] ?? null,
+        $upgrade['title'] ?? null,
+    ]) ?? $id;
+
+    $description = $firstNonEmptyString([
+        $configEntry['description'] ?? null,
+        $configEntry['details'] ?? null,
+        $configEntry['summary'] ?? null,
+        $upgrade['description'] ?? null,
+        $upgrade['details'] ?? null,
+        $upgrade['summary'] ?? null,
+    ]);
+
+    $price = $firstNumericValue([
+        $configEntry['price'] ?? null,
+        $configEntry['amount'] ?? null,
+        $configEntry['rate'] ?? null,
+        $upgrade['price'] ?? null,
+        $upgrade['amount'] ?? null,
+        $upgrade['rate'] ?? null,
+    ]);
+
+    $minQuantity = null;
+    if (is_array($configEntry) && array_key_exists('minQuantity', $configEntry)) {
+        $minQuantity = $sanitizeQuantity($configEntry['minQuantity']);
+    }
+
+    if ($minQuantity === null) {
+        $minQuantity = $sanitizeQuantity($upgrade['minQuantity'] ?? null);
+    }
+
+    if ($minQuantity === null) {
+        $minQuantity = 0;
+    }
+
+    $maxQuantity = null;
+    if (is_array($configEntry) && array_key_exists('maxQuantity', $configEntry)) {
+        $maxQuantity = $sanitizeQuantity($configEntry['maxQuantity']);
+    }
+
+    if ($maxQuantity === null && array_key_exists('maxQuantity', $upgrade)) {
+        $maxQuantity = $sanitizeQuantity($upgrade['maxQuantity']);
+    }
+
+    if ($maxQuantity !== null) {
+        $maxQuantity = max($maxQuantity, $minQuantity);
+    }
+
+    $priceDisplay = null;
+    if ($price !== null) {
+        if ($price > 0.0) {
+            $priceDisplay = sprintf('+ %s%s', $currencySymbol, number_format($price, 2));
+        } elseif ($price === 0.0) {
+            $priceDisplay = 'Included';
+        }
+    }
+
+    $sanitizedId = preg_replace('/[^a-zA-Z0-9_-]/', '', $id);
+    $selectId = sprintf('upgrade-count-%s', $sanitizedId);
+
+    $normalizedUpgrades[] = [
+        'id' => $id,
+        'label' => $label,
+        'description' => $description,
+        'price' => $price,
+        'priceDisplay' => $priceDisplay,
+        'min' => $minQuantity,
+        'max' => $maxQuantity,
+        'selectId' => $selectId,
+    ];
+}
+
+if ($normalizedUpgrades === []) {
     return;
 }
 
@@ -19,174 +199,51 @@ $label = $bootstrap['activity']['uiLabels']['upgrades'] ?? 'Optional Upgrades';
     </header>
 
     <div class="space-y-4" data-upgrade-items>
-        <?php foreach ($upgrades as $upgrade): ?>
+        <?php foreach ($normalizedUpgrades as $upgrade): ?>
             <?php
-            if (($upgrade['enabled'] ?? true) === false) {
-                continue;
-            }
-
-            $id = (string) ($upgrade['id'] ?? '');
-            if ($id === '') {
-                continue;
-            }
-
-$labelCandidates = [
-    $upgrade['label'] ?? null,
-    $upgrade['name'] ?? null,
-    $upgrade['title'] ?? null,
-];
-
-$labelText = null;
-foreach ($labelCandidates as $candidate) {
-    if (!is_string($candidate)) {
-        continue;
-    }
-
-    $trimmed = trim($candidate);
-    if ($trimmed === '') {
-        continue;
-    }
-
-    $labelText = $trimmed;
-    break;
-}
-
-if ($labelText === null) {
-    $labelText = $id;
-}
-
-$descriptionCandidates = [
-    $upgrade['description'] ?? null,
-    $upgrade['details'] ?? null,
-    $upgrade['summary'] ?? null,
-];
-
-$description = null;
-foreach ($descriptionCandidates as $candidate) {
-    if (!is_string($candidate)) {
-        continue;
-    }
-
-    $trimmed = trim($candidate);
-    if ($trimmed === '') {
-        continue;
-    }
-
-    $description = $trimmed;
-    break;
-}
-
-$price = null;
-$priceCandidates = [
-    $upgrade['price'] ?? null,
-    $upgrade['amount'] ?? null,
-    $upgrade['rate'] ?? null,
-];
-
-foreach ($priceCandidates as $candidate) {
-    if ($candidate === null) {
-        continue;
-    }
-
-    if (is_string($candidate)) {
-        $candidate = trim($candidate);
-        if ($candidate === '') {
-            continue;
-        }
-    }
-
-    if (!is_numeric($candidate)) {
-        continue;
-    }
-
-    $price = (float) $candidate;
-    break;
-}
-
-$max = isset($upgrade['maxQuantity']) ? (int) $upgrade['maxQuantity'] : null;
-$min = isset($upgrade['minQuantity']) ? (int) $upgrade['minQuantity'] : 0;
-$priceDisplay = null;
-
-            if ($price !== null) {
-                if ($price > 0.0) {
-                    $priceDisplay = '+ $' . number_format($price, 2);
-                } elseif ($price === 0.0) {
-                    $priceDisplay = 'Included';
-                }
-            }
+                $min = $upgrade['min'];
+                $max = $upgrade['max'];
+                $maxOption = $max ?? $min;
             ?>
             <div
-                class="w-full"
-                data-upgrade-id="<?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?>"
-                <?= $price !== null ? 'data-price="' . htmlspecialchars((string) $price, ENT_QUOTES, 'UTF-8') . '"' : '' ?>
-                <?= $max !== null ? 'data-max="' . $max . '"' : '' ?>
+                class="flex flex-wrap items-center justify-between gap-6 pe-3 rounded-xl border border-slate-200 bg-white shadow-xs"
+                data-upgrade-id="<?= htmlspecialchars($upgrade['id'], ENT_QUOTES, 'UTF-8') ?>"
                 data-min="<?= $min ?>"
+                <?= $upgrade['price'] !== null ? 'data-price="' . htmlspecialchars((string) $upgrade['price'], ENT_QUOTES, 'UTF-8') . '"' : '' ?>
+                <?= $max !== null ? 'data-max="' . $max . '"' : '' ?>
             >
-                <div
-                    class="flex flex-col gap-5 rounded-xl border border-slate-200 bg-white px-5 py-5 shadow-xs hover:shadow-xl transition-all duration-300"
-                    data-upgrade-card
-                >
-                    <div class="flex flex-col gap-4">
-                        <div class="flex items-start gap-4">
-                            <span
-                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-white transition-all duration-300"
-                                aria-hidden="true"
-                                data-upgrade-indicator
-                            >
-                                <span class="flex h-5 w-5 items-center justify-center" data-upgrade-icon></span>
-                            </span>
-
-                            <div class="flex flex-col text-left w-full">
-                                <p class="flex flex-col md:flex-row text-lg font-semibold tracking-tight text-slate-900 mb-0 w-full justify-between md:items-center">
-                                    <?= htmlspecialchars($labelText, ENT_QUOTES, 'UTF-8') ?>
-                                    <?php if ($priceDisplay && $price > 0.0): ?>
-                                        <span class="ml-2 text-base font-medium text-slate-900"><?= htmlspecialchars($priceDisplay, ENT_QUOTES, 'UTF-8') ?></span>
-                                    <?php elseif ($priceDisplay): ?>
-                                        <span class="ml-2 text-sm font-semibold text-green-600"><?= htmlspecialchars($priceDisplay, ENT_QUOTES, 'UTF-8') ?></span>
-                                    <?php endif; ?>
-                                </p>
-
-                                <?php if ($description): ?>
-                                    <p class="text-sm text-slate-500 mb-0"><?= htmlspecialchars((string) $description, ENT_QUOTES, 'UTF-8') ?></p>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-
-                        <div class="flex flex-row items-start gap-2 pl-12">
-
-                            <div class="relative flex items-center max-w-[10rem]" data-upgrade-counter>
-                                <button
-                                    type="button"
-                                    class="inline-flex h-12 min-w-12 items-center justify-center rounded-l-lg border border-slate-300 bg-[var(--sgc-brand-primary)] text-white transition hover:bg-[var(--sgc-brand-primary)]/90 cursor-pointer"
-                                    data-action="decrement"
-                                    aria-label="Decrease <?= htmlspecialchars($labelText, ENT_QUOTES, 'UTF-8') ?>"
-                                >
-                                    <svg class="h-3 w-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 18 2">
-                                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1 1h16" />
-                                    </svg>
-                                </button>
-                                <input
-                                    type="number"
-                                    id="upgrade-<?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?>"
-                                    name="upgrades[<?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?>]"
-                                    value="<?= $min ?>"
-                                    min="<?= $min ?>"
-                                    <?= $max !== null ? 'max="' . $max . '"' : '' ?>
-                                    class="h-12 w-12 border border-x-0 border-slate-200 bg-white px-1 text-center text-base font-semibold text-slate-900 no-spinner"
-                                    inputmode="numeric"
-                                >
-                                <button
-                                    type="button"
-                                    class="inline-flex h-12 min-w-12 items-center justify-center rounded-r-lg border border-slate-300 bg-[var(--sgc-brand-primary)] text-white transition hover:bg-[var(--sgc-brand-primary)]/90 cursor-pointer"
-                                    data-action="increment"
-                                    aria-label="Increase <?= htmlspecialchars($labelText, ENT_QUOTES, 'UTF-8') ?>"
-                                >
-                                    <svg class="h-3 w-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 18 18">
-                                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 1v16M1 9h16" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
+                <div class="flex items-center gap-4 min-w-0">
+                    <div class="relative">
+                        <label class="sr-only" for="<?= htmlspecialchars($upgrade['selectId'], ENT_QUOTES, 'UTF-8') ?>">
+                            <?= htmlspecialchars(sprintf('Quantity for %s', $upgrade['label']), ENT_QUOTES, 'UTF-8') ?>
+                        </label>
+                        <select
+                            id="<?= htmlspecialchars($upgrade['selectId'], ENT_QUOTES, 'UTF-8') ?>"
+                            name="upgrades[<?= htmlspecialchars($upgrade['id'], ENT_QUOTES, 'UTF-8') ?>]"
+                            class="h-14 w-20 appearance-none rounded-l-xl bg-[var(--sgc-brand-primary)] px-3 pr-8 pl-5 text-center text-base font-normal text-white shadow-sm focus:outline-none"
+                            data-upgrade-select
+                        >
+                            <?php for ($value = $min; $value <= $maxOption; $value++): ?>
+                                <option value="<?= $value ?>"<?= $value === $min ? ' selected' : '' ?>><?= $value ?></option>
+                            <?php endfor; ?>
+                        </select>
+                        <span aria-hidden="true" class="pointer-events-none absolute inset-y-0 right-2 flex items-center text-sm text-blue-50">
+                            <?= $chevronIcon ?>
+                        </span>
+                    </div>
+                    <div class="min-w-0 space-y-0">
+                        <p class="font-medium -mb-0.5 text-slate-900">
+                            <?= htmlspecialchars($upgrade['label'], ENT_QUOTES, 'UTF-8') ?>
+                            <?php if ($upgrade['priceDisplay'] !== null): ?>
+                                <?php $priceClass = ($upgrade['price'] ?? null) === 0.0 ? 'text-green-600' : 'text-slate-900'; ?>
+                                <span class="ml-2 text-sm font-semibold <?= $priceClass ?>">
+                                    <?= htmlspecialchars($upgrade['priceDisplay'], ENT_QUOTES, 'UTF-8') ?>
+                                </span>
+                            <?php endif; ?>
+                        </p>
+                        <p class="text-xs text-slate-500 mb-0<?= $upgrade['description'] === null ? ' hidden' : '' ?>">
+                            <?= htmlspecialchars((string) $upgrade['description'], ENT_QUOTES, 'UTF-8') ?>
+                        </p>
                     </div>
                 </div>
             </div>
