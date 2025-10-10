@@ -30,12 +30,82 @@ $label = $bootstrap['activity']['uiLabels']['upgrades'] ?? 'Optional Upgrades';
                 continue;
             }
 
-            $labelText = $upgrade['label'] ?? $id;
-            $description = $upgrade['description'] ?? null;
-            $price = isset($upgrade['price']) ? (float) $upgrade['price'] : null;
-            $max = isset($upgrade['maxQuantity']) ? (int) $upgrade['maxQuantity'] : null;
-            $min = isset($upgrade['minQuantity']) ? (int) $upgrade['minQuantity'] : 0;
-            $priceDisplay = null;
+$labelCandidates = [
+    $upgrade['label'] ?? null,
+    $upgrade['name'] ?? null,
+    $upgrade['title'] ?? null,
+];
+
+$labelText = null;
+foreach ($labelCandidates as $candidate) {
+    if (!is_string($candidate)) {
+        continue;
+    }
+
+    $trimmed = trim($candidate);
+    if ($trimmed === '') {
+        continue;
+    }
+
+    $labelText = $trimmed;
+    break;
+}
+
+if ($labelText === null) {
+    $labelText = $id;
+}
+
+$descriptionCandidates = [
+    $upgrade['description'] ?? null,
+    $upgrade['details'] ?? null,
+    $upgrade['summary'] ?? null,
+];
+
+$description = null;
+foreach ($descriptionCandidates as $candidate) {
+    if (!is_string($candidate)) {
+        continue;
+    }
+
+    $trimmed = trim($candidate);
+    if ($trimmed === '') {
+        continue;
+    }
+
+    $description = $trimmed;
+    break;
+}
+
+$price = null;
+$priceCandidates = [
+    $upgrade['price'] ?? null,
+    $upgrade['amount'] ?? null,
+    $upgrade['rate'] ?? null,
+];
+
+foreach ($priceCandidates as $candidate) {
+    if ($candidate === null) {
+        continue;
+    }
+
+    if (is_string($candidate)) {
+        $candidate = trim($candidate);
+        if ($candidate === '') {
+            continue;
+        }
+    }
+
+    if (!is_numeric($candidate)) {
+        continue;
+    }
+
+    $price = (float) $candidate;
+    break;
+}
+
+$max = isset($upgrade['maxQuantity']) ? (int) $upgrade['maxQuantity'] : null;
+$min = isset($upgrade['minQuantity']) ? (int) $upgrade['minQuantity'] : 0;
+$priceDisplay = null;
 
             if ($price !== null) {
                 if ($price > 0.0) {
@@ -67,7 +137,7 @@ $label = $bootstrap['activity']['uiLabels']['upgrades'] ?? 'Optional Upgrades';
                             </span>
 
                             <div class="flex flex-col text-left w-full">
-                                <p class="flex flex-col md:flex-row text-lg font-semibold tracking-tight text-slate-90 mb-0 w-full justify-between md:items-center">
+                                <p class="flex flex-col md:flex-row text-lg font-semibold tracking-tight text-slate-900 mb-0 w-full justify-between md:items-center">
                                     <?= htmlspecialchars($labelText, ENT_QUOTES, 'UTF-8') ?>
                                     <?php if ($priceDisplay && $price > 0.0): ?>
                                         <span class="ml-2 text-base font-medium text-slate-900"><?= htmlspecialchars($priceDisplay, ENT_QUOTES, 'UTF-8') ?></span>
