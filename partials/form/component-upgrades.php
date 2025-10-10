@@ -53,10 +53,10 @@ $label = $bootstrap['activity']['uiLabels']['upgrades'] ?? 'Optional Upgrades';
                 data-min="<?= $min ?>"
             >
                 <div
-                    class="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-xs transition-all duration-300"
+                    class="flex flex-col gap-5 rounded-xl border border-slate-200 bg-white px-5 py-5 shadow-xs hover:shadow-xl transition-all duration-300"
                     data-upgrade-card
                 >
-                    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div class="flex flex-col gap-4">
                         <div class="flex items-start gap-4">
                             <span
                                 class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-white transition-all duration-300"
@@ -66,8 +66,8 @@ $label = $bootstrap['activity']['uiLabels']['upgrades'] ?? 'Optional Upgrades';
                                 <span class="flex h-5 w-5 items-center justify-center" data-upgrade-icon></span>
                             </span>
 
-                            <div class="flex flex-col gap-1 text-left">
-                                <p class="text-lg font-semibold tracking-tight text-slate-900">
+                            <div class="flex flex-col text-left">
+                                <p class="text-lg font-semibold tracking-tight text-slate-90 mb-0">
                                     <?= htmlspecialchars($labelText, ENT_QUOTES, 'UTF-8') ?>
                                     <?php if ($priceDisplay && $price > 0.0): ?>
                                         <span class="ml-2 text-sm font-medium text-slate-500"><?= htmlspecialchars($priceDisplay, ENT_QUOTES, 'UTF-8') ?></span>
@@ -77,19 +77,17 @@ $label = $bootstrap['activity']['uiLabels']['upgrades'] ?? 'Optional Upgrades';
                                 </p>
 
                                 <?php if ($description): ?>
-                                    <p class="text-sm text-slate-500"><?= htmlspecialchars((string) $description, ENT_QUOTES, 'UTF-8') ?></p>
+                                    <p class="text-sm text-slate-500 mb-0"><?= htmlspecialchars((string) $description, ENT_QUOTES, 'UTF-8') ?></p>
                                 <?php endif; ?>
                             </div>
                         </div>
 
-                        <div class="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
-                            <label class="text-xs font-medium uppercase tracking-wide text-slate-500" for="upgrade-<?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?>">
-                                Quantity
-                            </label>
-                            <div class="relative flex items-center max-w-[8rem]" data-upgrade-counter>
+                        <div class="flex flex-row items-start gap-2 pl-12">
+
+                            <div class="relative flex items-center max-w-[10rem]" data-upgrade-counter>
                                 <button
                                     type="button"
-                                    class="inline-flex h-11 w-11 items-center justify-center rounded-l-lg border border-slate-300 bg-[var(--sgc-brand-primary)] text-white transition hover:bg-[var(--sgc-brand-primary)]/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sgc-brand-primary)]"
+                                    class="inline-flex h-12 min-w-12 items-center justify-center rounded-l-lg border border-slate-300 bg-[var(--sgc-brand-primary)] text-white transition hover:bg-[var(--sgc-brand-primary)]/90 cursor-pointer"
                                     data-action="decrement"
                                     aria-label="Decrease <?= htmlspecialchars($labelText, ENT_QUOTES, 'UTF-8') ?>"
                                 >
@@ -104,12 +102,12 @@ $label = $bootstrap['activity']['uiLabels']['upgrades'] ?? 'Optional Upgrades';
                                     value="<?= $min ?>"
                                     min="<?= $min ?>"
                                     <?= $max !== null ? 'max="' . $max . '"' : '' ?>
-                                    class="h-11 w-full border border-x-0 border-slate-300 bg-white px-2 text-center text-base font-semibold text-slate-900 focus:border-[var(--sgc-brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--sgc-brand-primary)]"
+                                    class="h-12 w-12 border border-x-0 border-slate-200 bg-white px-1 text-center text-base font-semibold text-slate-900 no-spinner"
                                     inputmode="numeric"
                                 >
                                 <button
                                     type="button"
-                                    class="inline-flex h-11 w-11 items-center justify-center rounded-r-lg border border-slate-300 bg-[var(--sgc-brand-primary)] text-white transition hover:bg-[var(--sgc-brand-primary)]/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sgc-brand-primary)]"
+                                    class="inline-flex h-12 min-w-12 items-center justify-center rounded-r-lg border border-slate-300 bg-[var(--sgc-brand-primary)] text-white transition hover:bg-[var(--sgc-brand-primary)]/90 cursor-pointer"
                                     data-action="increment"
                                     aria-label="Increase <?= htmlspecialchars($labelText, ENT_QUOTES, 'UTF-8') ?>"
                                 >

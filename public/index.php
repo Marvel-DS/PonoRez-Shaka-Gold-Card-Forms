@@ -9,6 +9,7 @@ use PonoRez\SGCForms\DTO\TransportationSet;
 use PonoRez\SGCForms\Services\GuestTypeService;
 use PonoRez\SGCForms\Services\SoapClientBuilder;
 use PonoRez\SGCForms\Services\TransportationService;
+use PonoRez\SGCForms\Services\UpgradeService;
 use PonoRez\SGCForms\UtilityService;
 
 $requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
@@ -253,6 +254,25 @@ try {
 } catch (Throwable) {
     $guestTypeDetailMap = [];
 }
+
+$upgradesFromConfig = [];
+if (isset($activityConfig['upgrades']) && is_array($activityConfig['upgrades'])) {
+    $upgradesFromConfig = $activityConfig['upgrades'];
+}
+
+try {
+    $upgradeCacheDirectory = UtilityService::projectRoot() . '/cache/upgrades';
+    $upgradeCache = is_writable(dirname($upgradeCacheDirectory))
+        ? new FileCache($upgradeCacheDirectory)
+        : new NullCache();
+
+    $upgradeService = new UpgradeService($upgradeCache, new SoapClientBuilder());
+    $upgradesCollection = $upgradeService->fetch($supplierSlug, $activitySlug);
+    $upgradesFromConfig = $upgradesCollection->toArray();
+} catch (Throwable) {
+    // Fall back to any upgrade definitions from the activity config.
+}
+
 
 $normalizeGuestTypeEntry = static function (array $guestType, array $detailMap): ?array {
     if (!isset($guestType['id'])) {

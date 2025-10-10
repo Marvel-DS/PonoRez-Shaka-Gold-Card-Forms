@@ -46,16 +46,16 @@ function applyCardState(container, value) {
     container.dataset.active = active ? 'true' : 'false';
 
     if (active) {
-        card.classList.add('border-[var(--sgc-brand-primary)]', 'bg-[var(--sgc-brand-primary)]/10', 'shadow-lg');
-        card.classList.remove('border-slate-200');
+        //card.classList.add('bg-[var(--sgc-brand-primary)]/10', 'shadow-lg');
+        //card.classList.remove('border-slate-200');
         indicator.classList.add('border-transparent', 'bg-[var(--sgc-brand-primary)]');
         indicator.classList.remove('border-slate-300', 'bg-white');
         icon.innerHTML = CHECK_ICON_SVG;
         return;
     }
 
-    card.classList.remove('border-[var(--sgc-brand-primary)]', 'bg-[var(--sgc-brand-primary)]/10', 'shadow-lg');
-    card.classList.add('border-slate-200');
+    //card.classList.remove('bg-[var(--sgc-brand-primary)]/10', 'shadow-lg');
+    //card.classList.add('border-slate-200');
     indicator.classList.remove('border-transparent', 'bg-[var(--sgc-brand-primary)]');
     indicator.classList.add('border-slate-300', 'bg-white');
     icon.innerHTML = '';
