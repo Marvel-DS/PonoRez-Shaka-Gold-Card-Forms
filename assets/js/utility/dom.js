@@ -1,6 +1,18 @@
-export const qs = (selector, context = document) => context.querySelector(selector);
+export const qs = (selector, context = document) => {
+    if (!context || typeof context.querySelector !== 'function') {
+        return null;
+    }
 
-export const qsa = (selector, context = document) => Array.from(context.querySelectorAll(selector));
+    return context.querySelector(selector);
+};
+
+export const qsa = (selector, context = document) => {
+    if (!context || typeof context.querySelectorAll !== 'function') {
+        return [];
+    }
+
+    return Array.from(context.querySelectorAll(selector));
+};
 
 export function toggleHidden(element, shouldHide) {
     if (!element) {
