@@ -104,6 +104,24 @@ export function computeFees(state) {
     return 0;
 }
 
+export function computeDiscountSavings(state, total) {
+    const rawDiscount = state.bootstrap?.activity?.discount ?? state.bootstrap?.discount ?? 0;
+    let discountRate = Number(rawDiscount);
+
+    if (!Number.isFinite(discountRate) || discountRate <= 0) {
+        return 0;
+    }
+
+    if (discountRate > 1) {
+        discountRate = discountRate / 100;
+    }
+
+    const numericTotal = Number(total);
+    const safeTotal = Number.isFinite(numericTotal) ? numericTotal : 0;
+
+    return Math.max(0, safeTotal * discountRate);
+}
+
 export function computePricingTotals(state) {
     const totals = {
         guests: computeGuestTotal(state),
@@ -124,5 +142,6 @@ export default {
     computeTransportationTotal,
     computeUpgradesTotal,
     computeFees,
+    computeDiscountSavings,
     computePricingTotals,
 };
