@@ -86,6 +86,7 @@ final class CheckoutInitService
             'address' => $contact['address'],
             'contactPhone' => $contact['contactPhone'],
             'email' => $contact['email'],
+            'stayingAtHotelId' => $contact['stayingAtHotelId'],
             'guestCounts' => $this->mapGuestCounts($request->getGuestCounts()),
         ];
 
@@ -107,10 +108,6 @@ final class CheckoutInitService
 
         if ($request->getUpgrades() !== []) {
             $order['upgradeCounts'] = $this->mapUpgrades($request->getUpgrades());
-        }
-
-        if ($contact['stayingAtHotelId'] !== null) {
-            $order['stayingAtHotelId'] = $contact['stayingAtHotelId'];
         }
 
         if ($contact['room'] !== '') {
