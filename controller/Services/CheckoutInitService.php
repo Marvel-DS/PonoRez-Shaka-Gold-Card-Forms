@@ -77,9 +77,15 @@ final class CheckoutInitService
     private function buildReservationOrder(CheckoutInitRequest $request): array
     {
         $metadata = $request->getMetadata();
+        $contact = $this->mapContact($request->getContact());
 
         $order = [
             'date' => $request->getDate(),
+            'firstName' => $contact['firstName'],
+            'lastName' => $contact['lastName'],
+            'address' => $contact['address'],
+            'contactPhone' => $contact['contactPhone'],
+            'email' => $contact['email'],
             'guestCounts' => $this->mapGuestCounts($request->getGuestCounts()),
         ];
 
@@ -100,7 +106,27 @@ final class CheckoutInitService
         }
 
         if ($request->getUpgrades() !== []) {
-            $order['upgrades'] = $this->mapUpgrades($request->getUpgrades());
+            $order['upgradeCounts'] = $this->mapUpgrades($request->getUpgrades());
+        }
+
+        if ($contact['stayingAtHotelId'] !== null) {
+            $order['stayingAtHotelId'] = $contact['stayingAtHotelId'];
+        }
+
+        if ($contact['room'] !== '') {
+            $order['room'] = $contact['room'];
+        }
+
+        if ($contact['transportationComments'] !== '') {
+            $order['transportationComments'] = $contact['transportationComments'];
+        }
+
+        if ($contact['arrivalDate'] !== null && $contact['arrivalDate'] !== '') {
+            $order['arrivalDate'] = $contact['arrivalDate'];
+        }
+
+        if ($contact['comments'] !== '') {
+            $order['comments'] = $contact['comments'];
         }
 
         return $order;
@@ -142,9 +168,8 @@ final class CheckoutInitService
             }
             $id = is_numeric($upgradeId) ? (int) $upgradeId : (string) $upgradeId;
             $items[] = [
-                'upgradeId' => $id,
                 'id' => $id,
-                'quantity' => (int) $quantity,
+                'count' => (int) $quantity,
             ];
         }
 
@@ -170,6 +195,133 @@ final class CheckoutInitService
         }
 
         return $items;
+    }
+
+    /**
+     * @param array<string, mixed> $contact
+     *
+     * @return array{
+     *     firstName: string,
+     *     lastName: string,
+     *     address: array{streetAddress: string, city: string, state: string, zipCode: string},
+     *     contactPhone: string,
+     *     email: string,
+     *     stayingAtHotelId: ?int,
+     *     room: string,
+     *     transportationComments: string,
+     *     arrivalDate: ?string,
+     *     comments: string,
+     * }
+     */
+    private function mapContact(array $contact): array
+    {
+        $address = $this->mapAddress($contact);
+
+        return [
+            'firstName' => $this->stringValue($contact, ['firstName', 'first_name', 'firstname']),
+            'lastName' => $this->stringValue($contact, ['lastName', 'last_name', 'lastname']),
+            'address' => $address,
+            'contactPhone' => $this->stringValue($contact, ['contactPhone', 'phone', 'phoneNumber', 'phone_number']),
+            'email' => $this->stringValue($contact, ['email', 'emailAddress', 'email_address']),
+            'stayingAtHotelId' => $this->intValue($contact, ['stayingAtHotelId', 'hotelId', 'hotel_id']),
+            'room' => $this->stringValue($contact, ['room', 'roomNumber', 'room_number']),
+            'transportationComments' => $this->stringValue($contact, ['transportationComments', 'transportation_comments']),
+            'arrivalDate' => $this->nullableStringValue($contact, ['arrivalDate', 'arrival_date']),
+            'comments' => $this->stringValue($contact, ['comments', 'notes', 'additionalComments', 'additional_comments']),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $contact
+     *
+     * @return array{streetAddress: string, city: string, state: string, zipCode: string}
+     */
+    private function mapAddress(array $contact): array
+    {
+        $addressSource = [];
+        if (isset($contact['address']) && is_array($contact['address'])) {
+            $addressSource = $contact['address'];
+        }
+
+        $street = $this->stringValue($addressSource, ['streetAddress', 'street', 'line1', 'address1']);
+        if ($street === '') {
+            $street = $this->stringValue($contact, ['streetAddress', 'street', 'line1', 'address1', 'address']);
+        }
+
+        $city = $this->stringValue($addressSource, ['city', 'town']);
+        if ($city === '') {
+            $city = $this->stringValue($contact, ['city', 'town']);
+        }
+
+        $state = $this->stringValue($addressSource, ['state', 'stateCode', 'region', 'province']);
+        if ($state === '') {
+            $state = $this->stringValue($contact, ['state', 'stateCode', 'region', 'province']);
+        }
+
+        $zip = $this->stringValue($addressSource, ['zipCode', 'postalCode', 'zip', 'postcode']);
+        if ($zip === '') {
+            $zip = $this->stringValue($contact, ['zipCode', 'postalCode', 'zip', 'postcode']);
+        }
+
+        return [
+            'streetAddress' => $street,
+            'city' => $city,
+            'state' => $state,
+            'zipCode' => $zip,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $source
+     * @param array<int, string> $keys
+     */
+    private function stringValue(array $source, array $keys): string
+    {
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $source)) {
+                $value = $source[$key];
+                if (is_scalar($value) || $value === null) {
+                    return trim((string) $value);
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @param array<string, mixed> $source
+     * @param array<int, string> $keys
+     */
+    private function nullableStringValue(array $source, array $keys): ?string
+    {
+        $value = $this->stringValue($source, $keys);
+
+        return $value === '' ? null : $value;
+    }
+
+    /**
+     * @param array<string, mixed> $source
+     * @param array<int, string> $keys
+     */
+    private function intValue(array $source, array $keys): ?int
+    {
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $source)) {
+                $value = $source[$key];
+                if ($value === null || $value === '') {
+                    return null;
+                }
+
+                if (is_numeric($value)) {
+                    $intValue = (int) $value;
+
+                    return $intValue > 0 ? $intValue : null;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
