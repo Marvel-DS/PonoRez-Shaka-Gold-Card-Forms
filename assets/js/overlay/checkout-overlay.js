@@ -120,7 +120,7 @@ function resetMessages() {
 export function openOverlay({ url, message, reservationId, totalPrice } = {}) {
     ensureElements();
     if (!overlay) {
-        return;
+        return false;
     }
 
     isOpen = true;
@@ -151,6 +151,8 @@ export function openOverlay({ url, message, reservationId, totalPrice } = {}) {
     } else if (message) {
         showSuccess(message);
     }
+
+    return true;
 }
 
 export function closeOverlay() {

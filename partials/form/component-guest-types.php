@@ -139,8 +139,8 @@ $label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people in
                      data-min="<?= $minValue ?>"
                      data-max="<?= $maxValue ?>"
                      data-fallback-max="<?= $fallbackMax ?>">
-                    <div class="flex items-center gap-4 min-w-0">
-                        <div class="relative">
+                    <div class="flex min-w-0 flex-1 items-center gap-4">
+                        <div class="relative shrink-0">
                             <label class="sr-only" for="<?= htmlspecialchars($selectId, ENT_QUOTES, 'UTF-8') ?>">
                                 <?= htmlspecialchars(sprintf('Guest count for %s', $guestType['label']), ENT_QUOTES, 'UTF-8') ?>
                             </label>
@@ -156,14 +156,14 @@ $label = $bootstrap['activity']['uiLabels']['guestTypes'] ?? 'How many people in
                                 <?= $chevronIcon ?>
                             </span>
                         </div>
-                        <div class="min-w-0 space-y-0">
-                            <p class="font-medium -mb-0.5" id="<?= htmlspecialchars($labelId, ENT_QUOTES, 'UTF-8') ?>" data-guest-label><?= htmlspecialchars($guestType['label'], ENT_QUOTES, 'UTF-8') ?></p>
+                        <div class="min-w-0 flex-1 space-y-0">
+                            <p class="font-medium -mb-0.5 truncate" id="<?= htmlspecialchars($labelId, ENT_QUOTES, 'UTF-8') ?>" data-guest-label><?= htmlspecialchars($guestType['label'], ENT_QUOTES, 'UTF-8') ?></p>
                             <p class="text-xs text-slate-500 mb-0<?= $description === null || $description === '' ? ' hidden' : '' ?>"
                                data-guest-description><?= htmlspecialchars((string) $description, ENT_QUOTES, 'UTF-8') ?></p>
                         </div>
                     </div>
                     <?php if (! $isPrivateActivity): ?>
-                        <div class="flex items-center text-right h-14 pl-4 border-l border-slate-200">
+                        <div class="flex h-14 w-20 shrink-0 items-center justify-end border-l border-slate-200 pl-4 text-right">
                             <p class="font-medium text-slate-900 mb-0" data-guest-price>--</p>
                         </div>
                     <?php endif; ?>

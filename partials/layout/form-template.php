@@ -115,10 +115,16 @@ $title = $activity['displayName'] ?? 'SGC Booking Forms';
                         <?php include dirname(__DIR__) . '/form/component-calendar.php'; ?>
                         <?php include dirname(__DIR__) . '/form/component-timeslot.php'; ?>
                         <?php include dirname(__DIR__) . '/form/component-transportation.php'; ?>
-                        <?php include dirname(__DIR__) . '/form/component-gold-card.php'; ?>
                         <?php if (!$disableUpgrades) { ?>
                             <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
                         <?php } ?>
+                        <section class="space-y-6" data-component="shaka-gold-card">
+                            <?php $shakaGoldCardComposite = true; ?>
+                            <?php include dirname(__DIR__) . '/form/component-goldcard.php'; ?>
+                            <?php include dirname(__DIR__) . '/form/component-goldcard-upsell.php'; ?>
+                            <?php unset($shakaGoldCardComposite); ?>
+                        </section>
+                        <?php include dirname(__DIR__) . '/form/component-cancellation-policy.php'; ?>
                         <?php include dirname(__DIR__) . '/form/component-button.php'; ?>
 
                     </div>
@@ -131,10 +137,16 @@ $title = $activity['displayName'] ?? 'SGC Booking Forms';
                 <?php include dirname(__DIR__) . '/form/component-calendar.php'; ?>
                 <?php include dirname(__DIR__) . '/form/component-timeslot.php'; ?>
                 <?php include dirname(__DIR__) . '/form/component-transportation.php'; ?>
-                <?php include dirname(__DIR__) . '/form/component-gold-card.php'; ?>
                 <?php if (!$disableUpgrades) { ?>
                     <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
                 <?php } ?>
+                <section class="space-y-6" data-component="shaka-gold-card">
+                    <?php $shakaGoldCardComposite = true; ?>
+                    <?php include dirname(__DIR__) . '/form/component-goldcard.php'; ?>
+                    <?php include dirname(__DIR__) . '/form/component-goldcard-upsell.php'; ?>
+                    <?php unset($shakaGoldCardComposite); ?>
+                </section>
+                <?php include dirname(__DIR__) . '/form/component-cancellation-policy.php'; ?>
                 <?php include dirname(__DIR__) . '/form/component-button.php'; ?>
                 
             <?php endif; ?>

@@ -8,6 +8,7 @@ import { initPricing } from './modules/pricing.js';
 import { initBooking } from './modules/booking.js';
 import { initGallery } from './modules/gallery.js';
 import { initGoldCard } from './modules/gold-card.js';
+import { initCheckoutOverlay } from './overlay/checkout-overlay.js';
 
 function removeAvailabilityMetadataDebug() {
     document.querySelectorAll('[data-availability-metadata]').forEach((element) => {
@@ -16,6 +17,7 @@ function removeAvailabilityMetadataDebug() {
 }
 
 function bootstrap() {
+    initCheckoutOverlay();
     initGallery();
     initAlerts();
     initGuestTypes();

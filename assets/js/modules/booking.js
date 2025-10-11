@@ -1,11 +1,23 @@
 import { getState, setState } from '../core/store.js';
 import { qs, toggleHidden } from '../utility/dom.js';
 import { showError } from './alerts.js';
+import { openOverlay } from '../overlay/checkout-overlay.js';
 
 let form;
 let submitButton;
 let buttonLabel;
 let buttonSpinner;
+let cancellationCheckbox;
+
+function updateCancellationState() {
+    if (!cancellationCheckbox) {
+        return;
+    }
+
+    setState({
+        acknowledgedCancellationPolicy: Boolean(cancellationCheckbox.checked),
+    });
+}
 
 function setSubmitting(isSubmitting) {
     setState((current) => ({
@@ -198,7 +210,9 @@ function buildPonorezCheckoutUrl(state) {
         params.set('buygoldcards', '1');
     }
 
-    params.set('policy', '1');
+    if (state.shouldApplyCancellationPolicy && state.acknowledgedCancellationPolicy) {
+        params.set('policy', '1');
+    }
     params.set('paylater', 'true');
 
     return url.toString();
@@ -223,6 +237,10 @@ function validateState(state) {
         return 'Select a transportation option before continuing.';
     }
 
+    if (state.requiresCancellationAcknowledgement && !state.acknowledgedCancellationPolicy) {
+        return 'Please review and acknowledge the cancellation policy before continuing.';
+    }
+
     return null;
 }
 
@@ -240,7 +258,12 @@ function submitCheckout(event) {
 
     try {
         const checkoutUrl = buildPonorezCheckoutUrl(state);
-        window.location.href = checkoutUrl;
+        const opened = openOverlay({ url: checkoutUrl });
+        if (opened) {
+            setSubmitting(false);
+        } else {
+            window.location.href = checkoutUrl;
+        }
     } catch (error) {
         showError(error.message || 'Unable to start checkout.');
         setSubmitting(false);
@@ -256,8 +279,24 @@ export function initBooking() {
     submitButton = qs('[data-action="initiate-booking"]', form);
     buttonLabel = qs('[data-button-label]', submitButton);
     buttonSpinner = qs('[data-button-spinner]', submitButton);
+    cancellationCheckbox = qs('[data-cancellation-acknowledgement]', form);
 
     toggleHidden(buttonSpinner, true);
+
+    if (cancellationCheckbox) {
+        setState({
+            requiresCancellationAcknowledgement: true,
+            acknowledgedCancellationPolicy: Boolean(cancellationCheckbox.checked),
+            shouldApplyCancellationPolicy: true,
+        });
+        cancellationCheckbox.addEventListener('change', updateCancellationState);
+    } else {
+        setState({
+            requiresCancellationAcknowledgement: false,
+            acknowledgedCancellationPolicy: false,
+            shouldApplyCancellationPolicy: false,
+        });
+    }
 
     form.addEventListener('submit', submitCheckout);
 }

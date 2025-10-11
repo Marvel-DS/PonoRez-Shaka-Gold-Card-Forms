@@ -213,6 +213,7 @@ $label = $bootstrap['activity']['uiLabels']['upgrades'] ?? 'Optional Upgrades';
                 $min = $upgrade['min'];
                 $max = $upgrade['max'];
                 $maxOption = $max ?? $min;
+                $priceClass = ($upgrade['price'] ?? null) === 0.0 ? 'text-green-600' : 'text-slate-900';
             ?>
             <div
                 class="flex flex-wrap items-center justify-between gap-6 pe-3 rounded-xl border border-slate-200 bg-white shadow-xs"
@@ -221,8 +222,8 @@ $label = $bootstrap['activity']['uiLabels']['upgrades'] ?? 'Optional Upgrades';
                 <?= $upgrade['price'] !== null ? 'data-price="' . htmlspecialchars((string) $upgrade['price'], ENT_QUOTES, 'UTF-8') . '"' : '' ?>
                 <?= $max !== null ? 'data-max="' . $max . '"' : '' ?>
             >
-                <div class="flex items-center gap-4 min-w-0">
-                    <div class="relative">
+                <div class="flex min-w-0 flex-1 items-center gap-4">
+                    <div class="relative shrink-0">
                         <label class="sr-only" for="<?= htmlspecialchars($upgrade['selectId'], ENT_QUOTES, 'UTF-8') ?>">
                             <?= htmlspecialchars(sprintf('Quantity for %s', $upgrade['label']), ENT_QUOTES, 'UTF-8') ?>
                         </label>
@@ -240,21 +241,22 @@ $label = $bootstrap['activity']['uiLabels']['upgrades'] ?? 'Optional Upgrades';
                             <?= $chevronIcon ?>
                         </span>
                     </div>
-                    <div class="min-w-0 space-y-0">
-                        <p class="font-medium -mb-0.5 text-slate-900">
+                    <div class="min-w-0 flex-1 space-y-0">
+                        <p class="font-medium -mb-0.5 truncate text-slate-900">
                             <?= htmlspecialchars($upgrade['label'], ENT_QUOTES, 'UTF-8') ?>
-                            <?php if ($upgrade['priceDisplay'] !== null): ?>
-                                <?php $priceClass = ($upgrade['price'] ?? null) === 0.0 ? 'text-green-600' : 'text-slate-900'; ?>
-                                <span class="ml-2 text-sm font-semibold <?= $priceClass ?>">
-                                    <?= htmlspecialchars($upgrade['priceDisplay'], ENT_QUOTES, 'UTF-8') ?>
-                                </span>
-                            <?php endif; ?>
                         </p>
                         <p class="text-xs text-slate-500 mb-0<?= $upgrade['description'] === null ? ' hidden' : '' ?>">
                             <?= htmlspecialchars((string) $upgrade['description'], ENT_QUOTES, 'UTF-8') ?>
                         </p>
                     </div>
                 </div>
+                <?php if ($upgrade['priceDisplay'] !== null): ?>
+                    <div class="flex h-14 w-24 shrink-0 items-center justify-end border-l border-slate-200 pl-4 text-right">
+                        <p class="font-medium mb-0 <?= $priceClass ?>" data-upgrade-price>
+                            <?= htmlspecialchars($upgrade['priceDisplay'], ENT_QUOTES, 'UTF-8') ?>
+                        </p>
+                    </div>
+                <?php endif; ?>
             </div>
         <?php endforeach; ?>
     </div>

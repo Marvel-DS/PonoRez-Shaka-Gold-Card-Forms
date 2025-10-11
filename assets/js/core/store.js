@@ -95,11 +95,15 @@ const initialState = {
     upgradeQuantities,
     shakaGoldCardNumber: initialGoldCardNumber,
     buyGoldCard: false,
+    requiresCancellationAcknowledgement: false,
+    acknowledgedCancellationPolicy: false,
+    shouldApplyCancellationPolicy: false,
     loading: {
         guestTypes: false,
         availability: false,
         checkout: false,
     },
+    checkoutAppearanceAttempts: 0,
     pricing: {
         guests: null,
         transportation: null,
@@ -178,6 +182,15 @@ export function setState(updater) {
             const merged = mergeSlice(nextState.pricing, value);
             if (merged !== nextState.pricing) {
                 nextState.pricing = merged;
+                changed = true;
+            }
+            return;
+        }
+
+        if (key === 'checkoutAppearanceAttempts') {
+            const nextValue = Number.isFinite(value) ? Number(value) : nextState.checkoutAppearanceAttempts;
+            if (nextValue !== nextState.checkoutAppearanceAttempts) {
+                nextState.checkoutAppearanceAttempts = nextValue;
                 changed = true;
             }
             return;
