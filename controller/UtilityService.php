@@ -712,6 +712,34 @@ final class UtilityService
         return null;
     }
 
+    public static function getPublicBasePath(): string
+    {
+        $scriptName = $_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? '';
+
+        if (!is_string($scriptName) || $scriptName === '') {
+            return '/';
+        }
+
+        $scriptName = str_replace('\\', '/', $scriptName);
+
+        if ($scriptName === '') {
+            return '/';
+        }
+
+        $directory = str_replace('\\', '/', dirname($scriptName));
+        $directory = rtrim($directory, '/');
+
+        if ($directory === '' || $directory === '.' || $directory === DIRECTORY_SEPARATOR) {
+            return '/';
+        }
+
+        if ($directory[0] !== '/') {
+            $directory = '/' . $directory;
+        }
+
+        return rtrim($directory, '/') . '/';
+    }
+
     public static function getReservationBaseUrl(): string
     {
         $wsdl = self::getSoapWsdl();
@@ -889,7 +917,7 @@ final class UtilityService
         foreach ($matched as $file) {
             $basename = basename($file);
             $results[] = [
-                'src' => '/suppliers/' . $supplierSlug . '/images/' . $basename,
+                'src' => self::resolveSupplierAssetUrl($supplierSlug, 'images/' . $basename),
                 'alt' => $displayName !== '' ? $displayName : $basename,
             ];
         }
@@ -908,20 +936,16 @@ final class UtilityService
             return $path;
         }
 
-        if ($path !== '' && $path[0] === '/') {
-            return $path;
-        }
-
         $trimmed = ltrim($path, '/');
         if ($trimmed === '') {
             return '';
         }
 
         if (str_starts_with($trimmed, 'suppliers/')) {
-            return '/' . $trimmed;
+            return self::getPublicBasePath() . $trimmed;
         }
 
-        return '/suppliers/' . $supplierSlug . '/' . $trimmed;
+        return self::getPublicBasePath() . 'suppliers/' . $supplierSlug . '/' . $trimmed;
     }
 
     private static function normalizeGalleryKey(string $value): string

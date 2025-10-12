@@ -31,6 +31,7 @@ $secondaryColor = htmlspecialchars($branding['secondaryColor'] ?? '#0B2E8F', ENT
 
 $supplierSlug = $page['supplierSlug'] ?? ($supplier['slug'] ?? null);
 $activityConfig = $activity ?? [];
+$base = UtilityService::getPublicBasePath();
 
 $galleryItems = [];
 $supplierLogoUrl = is_string($branding['logo'] ?? null) ? $branding['logo'] : null;
@@ -73,7 +74,7 @@ $title = $activity['displayName'] ?? 'SGC Booking Forms';
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="<?= $primaryColor ?>">
     <title><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></title>
-    <link rel="stylesheet" href="/assets/css/main.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($base . 'assets/css/main.css', ENT_QUOTES, 'UTF-8') ?>">
     <?php include __DIR__ . '/branding.php'; ?>
 </head>
 <body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased py-3 md:py-6 px-2 md:px-6">
@@ -163,6 +164,6 @@ $title = $activity['displayName'] ?? 'SGC Booking Forms';
 
 <?php include dirname(__DIR__) . '/shared/component-overlay.php'; ?>
 
-<script type="module" src="/assets/js/main.js"></script>
+<script type="module" src="<?= htmlspecialchars($base . 'assets/js/main.js', ENT_QUOTES, 'UTF-8') ?>"></script>
 </body>
 </html>
