@@ -25,28 +25,19 @@ if (isset($supplier['supplierName']) && is_string($supplier['supplierName']) && 
 
 $linksConfig = is_array($supplier['links'] ?? null) ? $supplier['links'] : [];
 
-$linkDefinitions = [
-    'faq' => 'FAQ',
-    'terms' => 'Terms & Conditions',
-    'cancellationPolicy' => 'Cancellation Policy',
-];
-
 $footerLinks = [];
-foreach ($linkDefinitions as $key => $label) {
-    $url = $linksConfig[$key] ?? null;
-    if (!is_string($url)) {
-        continue;
-    }
 
-    $trimmed = trim($url);
-    if ($trimmed === '') {
-        continue;
-    }
-
+if (isset($linksConfig['faq']) && is_string($linksConfig['faq']) && trim($linksConfig['faq']) !== '') {
     $footerLinks[] = sprintf(
-        '<a class="inline-flex items-center gap-1 text-[var(--sgc-brand-primary)] hover:underline" target="_blank" rel="noopener" href="%s">%s</a>',
-        htmlspecialchars($trimmed, ENT_QUOTES, 'UTF-8'),
-        htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+        '<a class="inline-flex items-center gap-1 text-[var(--sgc-brand-primary)] hover:underline" target="_blank" rel="noopener" href="%s">FAQ</a>',
+        htmlspecialchars(trim($linksConfig['faq']), ENT_QUOTES, 'UTF-8')
+    );
+}
+
+if (isset($linksConfig['terms']) && is_string($linksConfig['terms']) && trim($linksConfig['terms']) !== '') {
+    $footerLinks[] = sprintf(
+        '<a class="inline-flex items-center gap-1 text-[var(--sgc-brand-primary)] hover:underline" target="_blank" rel="noopener" href="%s">Terms &amp; Policies</a>',
+        htmlspecialchars(trim($linksConfig['terms']), ENT_QUOTES, 'UTF-8')
     );
 }
 
