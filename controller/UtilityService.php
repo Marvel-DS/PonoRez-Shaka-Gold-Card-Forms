@@ -101,6 +101,37 @@ final class UtilityService
         return $environmentConfig[$key] ?? $default;
     }
 
+    public static function resolvePonorezBaseUrl(?array $activityConfig = null, ?array $supplierConfig = null): string
+    {
+        $candidates = [];
+
+        if (is_array($activityConfig)) {
+            $candidates[] = $activityConfig['ponorezBaseUrl'] ?? null;
+        }
+
+        if (is_array($supplierConfig)) {
+            $candidates[] = $supplierConfig['ponorezBaseUrl'] ?? null;
+        }
+
+        $candidates[] = self::getEnvironmentSetting('ponorezBaseUrl', null);
+        $candidates[] = 'https://ponorez.online/reservation/';
+
+        foreach ($candidates as $candidate) {
+            if (!is_string($candidate)) {
+                continue;
+            }
+
+            $trimmed = trim($candidate);
+            if ($trimmed === '') {
+                continue;
+            }
+
+            return rtrim($trimmed, '/') . '/';
+        }
+
+        return 'https://ponorez.online/reservation/';
+    }
+
     public static function shouldDisableSoapCertificateVerification(): bool
     {
         foreach ([

@@ -4,6 +4,7 @@ import {
     computeGoldCardPrice,
     formatCurrencyForState,
 } from './pricing-utils.js';
+import { normaliseGoldCardEntries, buildGoldCardSignature } from './gold-card-utils.js';
 
 let root;
 let numberInput;
@@ -11,12 +12,22 @@ let upsellCheckbox;
 let priceLabel;
 
 function updateNumberValue(value) {
-    const current = getState().shakaGoldCardNumber || '';
-    if (current === value) {
+    const nextValue = typeof value === 'string' ? value : '';
+    const state = getState();
+    const current = state.shakaGoldCardNumber || '';
+    if (current === nextValue) {
         return;
     }
 
-    setState({ shakaGoldCardNumber: value });
+    const entries = normaliseGoldCardEntries(nextValue);
+    const signature = buildGoldCardSignature(entries);
+
+    setState({
+        shakaGoldCardNumber: nextValue,
+        goldCardDiscount: signature === (state.goldCardDiscount?.signature ?? null)
+            ? state.goldCardDiscount
+            : null,
+    });
 }
 
 function handleNumberInput(event) {

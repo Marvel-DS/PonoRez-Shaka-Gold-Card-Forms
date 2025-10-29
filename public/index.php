@@ -726,6 +726,11 @@ $apiEndpoints = [
         rawurlencode($supplierSlug),
         rawurlencode($activitySlug)
     ),
+    'goldCardDiscount' => sprintf(
+        '/api/get-goldcard-discount.php?supplier=%s&activity=%s',
+        rawurlencode($supplierSlug),
+        rawurlencode($activitySlug)
+    ),
     'upgrades' => $disableUpgrades
         ? null
         : sprintf(

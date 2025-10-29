@@ -1,7 +1,10 @@
 import { getState, setState } from '../core/store.js';
+import { resolveApiUrl } from '../core/config.js';
+import { postJson } from '../core/api-client.js';
 import { qs, toggleHidden } from '../utility/dom.js';
 import { showError } from './alerts.js';
 import { openOverlay } from '../overlay/checkout-overlay.js';
+import { normaliseGoldCardEntries, buildGoldCardSignature } from './gold-card-utils.js';
 
 let form;
 let submitButton;
@@ -51,6 +54,14 @@ function prunePositiveIntegers(map) {
         }
         return accumulator;
     }, {});
+}
+
+function getGoldCardNumbers(state) {
+    return normaliseGoldCardEntries(state.shakaGoldCardNumber || '');
+}
+
+function getGoldCardSignature(numbers) {
+    return buildGoldCardSignature(numbers);
 }
 
 function formatPonorezDate(isoDate) {
@@ -132,19 +143,103 @@ function getSelectedActivityId(state) {
 }
 
 function appendGoldCardNumbers(params, numbers) {
-    if (typeof numbers !== 'string') {
-        return;
-    }
-
-    const sanitized = numbers.replace(/[\r\n]+/g, ',');
-    const entries = sanitized
-        .split(/\s*[;,]\s*/)
-        .map((value) => value.trim())
-        .filter((value) => value !== '');
+    const entries = normaliseGoldCardEntries(typeof numbers === 'string' ? numbers : '');
 
     entries.forEach((entry) => {
         params.append('goldcardnumber', entry);
     });
+}
+
+async function fetchGoldCardDiscount(state, numbers, signature) {
+    const url = resolveApiUrl('goldCardDiscount');
+    if (!url) {
+        throw new Error('Gold card discount lookup is unavailable.');
+    }
+
+    const payload = {
+        supplier: state.bootstrap?.supplier?.slug || null,
+        activity: state.bootstrap?.activity?.slug || null,
+        numbers,
+        date: state.selectedDate || null,
+        timeslotId: state.selectedTimeslotId ? String(state.selectedTimeslotId) : null,
+        guestCounts: prunePositiveIntegers(state.guestCounts),
+        transportationRouteId: state.transportationRouteId ? String(state.transportationRouteId) : null,
+        upgrades: prunePositiveIntegers(state.upgradeQuantities),
+        buyGoldCard: Boolean(state.buyGoldCard),
+        policyAccepted: Boolean(state.shouldApplyCancellationPolicy && state.acknowledgedCancellationPolicy),
+        payLater: true,
+        referer: typeof window !== 'undefined' && window.location ? window.location.href : null,
+    };
+
+    if (payload.guestCounts && Object.keys(payload.guestCounts).length === 0) {
+        delete payload.guestCounts;
+    }
+
+    if (payload.upgrades && Object.keys(payload.upgrades).length === 0) {
+        delete payload.upgrades;
+    }
+
+    if (payload.transportationRouteId === null) {
+        delete payload.transportationRouteId;
+    }
+
+    if (payload.timeslotId === null) {
+        delete payload.timeslotId;
+    }
+
+    if (!payload.date) {
+        delete payload.date;
+    }
+
+    try {
+        const response = await postJson(url, payload);
+        const discount = response.discount || {};
+        const codeRaw = typeof discount.code === 'string' ? discount.code.trim() : '';
+        const normalizedCode = codeRaw !== '' ? codeRaw : null;
+
+        setState({
+            goldCardDiscount: {
+                code: normalizedCode,
+                numbers,
+                signature,
+                fetchedAt: Date.now(),
+                source: typeof discount.source === 'string' ? discount.source : null,
+            },
+        });
+
+        return normalizedCode;
+    } catch (error) {
+        setState({
+            goldCardDiscount: {
+                code: null,
+                numbers,
+                signature,
+                fetchedAt: Date.now(),
+                error: error.message || 'Unable to retrieve discount code.',
+            },
+        });
+        throw error;
+    }
+}
+
+async function ensureGoldCardDiscount(state) {
+    const numbers = getGoldCardNumbers(state);
+
+    if (numbers.length === 0) {
+        if (state.goldCardDiscount !== null) {
+            setState({ goldCardDiscount: null });
+        }
+        return null;
+    }
+
+    const signature = getGoldCardSignature(numbers);
+    const cached = state.goldCardDiscount;
+
+    if (cached && cached.signature === signature) {
+        return cached.code || null;
+    }
+
+    return fetchGoldCardDiscount(state, numbers, signature);
 }
 
 function isTransportationMandatory(state) {
@@ -161,7 +256,7 @@ function isTransportationMandatory(state) {
     return Boolean(transportation.mandatory);
 }
 
-function buildPonorezCheckoutUrl(state) {
+function buildPonorezCheckoutUrl(state, options = {}) {
     const activityId = getSelectedActivityId(state);
     if (!activityId) {
         throw new Error('Select a departure to continue.');
@@ -175,6 +270,10 @@ function buildPonorezCheckoutUrl(state) {
     const baseUrl = resolvePonorezBaseUrl(state);
     const url = new URL('externalservlet', baseUrl);
     const params = url.searchParams;
+    const discountCandidate = typeof options.discountCode === 'string'
+        ? options.discountCode
+        : state.goldCardDiscount?.code ?? null;
+    const discountCode = typeof discountCandidate === 'string' ? discountCandidate.trim() : '';
 
     params.set('action', 'EXTERNALPURCHASEPAGE');
     params.set('mode', 'reservation');
@@ -206,6 +305,10 @@ function buildPonorezCheckoutUrl(state) {
     }
 
     appendGoldCardNumbers(params, state.shakaGoldCardNumber);
+
+    if (discountCode !== '') {
+        params.set('discountcode', discountCode);
+    }
 
     if (state.buyGoldCard) {
         params.set('buygoldcards', '1');
@@ -245,7 +348,7 @@ function validateState(state) {
     return null;
 }
 
-function submitCheckout(event) {
+async function submitCheckout(event) {
     event.preventDefault();
 
     const state = getState();
@@ -258,7 +361,18 @@ function submitCheckout(event) {
     setSubmitting(true);
 
     try {
-        const checkoutUrl = buildPonorezCheckoutUrl(state);
+        let discountCode = null;
+
+        try {
+            discountCode = await ensureGoldCardDiscount(state);
+        } catch (discountError) {
+            showError(discountError.message || 'Unable to validate Shaka Gold Card discount.');
+            setSubmitting(false);
+            return;
+        }
+
+        const refreshedState = getState();
+        const checkoutUrl = buildPonorezCheckoutUrl(refreshedState, { discountCode });
         const opened = openOverlay({ url: checkoutUrl });
         if (opened) {
             setSubmitting(false);

@@ -95,6 +95,7 @@ const initialState = {
     upgradeQuantities,
     shakaGoldCardNumber: initialGoldCardNumber,
     buyGoldCard: false,
+    goldCardDiscount: null,
     requiresCancellationAcknowledgement: false,
     acknowledgedCancellationPolicy: false,
     shouldApplyCancellationPolicy: false,
