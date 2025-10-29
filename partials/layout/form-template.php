@@ -10,6 +10,7 @@ $branding = $page['branding'] ?? [];
 $activity = $bootstrap['activity'] ?? [];
 $supplier = $bootstrap['supplier'] ?? [];
 $apiEndpoints = $page['apiEndpoints'] ?? [];
+$analytics = $supplier['analytics'] ?? [];
 
 $title = $activity['displayName'] ?? 'SGC Booking Forms';
 
@@ -76,10 +77,39 @@ $title = $activity['displayName'] ?? 'SGC Booking Forms';
         <meta name="theme-color" content="<?= $primaryColor ?>">
         <title><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></title>
         <link rel="stylesheet" href="<?= htmlspecialchars($base . 'assets/css/main.css', ENT_QUOTES, 'UTF-8') ?>">
+        <?php if (!empty($analytics['gtmId']) && is_string($analytics['gtmId'])): ?>
+            <script>
+                (function(w,d,s,l,i){
+                    w[l]=w[l]||[];
+                    w[l].push({'gtm.start': new Date().getTime(), event:'gtm.js'});
+                    var f=d.getElementsByTagName(s)[0],
+                        j=d.createElement(s), dl=l!='dataLayer'?'&l='+l:'';
+                    j.async=true;
+                    j.src='https://www.googletagmanager.com/gtm.js?id='+encodeURIComponent(i)+dl;
+                    f.parentNode.insertBefore(j,f);
+                })(window,document,'script','dataLayer','<?= htmlspecialchars($analytics['gtmId'], ENT_QUOTES, 'UTF-8') ?>');
+            </script>
+        <?php endif; ?>
+        <?php if (!empty($analytics['gaMeasurementId']) && is_string($analytics['gaMeasurementId'])): ?>
+            <script async src="https://www.googletagmanager.com/gtag/js?id=<?= htmlspecialchars($analytics['gaMeasurementId'], ENT_QUOTES, 'UTF-8') ?>"></script>
+            <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '<?= htmlspecialchars($analytics['gaMeasurementId'], ENT_QUOTES, 'UTF-8') ?>');
+            </script>
+        <?php endif; ?>
         <?php include __DIR__ . '/branding.php'; ?>
     </head>
 
     <body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased py-3 md:py-6 px-2 md:px-6">
+
+        <?php if (!empty($analytics['gtmId']) && is_string($analytics['gtmId'])): ?>
+            <noscript>
+                <iframe src="https://www.googletagmanager.com/ns.html?id=<?= htmlspecialchars($analytics['gtmId'], ENT_QUOTES, 'UTF-8') ?>"
+                        height="0" width="0" style="display:none;visibility:hidden"></iframe>
+            </noscript>
+        <?php endif; ?>
 
         <script type="application/json" id="sgc-bootstrap"><?= $bootstrapJson ?></script>
         <script>

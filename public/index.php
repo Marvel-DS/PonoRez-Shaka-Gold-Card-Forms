@@ -749,6 +749,7 @@ $bootstrapData = [
         'branding' => $branding,
         'homeLink' => $supplierConfig['homeLink'] ?? null,
         'links' => $supplierConfig['links'] ?? [],
+        'analytics' => $supplierConfig['analytics'] ?? [],
     ],
     'activity' => [
         'slug' => $activitySlug,

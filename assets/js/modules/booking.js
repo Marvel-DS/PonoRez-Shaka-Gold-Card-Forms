@@ -329,6 +329,14 @@ function buildPonorezCheckoutUrl(state, options = {}) {
         params.set('referer', window.location.href);
     }
 
+    const analytics = state.bootstrap?.supplier?.analytics || {};
+    const gaMeasurementId = typeof analytics.gaMeasurementId === 'string'
+        ? analytics.gaMeasurementId.trim()
+        : '';
+    if (gaMeasurementId !== '') {
+        params.set('gtagtagid', gaMeasurementId);
+    }
+
     const guestCounts = prunePositiveIntegers(state.guestCounts);
     Object.keys(guestCounts).sort().forEach((id) => {
         params.set(`guests_t${id}`, String(guestCounts[id]));
