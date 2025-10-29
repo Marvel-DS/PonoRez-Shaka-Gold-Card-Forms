@@ -95,12 +95,35 @@ $sanitizeQuantity = static function (mixed $value): ?int {
 };
 
 $currencySymbol = $bootstrap['activity']['currency']['symbol'] ?? '$';
-$chevronIcon = UtilityService::renderSvgIcon('outline/chevron-up-down.svg', 'h-5 w-5', '2');
+$chevronIcon = UtilityService::renderSvgIcon('chevron-up-down.svg', 'h-5 w-5', '2');
 
 $normalizedUpgrades = [];
 
 foreach ($bootstrapUpgrades as $upgrade) {
     if (!is_array($upgrade) || !isset($upgrade['id'])) {
+        continue;
+    }
+
+    $webBookableValue = $upgrade['webBookable'] ?? $upgrade['webbookable'] ?? null;
+    $webBookableFlag = null;
+    if ($webBookableValue !== null) {
+        if (is_bool($webBookableValue)) {
+            $webBookableFlag = $webBookableValue;
+        } elseif (is_numeric($webBookableValue)) {
+            $webBookableFlag = ((int) $webBookableValue) !== 0;
+        } elseif (is_string($webBookableValue)) {
+            $normalized = strtolower(trim($webBookableValue));
+            if ($normalized !== '') {
+                if (in_array($normalized, ['1', 'true', 'yes', 'on', 'y'], true)) {
+                    $webBookableFlag = true;
+                } elseif (in_array($normalized, ['0', 'false', 'no', 'off', 'n'], true)) {
+                    $webBookableFlag = false;
+                }
+            }
+        }
+    }
+
+    if ($webBookableFlag === false) {
         continue;
     }
 
@@ -192,6 +215,7 @@ foreach ($bootstrapUpgrades as $upgrade) {
         'min' => $minQuantity,
         'max' => $maxQuantity,
         'selectId' => $selectId,
+        'webBookable' => $webBookableFlag ?? ($webBookableValue ?? null),
     ];
 }
 

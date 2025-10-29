@@ -28,7 +28,7 @@ if (isset($bootstrap['activity']['guestTypes']['byId']) && is_array($bootstrap['
 }
 
 $defaultGuestRange = 10;
-$chevronIcon = UtilityService::renderSvgIcon('outline/chevron-up-down.svg', 'h-5 w-5', '2');
+$chevronIcon = UtilityService::renderSvgIcon('chevron-up-down.svg', 'h-5 w-5', '2');
 
 $guestTypes = [];
 foreach ($guestTypeEntries as $guestType) {

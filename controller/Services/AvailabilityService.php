@@ -31,6 +31,7 @@ final class AvailabilityService
     /** @var callable */
     private $httpFetcher;
     private bool $certificateVerificationDisabled = false;
+    private ?bool $disableVerificationPreference = null;
     private CacheInterface $cache;
 
     public function __construct(
@@ -1923,9 +1924,14 @@ final class AvailabilityService
             return $this->performCurlRequest($target, 0);
         }
 
+        $disableVerification = $this->shouldDisableCertificateVerification();
         $cafile = $this->findCaBundlePath();
-        if ($cafile === null) {
+        if ($cafile === null && !$disableVerification) {
             throw new RuntimeException('Unable to locate a trusted CA bundle for availability request.');
+        }
+
+        if ($disableVerification) {
+            $this->certificateVerificationDisabled = true;
         }
 
         $context = stream_context_create([
@@ -1936,10 +1942,10 @@ final class AvailabilityService
                 'max_redirects' => 5,
             ],
             'ssl' => [
-                'verify_peer' => true,
-                'verify_peer_name' => true,
-                'allow_self_signed' => false,
-                'cafile' => $cafile,
+                'verify_peer' => !$disableVerification,
+                'verify_peer_name' => !$disableVerification,
+                'allow_self_signed' => $disableVerification,
+                ...( $disableVerification ? [] : ['cafile' => $cafile] ),
             ],
         ]);
 
@@ -1962,21 +1968,28 @@ final class AvailabilityService
             throw new RuntimeException('Unable to initialise cURL for availability request.');
         }
 
+        $disableVerification = $this->shouldDisableCertificateVerification();
         $cafile = $this->findCaBundlePath();
-        if ($cafile === null) {
+        if ($cafile === null && !$disableVerification) {
             curl_close($handle);
             throw new RuntimeException('Unable to locate a trusted CA bundle for availability request.');
+        }
+
+        if ($disableVerification) {
+            $this->certificateVerificationDisabled = true;
         }
 
         curl_setopt_array($handle, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HEADER => true,
             CURLOPT_TIMEOUT => 15,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_SSL_VERIFYPEER => !$disableVerification,
+            CURLOPT_SSL_VERIFYHOST => $disableVerification ? 0 : 2,
         ]);
 
-        curl_setopt($handle, CURLOPT_CAINFO, $cafile);
+        if (!$disableVerification && $cafile !== null) {
+            curl_setopt($handle, CURLOPT_CAINFO, $cafile);
+        }
 
         $response = curl_exec($handle);
         if ($response === false) {
@@ -2028,16 +2041,33 @@ final class AvailabilityService
 
     private function findCaBundlePath(): ?string
     {
+        $configured = UtilityService::getTrustedCaBundlePath();
+        if ($configured !== null) {
+            return $configured;
+        }
+
         $candidates = [
             ini_get('curl.cainfo'),
             ini_get('openssl.cafile'),
+            $_SERVER['SSL_CERT_FILE'] ?? null,
+            $_ENV['SSL_CERT_FILE'] ?? null,
+            getenv('SSL_CERT_FILE') ?: null,
+            $_SERVER['CURL_CA_BUNDLE'] ?? null,
+            $_ENV['CURL_CA_BUNDLE'] ?? null,
+            getenv('CURL_CA_BUNDLE') ?: null,
             '/etc/ssl/certs/ca-certificates.crt',
             '/etc/ssl/certs/ca-bundle.crt',
             '/etc/ssl/cert.pem',
             '/etc/pki/tls/certs/ca-bundle.crt',
             '/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem',
             '/usr/local/etc/openssl@3/cert.pem',
+            '/usr/local/etc/openssl@1.1/cert.pem',
             '/usr/local/etc/openssl/cert.pem',
+            '/opt/homebrew/etc/openssl@3/cert.pem',
+            '/opt/homebrew/etc/openssl@1.1/cert.pem',
+            '/opt/homebrew/etc/openssl/cert.pem',
+            UtilityService::projectRoot() . '/certs/cacert.pem',
+            UtilityService::projectRoot() . '/resources/certs/cacert.pem',
         ];
 
         foreach ($candidates as $candidate) {
@@ -2052,5 +2082,15 @@ final class AvailabilityService
         }
 
         return null;
+    }
+
+    private function shouldDisableCertificateVerification(): bool
+    {
+        if ($this->disableVerificationPreference !== null) {
+            return $this->disableVerificationPreference;
+        }
+
+        $this->disableVerificationPreference = UtilityService::shouldDisableAvailabilityCertificateVerification();
+        return $this->disableVerificationPreference;
     }
 }

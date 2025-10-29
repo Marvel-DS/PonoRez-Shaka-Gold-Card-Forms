@@ -47,27 +47,29 @@ function route_api_request(string $uri): void
     exit;
 }
 
-function serve_supplier_asset(string $uri): void
+function serve_supplier_asset(string $uri): bool
 {
     $relative = ltrim(substr($uri, strlen('/suppliers/')), '/');
 
     if ($relative === '' || str_contains($relative, '..') || str_contains($relative, "\0")) {
         http_response_code(404);
-        exit;
+        return true;
+    }
+
+    if (!str_contains($relative, '.')) {
+        return false;
     }
 
     $baseDirectory = realpath(__DIR__ . '/../suppliers');
     if ($baseDirectory === false) {
-        http_response_code(404);
-        exit;
+        return false;
     }
 
     $fullPath = $baseDirectory . '/' . $relative;
     $realPath = realpath($fullPath);
 
     if ($realPath === false || !str_starts_with($realPath, $baseDirectory) || !is_file($realPath)) {
-        http_response_code(404);
-        exit;
+        return false;
     }
 
     $extension = strtolower(pathinfo($realPath, PATHINFO_EXTENSION));
@@ -90,12 +92,12 @@ function serve_supplier_asset(string $uri): void
     $stream = fopen($realPath, 'rb');
     if ($stream === false) {
         http_response_code(500);
-        exit;
+        return true;
     }
 
     fpassthru($stream);
     fclose($stream);
-    exit;
+    return true;
 }
 
 function format_activity_info_content(?string $value): ?string
@@ -150,12 +152,21 @@ function merge_activity_info_blocks(array $infoBlocks, array $activityInfo): arr
     return $infoBlocks;
 }
 
-if (preg_match('#^/suppliers/#', $requestUri)) {
-    serve_supplier_asset($requestUri);
+if (preg_match('#^/suppliers/#', $requestUri) && serve_supplier_asset($requestUri)) {
+    exit;
 }
 
 if (preg_match('#^/api/(.+)$#', $requestUri)) {
     route_api_request($requestUri);
+}
+
+if (!isset($_GET['supplier'])) {
+    if (preg_match('#^/suppliers/([a-z0-9\-]+)/([a-z0-9\-]+)/?$#i', $requestUri, $matches)) {
+        $_GET['supplier'] = strtolower($matches[1]);
+        $_GET['activity'] = strtolower($matches[2]);
+    } elseif (preg_match('#^/suppliers/([a-z0-9\-]+)/?$#i', $requestUri, $matches)) {
+        $_GET['supplier'] = strtolower($matches[1]);
+    }
 }
 
 require dirname(__DIR__) . '/controller/Setup.php';
@@ -163,10 +174,6 @@ require dirname(__DIR__) . '/controller/Setup.php';
 const DEFAULT_SUPPLIER_SLUG = 'supplier-slug';
 const DEFAULT_ACTIVITY_SLUG = 'activity-slug';
 
-/**
- * Sanitize incoming slug parameters to prevent directory traversal and
- * keep the generated API URLs stable.
- */
 function sanitize_slug(?string $value, string $fallback): string
 {
     $value = trim((string) $value);
@@ -180,11 +187,93 @@ function sanitize_slug(?string $value, string $fallback): string
     return $sanitized !== '' ? strtolower($sanitized) : $fallback;
 }
 
-$supplierSlug = sanitize_slug($_GET['supplier'] ?? null, DEFAULT_SUPPLIER_SLUG);
-$activitySlug = sanitize_slug($_GET['activity'] ?? null, DEFAULT_ACTIVITY_SLUG);
+$requestedSupplier = $_GET['supplier'] ?? null;
+$requestedActivity = $_GET['activity'] ?? null;
+
+$supplierSlug = $requestedSupplier !== null
+    ? sanitize_slug($requestedSupplier, DEFAULT_SUPPLIER_SLUG)
+    : DEFAULT_SUPPLIER_SLUG;
+
+$isSupplierOverview = $requestedSupplier !== null
+    && ($requestedActivity === null || trim((string) $requestedActivity) === '');
+
+$activitySlug = null;
+if ($requestedActivity !== null && trim((string) $requestedActivity) !== '') {
+    $activitySlug = sanitize_slug($requestedActivity, DEFAULT_ACTIVITY_SLUG);
+} elseif (!$isSupplierOverview) {
+    $activitySlug = DEFAULT_ACTIVITY_SLUG;
+}
 
 try {
     $supplierConfig = UtilityService::loadSupplierConfig($supplierSlug);
+} catch (Throwable $exception) {
+    http_response_code(404);
+    $errorMessage = $exception->getMessage();
+    include dirname(__DIR__) . '/partials/layout/error.php';
+    exit;
+}
+
+$publicBasePath = UtilityService::getPublicBasePath();
+
+if ($isSupplierOverview) {
+    $supplierDirectory = UtilityService::supplierDirectory($supplierSlug);
+    $activityFiles = glob($supplierDirectory . '/*.config') ?: [];
+
+    $activityEntries = [];
+    foreach ($activityFiles as $file) {
+        $basename = basename($file);
+        if (strcasecmp($basename, 'supplier.config') === 0) {
+            continue;
+        }
+
+        $slug = strtolower((string) preg_replace('/\.config$/i', '', $basename));
+        if ($slug === '') {
+            continue;
+        }
+
+        try {
+            $config = UtilityService::loadActivityConfig($supplierSlug, $slug);
+        } catch (Throwable) {
+            continue;
+        }
+
+        $displayName = $config['displayName'] ?? ucfirst(str_replace('-', ' ', $slug));
+        $summary = $config['summary'] ?? null;
+        $gallery = UtilityService::getActivityGalleryImages($supplierSlug, $config);
+        $image = $gallery[0]['src'] ?? ($publicBasePath . 'assets/images/activity-cover-placeholder.jpg');
+
+        $currencyCode = $config['currency']['code'] ?? null;
+
+        $activityEntries[] = [
+            'slug' => $slug,
+            'displayName' => $displayName,
+            'summary' => $summary,
+            'url' => $publicBasePath . 'suppliers/' . rawurlencode($supplierSlug) . '/' . rawurlencode($slug),
+            'image' => $image,
+            'currencyCode' => $currencyCode,
+        ];
+    }
+
+    usort($activityEntries, static function (array $a, array $b): int {
+        return strcasecmp($a['displayName'], $b['displayName']);
+    });
+
+    $overviewContext = [
+        'supplier' => $supplierConfig,
+        'supplierSlug' => $supplierSlug,
+        'activities' => $activityEntries,
+        'publicBasePath' => $publicBasePath,
+    ];
+
+    include dirname(__DIR__) . '/partials/layout/supplier-overview.php';
+    exit;
+}
+
+if ($activitySlug === null) {
+    $activitySlug = DEFAULT_ACTIVITY_SLUG;
+}
+
+try {
     $activityConfig = UtilityService::loadActivityConfig($supplierSlug, $activitySlug);
 } catch (Throwable $exception) {
     http_response_code(404);
@@ -194,6 +283,16 @@ try {
 }
 
 $disableUpgrades = (bool) ($activityConfig['disableUpgrades'] ?? false);
+$hasUpgradesKey = array_key_exists('upgrades', $activityConfig);
+if (!$hasUpgradesKey) {
+    $disableUpgrades = true;
+}
+
+if (!$disableUpgrades && !array_key_exists('upgrades', $activityConfig)) {
+    $disableUpgrades = true;
+    $activityConfig['disableUpgrades'] = true;
+    $activityConfig['upgrades'] = [];
+}
 
 $activityInfoResult = [
     'activities' => [],
@@ -221,6 +320,16 @@ $activityInfoById = is_array($activityInfoResult['activities'] ?? null)
     ? $activityInfoResult['activities']
     : [];
 
+if ($activityInfoById !== []) {
+    UtilityService::saveSupplierActivityInfoCache($supplierSlug, $activitySlug, $activityInfoById);
+} else {
+    $activityInfoFallback = UtilityService::loadSupplierActivityInfoCache($supplierSlug, $activitySlug);
+    if (is_array($activityInfoFallback) && $activityInfoFallback !== []) {
+        $activityInfoById = $activityInfoFallback;
+        $activityInfoResult['activities'] = $activityInfoById;
+    }
+}
+
 $currentDate = date('Y-m-d');
 
 $primaryActivityId = UtilityService::getPrimaryActivityId($activityConfig);
@@ -240,8 +349,9 @@ try {
 
     $guestTypeService = new GuestTypeService($guestTypeCache, new SoapClientBuilder());
     $guestTypeCollectionFromPonorez = $guestTypeService->fetch($supplierSlug, $activitySlug, $currentDate);
+    $guestTypeArray = $guestTypeCollectionFromPonorez->toArray();
 
-    foreach ($guestTypeCollectionFromPonorez->toArray() as $detail) {
+    foreach ($guestTypeArray as $detail) {
         if (!is_array($detail)) {
             continue;
         }
@@ -253,30 +363,53 @@ try {
 
         $guestTypeDetailMap[$id] = $detail;
     }
+
+    if ($guestTypeArray !== []) {
+        UtilityService::saveSupplierGuestTypeCache($supplierSlug, $activitySlug, $guestTypeArray);
+    }
 } catch (Throwable) {
     $guestTypeDetailMap = [];
 }
 
+if ($guestTypeDetailMap === []) {
+    $guestTypeCacheFallback = UtilityService::loadSupplierGuestTypeCache($supplierSlug, $activitySlug);
+    if (is_array($guestTypeCacheFallback)) {
+        foreach ($guestTypeCacheFallback as $detail) {
+            if (!is_array($detail) || !isset($detail['id'])) {
+                continue;
+            }
+
+            $fallbackId = (string) $detail['id'];
+            if ($fallbackId === '') {
+                continue;
+            }
+
+            $guestTypeDetailMap[$fallbackId] = $detail;
+        }
+    }
+}
+
 $upgradesConfigOriginal = [];
 $upgradesFromConfig = [];
+if (!$disableUpgrades && $hasUpgradesKey) {
+    $configuredUpgrades = is_array($activityConfig['upgrades']) ? $activityConfig['upgrades'] : [];
+    if ($configuredUpgrades !== []) {
+        $upgradesConfigOriginal = $configuredUpgrades;
+        $upgradesFromConfig = $configuredUpgrades;
+    } else {
+        $upgradesConfigOriginal = $configuredUpgrades;
+        try {
+            $upgradeCacheDirectory = UtilityService::projectRoot() . '/cache/upgrades';
+            $upgradeCache = is_writable(dirname($upgradeCacheDirectory))
+                ? new FileCache($upgradeCacheDirectory)
+                : new NullCache();
 
-if (!$disableUpgrades) {
-    if (isset($activityConfig['upgrades']) && is_array($activityConfig['upgrades'])) {
-        $upgradesConfigOriginal = $activityConfig['upgrades'];
-        $upgradesFromConfig = $upgradesConfigOriginal;
-    }
-
-    try {
-        $upgradeCacheDirectory = UtilityService::projectRoot() . '/cache/upgrades';
-        $upgradeCache = is_writable(dirname($upgradeCacheDirectory))
-            ? new FileCache($upgradeCacheDirectory)
-            : new NullCache();
-
-        $upgradeService = new UpgradeService($upgradeCache, new SoapClientBuilder());
-        $upgradesCollection = $upgradeService->fetch($supplierSlug, $activitySlug);
-        $upgradesFromConfig = $upgradesCollection->toArray();
-    } catch (Throwable) {
-        // Fall back to any upgrade definitions from the activity config.
+            $upgradeService = new UpgradeService($upgradeCache, new SoapClientBuilder());
+            $upgradesCollection = $upgradeService->fetch($supplierSlug, $activitySlug);
+            $upgradesFromConfig = $upgradesCollection->toArray();
+        } catch (Throwable) {
+            // Fall back to any upgrade definitions from the activity config (empty array).
+        }
     }
 }
 
@@ -610,6 +743,7 @@ $bootstrapData = [
         'contact' => $supplierConfig['contact'] ?? [],
         'branding' => $branding,
         'homeLink' => $supplierConfig['homeLink'] ?? null,
+        'links' => $supplierConfig['links'] ?? [],
     ],
     'activity' => [
         'slug' => $activitySlug,

@@ -69,48 +69,76 @@ $title = $activity['displayName'] ?? 'SGC Booking Forms';
 ?>
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="<?= $primaryColor ?>">
-    <title><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></title>
-    <link rel="stylesheet" href="<?= htmlspecialchars($base . 'assets/css/main.css', ENT_QUOTES, 'UTF-8') ?>">
-    <?php include __DIR__ . '/branding.php'; ?>
-</head>
-<body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased py-3 md:py-6 px-2 md:px-6">
-<script type="application/json" id="sgc-bootstrap"><?= $bootstrapJson ?></script>
-<script>
-    window.__SGC_BOOTSTRAP__ = JSON.parse(document.getElementById('sgc-bootstrap').textContent || '{}');
-    window.__SGC_API_ENDPOINTS__ = <?= json_encode($apiEndpoints, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
-</script>
+    
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="<?= $primaryColor ?>">
+        <title><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></title>
+        <link rel="stylesheet" href="<?= htmlspecialchars($base . 'assets/css/main.css', ENT_QUOTES, 'UTF-8') ?>">
+        <?php include __DIR__ . '/branding.php'; ?>
+    </head>
 
-<?php
-    $activityTitle = $title;
-    $supplierDisplayName = $supplierName;
-    $homeLink = $supplier['homeLink'] ?? [];
-?>
+    <body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased py-3 md:py-6 px-2 md:px-6">
 
-<div class="mx-auto max-w-6xl bg-white rounded-xl border border-slate-200 shadow-xs">
+        <script type="application/json" id="sgc-bootstrap"><?= $bootstrapJson ?></script>
+        <script>
+            window.__SGC_BOOTSTRAP__ = JSON.parse(document.getElementById('sgc-bootstrap').textContent || '{}');
+            window.__SGC_API_ENDPOINTS__ = <?= json_encode($apiEndpoints, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
+        </script>
 
-    <?php include __DIR__ . '/section-header.php'; ?>
+        <?php
+            $activityTitle = $title;
+            $supplierDisplayName = $supplierName;
+            $homeLink = $supplier['homeLink'] ?? [];
+        ?>
 
-    <main class="px-4 md:px-6 pb-16 space-y-8">
+        <div class="mx-auto max-w-6xl bg-white rounded-xl border border-slate-200 shadow-xs">  
 
-        <?php include __DIR__ . '/section-hero.php'; ?>
+            <main class="px-4 md:px-6 py-6 space-y-8">
 
-        <div data-component="alerts" class="space-y-3" role="region" aria-live="polite"></div>
+                <?php
+                    $supplierDisplayName = $supplierName;
+                    include __DIR__ . '/section-header.php';
+                ?>
 
-        <form id="sgc-booking-form" class="space-y-8" novalidate>
+                <?php include __DIR__ . '/section-hero.php'; ?>
 
-            <?php if ($showInfoColumn): ?>
+                <div data-component="alerts" class="space-y-3" role="region" aria-live="polite"></div>
 
-                <div class="grid gap-8 lg:grid-cols-2 lg:items-start">
+                <form id="sgc-booking-form" class="space-y-8" novalidate>
 
-                    <div class="space-y-8 order-2 md:order-1" aria-label="Activity information">
-                        <?= $activityInfoBlocksHtml ?>
-                    </div>
+                    <?php if ($showInfoColumn): ?>
 
-                    <div class="space-y-8 order-1 md:order-2" aria-label="Booking form">
+                        <div class="grid gap-8 lg:grid-cols-2 lg:items-start">
+
+                            <div class="space-y-8 order-2 md:order-1" aria-label="Activity information">
+                                <?= $activityInfoBlocksHtml ?>
+                            </div>
+
+                            <div class="space-y-8 order-1 md:order-2" aria-label="Booking form">
+
+                                <?php include dirname(__DIR__) . '/form/component-guest-types.php'; ?>
+                                <?php include dirname(__DIR__) . '/form/component-calendar.php'; ?>
+                                <?php include dirname(__DIR__) . '/form/component-timeslot.php'; ?>
+                                <?php include dirname(__DIR__) . '/form/component-transportation.php'; ?>
+                                <?php if (!$disableUpgrades) { ?>
+                                    <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
+                                <?php } ?>
+                                <section class="space-y-6" data-component="shaka-gold-card">
+                                    <?php $shakaGoldCardComposite = true; ?>
+                                    <?php include dirname(__DIR__) . '/form/component-goldcard.php'; ?>
+                                    <?php include dirname(__DIR__) . '/form/component-goldcard-upsell.php'; ?>
+                                    <?php unset($shakaGoldCardComposite); ?>
+                                </section>
+                                <?php include dirname(__DIR__) . '/form/component-cancellation-policy.php'; ?>
+                                <?php include dirname(__DIR__) . '/form/component-button.php'; ?>
+
+                            </div>
+
+                        </div>
+
+                    <?php else: ?>
 
                         <?php include dirname(__DIR__) . '/form/component-guest-types.php'; ?>
                         <?php include dirname(__DIR__) . '/form/component-calendar.php'; ?>
@@ -127,43 +155,26 @@ $title = $activity['displayName'] ?? 'SGC Booking Forms';
                         </section>
                         <?php include dirname(__DIR__) . '/form/component-cancellation-policy.php'; ?>
                         <?php include dirname(__DIR__) . '/form/component-button.php'; ?>
+                        
+                    <?php endif; ?>
 
-                    </div>
+                </form>
 
-                </div>
+                <?php
+                    $footerContext = [
+                        'supplier' => $supplier,
+                        'supplierSlug' => $supplierSlug,
+                    ];
+                    include dirname(__DIR__) . '/shared/component-supplier-footer.php';
+                    unset($footerContext);
+                ?>
 
-            <?php else: ?>
+            </main>
 
-                <?php include dirname(__DIR__) . '/form/component-guest-types.php'; ?>
-                <?php include dirname(__DIR__) . '/form/component-calendar.php'; ?>
-                <?php include dirname(__DIR__) . '/form/component-timeslot.php'; ?>
-                <?php include dirname(__DIR__) . '/form/component-transportation.php'; ?>
-                <?php if (!$disableUpgrades) { ?>
-                    <?php include dirname(__DIR__) . '/form/component-upgrades.php'; ?>
-                <?php } ?>
-                <section class="space-y-6" data-component="shaka-gold-card">
-                    <?php $shakaGoldCardComposite = true; ?>
-                    <?php include dirname(__DIR__) . '/form/component-goldcard.php'; ?>
-                    <?php include dirname(__DIR__) . '/form/component-goldcard-upsell.php'; ?>
-                    <?php unset($shakaGoldCardComposite); ?>
-                </section>
-                <?php include dirname(__DIR__) . '/form/component-cancellation-policy.php'; ?>
-                <?php include dirname(__DIR__) . '/form/component-button.php'; ?>
-                
-            <?php endif; ?>
+        </div>
 
-        </form>
+        <?php include dirname(__DIR__) . '/shared/component-overlay.php'; ?>
 
-    </main>
-
-    <footer class="px-6 pb-10 text-center text-xs text-slate-500">
-        Powered by Ponorez &middot; <?= htmlspecialchars($supplierName, ENT_QUOTES, 'UTF-8') ?>
-    </footer>
-
-</div>
-
-<?php include dirname(__DIR__) . '/shared/component-overlay.php'; ?>
-
-<script type="module" src="<?= htmlspecialchars($base . 'assets/js/main.js', ENT_QUOTES, 'UTF-8') ?>"></script>
-</body>
+        <script type="module" src="<?= htmlspecialchars($base . 'assets/js/main.js', ENT_QUOTES, 'UTF-8') ?>"></script>
+    </body>
 </html>

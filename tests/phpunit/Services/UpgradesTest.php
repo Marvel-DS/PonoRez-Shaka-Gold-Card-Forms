@@ -174,6 +174,94 @@ final class UpgradesTest extends TestCase
         }
     }
 
+    public function testFetchReturnsEmptyCollectionWhenUpgradesKeyMissing(): void
+    {
+        $factory = new UpgradeStubSoapClientFactory();
+        $cache = new UpgradeCacheSpy();
+
+        $service = new UpgradeService($cache, $factory);
+        $projectRoot = UtilityService::projectRoot();
+        $basePath = sprintf('%s/suppliers/%s/activity-slug.config', $projectRoot, self::SUPPLIER_SLUG);
+        $fixturePath = sprintf('%s/suppliers/%s/activity-upgrades-missing.config', $projectRoot, self::SUPPLIER_SLUG);
+
+        $baseConfigContents = file_get_contents($basePath);
+        self::assertNotFalse($baseConfigContents, 'Expected base activity config to be readable.');
+
+        $config = json_decode($baseConfigContents, true, 512, JSON_THROW_ON_ERROR);
+        unset($config['upgrades']);
+
+        file_put_contents(
+            $fixturePath,
+            json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+        );
+
+        try {
+            $collection = $service->fetch(self::SUPPLIER_SLUG, 'activity-upgrades-missing');
+
+            self::assertSame(0, $factory->buildCount);
+            self::assertCount(0, $collection);
+        } finally {
+            @unlink($fixturePath);
+        }
+    }
+
+    public function testFetchRemovesSoapUpgradesNotWebBookable(): void
+    {
+        $nonWeb = new stdClass();
+        $nonWeb->upgradeId = 'upgrade-video';
+        $nonWeb->name = 'Video Package';
+        $nonWeb->webBookable = false;
+
+        $response = new stdClass();
+        $response->return = [$nonWeb];
+
+        $client = new UpgradeRecordingSoapClient($response);
+        $factory = new UpgradeStubSoapClientFactory($client);
+        $cache = new UpgradeCacheSpy();
+
+        $service = new UpgradeService($cache, $factory);
+        $collection = $service->fetch(self::SUPPLIER_SLUG, self::ACTIVITY_SLUG);
+
+        self::assertNull($collection->get('upgrade-video'));
+        self::assertNotNull($collection->get('upgrade-photos'));
+    }
+
+    public function testConfigMarkedNotWebBookableIsExcluded(): void
+    {
+        $factory = new UpgradeStubSoapClientFactory();
+        $cache = new UpgradeCacheSpy();
+
+        $service = new UpgradeService($cache, $factory);
+        $projectRoot = UtilityService::projectRoot();
+        $basePath = sprintf('%s/suppliers/%s/activity-slug.config', $projectRoot, self::SUPPLIER_SLUG);
+        $fixturePath = sprintf('%s/suppliers/%s/activity-upgrades-noweb.config', $projectRoot, self::SUPPLIER_SLUG);
+
+        $baseConfigContents = file_get_contents($basePath);
+        self::assertNotFalse($baseConfigContents, 'Expected base activity config to be readable.');
+
+        $config = json_decode($baseConfigContents, true, 512, JSON_THROW_ON_ERROR);
+        foreach ($config['upgrades'] as &$upgrade) {
+            if (($upgrade['id'] ?? null) === 'upgrade-photos') {
+                $upgrade['webBookable'] = false;
+            }
+        }
+        unset($upgrade);
+
+        file_put_contents(
+            $fixturePath,
+            json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+        );
+
+        try {
+            $collection = $service->fetch(self::SUPPLIER_SLUG, 'activity-upgrades-noweb');
+
+            self::assertNull($collection->get('upgrade-photos'));
+            self::assertNotNull($collection->get('upgrade-video'));
+        } finally {
+            @unlink($fixturePath);
+        }
+    }
+
     public function testMergeCollectionPreservesConfiguredQuantitiesAndBackfillsMissingValues(): void
     {
         $collection = new UpgradeCollection();

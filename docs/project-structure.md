@@ -283,6 +283,8 @@ Structure already detailed in Section 3.10. Additional files present:
 | `index.php` (root + within each supplier) | Prevents directory listing. |
 | `blue-dolphin-charters/` | Example supplier offering multiple activities (`Deluxe-AM-Napali-Snorkel.config`, `Deluxe-SS-Napali-Snorkel.config`, `Private-AM-Napali-Snorkel.config`) and images stored under `images/`. |
 | `supplier-slug/` | Template/example supplier folder with sample config and imagery. |
+| `cache/guest-types/*.json` | Optional fallback data (per-activity or `default.json`) used when SOAP lookups are unavailable. |
+| `cache/activity-info/*.json` | Optional fallback activity metadata/timeslot labels when Ponorez data cannot be fetched. |
 
 Transportation customization is handled inline within each `<activity-slug>.config` via the `transportation` block, as described earlier.
 

@@ -41,6 +41,11 @@ final class UpgradeCollection implements IteratorAggregate, Countable
         return count($this->items);
     }
 
+    public function remove(string $id): void
+    {
+        unset($this->items[$id]);
+    }
+
     public function toArray(): array
     {
         return array_map(
@@ -49,4 +54,3 @@ final class UpgradeCollection implements IteratorAggregate, Countable
         );
     }
 }
-

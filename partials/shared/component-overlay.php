@@ -11,7 +11,7 @@ declare(strict_types=1);
                     <h2 id="checkout-overlay-title" class="text-lg font-semibold text-slate-900">Shaka Gold Card Checkout</h2>
                 </div>
                 <button type="button"
-                        class="inline-flex h-9 w-9 items-center justify-center text-slate-600 font-bold"
+                        class="inline-flex h-9 w-9 items-center justify-center text-slate-600 font-semibold"
                         data-overlay-close
                         aria-label="Close checkout window">
                     &times;

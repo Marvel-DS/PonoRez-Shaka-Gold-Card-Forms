@@ -1,10 +1,53 @@
-/* Import Fonts */
-@import "@fontsource/poppins/400.css";
-@import "@fontsource/poppins/600.css";
-@import "@fontsource/poppins/700.css";
-@import "@fontsource/inter/400.css";
-@import "@fontsource/inter/500.css";
-@import "@fontsource/inter/600.css";
+/* Font Faces */
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    url("../fonts/poppins-latin-400-normal.woff2") format("woff2"),
+    url("../fonts/poppins-latin-400-normal.woff") format("woff");
+}
+
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src:
+    url("../fonts/poppins-latin-600-normal.woff2") format("woff2"),
+    url("../fonts/poppins-latin-600-normal.woff") format("woff");
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    url("../fonts/inter-latin-400-normal.woff2") format("woff2"),
+    url("../fonts/inter-latin-400-normal.woff") format("woff");
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src:
+    url("../fonts/inter-latin-500-normal.woff2") format("woff2"),
+    url("../fonts/inter-latin-500-normal.woff") format("woff");
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src:
+    url("../fonts/inter-latin-600-normal.woff2") format("woff2"),
+    url("../fonts/inter-latin-600-normal.woff") format("woff");
+}
 
 /* Import Tailwind Core */
 @import "tailwindcss";

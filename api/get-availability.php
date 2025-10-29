@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 require __DIR__ . '/../controller/Setup.php';
 
-use PonoRez\SGCForms\Cache\FileCache;
-use PonoRez\SGCForms\Cache\NullCache;
 use PonoRez\SGCForms\Services\ActivityInfoService;
 use PonoRez\SGCForms\Services\AvailabilityService;
 use PonoRez\SGCForms\Services\SoapClientBuilder;
@@ -49,11 +47,18 @@ try {
         }
     }
 
-    $availabilityCacheDirectory = UtilityService::projectRoot() . '/cache/availability';
-    $availabilityCache = is_writable(dirname($availabilityCacheDirectory))
-        ? new FileCache($availabilityCacheDirectory)
-        : new NullCache();
+    $activityConfig = null;
+    $departureLabels = [];
 
+    try {
+        $activityConfig = UtilityService::loadActivityConfig($params['supplier'], $params['activity']);
+        $departureLabels = UtilityService::getDepartureLabels($activityConfig);
+    } catch (Throwable) {
+        $activityConfig = null;
+        $departureLabels = [];
+    }
+
+    $availabilityCache = UtilityService::createCache('cache/availability');
     $service = new AvailabilityService(new SoapClientBuilder(), null, $availabilityCache);
     $result = $service->fetchCalendar(
         $params['supplier'],
@@ -64,11 +69,8 @@ try {
         $visibleMonth
     );
 
-    $cacheDirectory = UtilityService::projectRoot() . '/cache/activity-info';
-    $cache = is_writable(dirname($cacheDirectory))
-        ? new FileCache($cacheDirectory)
-        : new NullCache();
-    $activityInfoService = new ActivityInfoService($cache, new SoapClientBuilder());
+    $activityInfoCache = UtilityService::createCache('cache/activity-info');
+    $activityInfoService = new ActivityInfoService($activityInfoCache, new SoapClientBuilder());
     $activityInfoResult = $activityInfoService->getActivityInfo($params['supplier'], $params['activity']);
 
     $metadata = $result['metadata'] ?? [];
@@ -86,11 +88,69 @@ try {
         if (isset($activityInfoResult['hash']) && is_string($activityInfoResult['hash'])) {
             $metadata['activityInfoHash'] = $activityInfoResult['hash'];
         }
+
+        foreach ($activityInfoById as $activityId => $info) {
+            $idString = (string) $activityId;
+            if ($idString === '') {
+                continue;
+            }
+
+            $existing = isset($departureLabels[$idString]) ? trim((string) $departureLabels[$idString]) : '';
+            if ($existing !== '') {
+                continue;
+            }
+
+            $label = null;
+            if (!empty($info['label'])) {
+                $candidate = trim((string) $info['label']);
+                if ($candidate !== '') {
+                    $label = $candidate;
+                }
+            }
+
+            if ($label === null && !empty($info['times'])) {
+                $candidate = trim((string) $info['times']);
+                if ($candidate !== '') {
+                    $label = $candidate;
+                }
+            }
+
+            if ($label !== null) {
+                $departureLabels[$idString] = $label;
+            }
+        }
     }
+
+    $timeslotArrays = array_map(static fn ($slot) => $slot->toArray(), $result['timeslots']);
+
+    foreach ($timeslotArrays as &$slot) {
+        if (!isset($slot['id'])) {
+            continue;
+        }
+
+        $idString = (string) $slot['id'];
+        if ($idString === '') {
+            continue;
+        }
+
+        $label = isset($slot['label']) ? trim((string) $slot['label']) : '';
+        $fallbackMatch = strcasecmp($label, 'Departure ' . $idString) === 0;
+
+        if (($label === '' || $fallbackMatch) && isset($departureLabels[$idString])) {
+            $slot['label'] = $departureLabels[$idString];
+            if (isset($slot['details']) && is_array($slot['details'])) {
+                $detailLabel = isset($slot['details']['times']) ? trim((string) $slot['details']['times']) : '';
+                if ($detailLabel === '' || strcasecmp($detailLabel, 'Departure ' . $idString) === 0) {
+                    $slot['details']['times'] = $departureLabels[$idString];
+                }
+            }
+        }
+    }
+    unset($slot);
 
     ResponseFormatter::success([
         'calendar' => $result['calendar']->toArray(),
-        'timeslots' => array_map(static fn ($slot) => $slot->toArray(), $result['timeslots']),
+        'timeslots' => $timeslotArrays,
         'metadata' => $metadata,
     ]);
 } catch (Throwable $exception) {

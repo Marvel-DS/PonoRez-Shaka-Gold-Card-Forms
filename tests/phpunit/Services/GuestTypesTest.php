@@ -10,6 +10,7 @@ use PonoRez\SGCForms\DTO\GuestType;
 use PonoRez\SGCForms\DTO\GuestTypeCollection;
 use PonoRez\SGCForms\Services\GuestTypeService;
 use PonoRez\SGCForms\Services\SoapClientFactory;
+use PonoRez\SGCForms\UtilityService;
 use RuntimeException;
 use SoapClient;
 use SoapFault;
@@ -126,6 +127,8 @@ final class GuestTypesTest extends TestCase
         self::assertNotEmpty($cache->setCalls);
         self::assertSame('guest-types:supplier-slug:activity-slug:2024-01-01', $cache->setCalls[0]['key']);
         self::assertSame(600, $cache->setCalls[0]['ttl']);
+        self::assertSame('guest-types:supplier-slug:activity-slug:baseline', $cache->setCalls[1]['key']);
+        self::assertSame(3600, $cache->setCalls[1]['ttl']);
         self::assertEquals([
             [
                 'guestTypeId' => 345,
@@ -140,6 +143,66 @@ final class GuestTypesTest extends TestCase
                 'price' => 0,
             ],
         ], $cache->setCalls[0]['value']);
+        self::assertSame($cache->setCalls[0]['value'], $cache->setCalls[1]['value']);
+    }
+
+    public function testFetchFallsBackToBaselineCacheWhenDateCacheMisses(): void
+    {
+        $baselineKey = 'guest-types:supplier-slug:activity-slug:baseline';
+        $cachedPayload = [[
+            'guestTypeId' => 345,
+            'name' => 'Adult from baseline',
+            'description' => 'Baseline description',
+            'price' => '99.99',
+        ]];
+
+        $cache = new CacheSpy([$baselineKey => $cachedPayload]);
+        $builder = new StubSoapClientFactory();
+
+        $service = new GuestTypeService($cache, $builder);
+        $collection = $service->fetch(self::SUPPLIER_SLUG, self::ACTIVITY_SLUG, self::TRAVEL_DATE);
+
+        self::assertSame(0, $builder->buildCount, 'SOAP client should not be built when baseline cache hits.');
+        $adult = $collection->get('345');
+        self::assertInstanceOf(GuestType::class, $adult);
+        self::assertSame('Adult from baseline', $adult->getLabel());
+        self::assertSame('Baseline description', $adult->getDescription());
+        self::assertSame(99.99, $adult->getPrice());
+    }
+
+    public function testFetchFallsBackToSupplierCacheWhenSoapFails(): void
+    {
+        $supplierDir = UtilityService::supplierDirectory(self::SUPPLIER_SLUG);
+        $cacheDir = $supplierDir . '/cache/guest-types';
+        if (!is_dir($cacheDir) && !mkdir($cacheDir, 0775, true) && !is_dir($cacheDir)) {
+            self::fail('Unable to create supplier guest type cache directory for test.');
+        }
+
+        $cacheFile = $cacheDir . '/' . self::ACTIVITY_SLUG . '.json';
+        $payload = [[
+            'id' => 345,
+            'name' => 'Adult from supplier cache',
+            'description' => 'Supplier cached description',
+            'price' => 88.0,
+        ]];
+
+        file_put_contents($cacheFile, json_encode($payload, JSON_THROW_ON_ERROR));
+
+        try {
+            $cache = new CacheSpy();
+            $builder = new StubSoapClientFactory(); // will throw when build() is called
+
+            $service = new GuestTypeService($cache, $builder);
+            $collection = $service->fetch(self::SUPPLIER_SLUG, self::ACTIVITY_SLUG, self::TRAVEL_DATE);
+
+            $guest = $collection->get('345');
+            self::assertInstanceOf(GuestType::class, $guest);
+            self::assertSame('Adult from supplier cache', $guest->getLabel());
+            self::assertSame('Supplier cached description', $guest->getDescription());
+            self::assertSame(88.0, $guest->getPrice());
+        } finally {
+            @unlink($cacheFile);
+        }
     }
 
     public function testFetchNormalizesSoapObjectResponse(): void

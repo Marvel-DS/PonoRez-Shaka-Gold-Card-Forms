@@ -136,8 +136,9 @@ function appendGoldCardNumbers(params, numbers) {
         return;
     }
 
-    const entries = numbers
-        .split(/[\s,;]+/)
+    const sanitized = numbers.replace(/[\r\n]+/g, ',');
+    const entries = sanitized
+        .split(/\s*[;,]\s*/)
         .map((value) => value.trim())
         .filter((value) => value !== '');
 

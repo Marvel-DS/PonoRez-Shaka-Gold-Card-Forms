@@ -65,13 +65,13 @@ $multipleSlides = count($galleryItems) > 1;
                                 class="inline-flex h-12 w-12 pr-1 items-center justify-center rounded-md text-white bg-white/20 hover:bg-[var(--sgc-brand-primary)] transition-all duration-500 cursor-pointer"
                                 data-gallery-prev
                                 aria-label="Previous slide">
-                            <?= \PonoRez\SGCForms\UtilityService::renderSvgIcon('assets/icons/chevron-left.svg', 'h-8 w-8', '2') ?>
+                            <?= \PonoRez\SGCForms\UtilityService::renderSvgIcon('chevron-left.svg', 'h-8 w-8', '2') ?>
                         </button>
                         <button type="button"
                                 class="inline-flex h-12 w-12 pl-1 items-center justify-center rounded-md text-white bg-white/20 hover:bg-[var(--sgc-brand-primary)] transition-all duration-500 cursor-pointer"
                                 data-gallery-next
                                 aria-label="Next slide">
-                            <?= \PonoRez\SGCForms\UtilityService::renderSvgIcon('assets/icons/chevron-right.svg', 'h-8 w-8', '2') ?>
+                            <?= \PonoRez\SGCForms\UtilityService::renderSvgIcon('chevron-right.svg', 'h-8 w-8', '2') ?>
                         </button>
                     </div>
                 </div>

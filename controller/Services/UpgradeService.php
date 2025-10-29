@@ -40,6 +40,10 @@ final class UpgradeService
             return new UpgradeCollection();
         }
 
+        if (!array_key_exists('upgrades', $activityConfig)) {
+            return new UpgradeCollection();
+        }
+
         [$collection, $disabledIds] = $this->buildCollectionFromConfig($activityConfig['upgrades'] ?? []);
 
         try {
@@ -79,6 +83,16 @@ final class UpgradeService
                 continue;
             }
 
+            $webBookableFlag = $this->resolveWebBookableFlag($row);
+            if ($webBookableFlag === false) {
+                $disabledIds[] = $id;
+                continue;
+            }
+
+            if ($webBookableFlag === true) {
+                $row['webBookable'] = true;
+            }
+
             $label = isset($row['label']) ? (string) $row['label'] : $id;
             $collection->add(new Upgrade($id, $label, $row));
         }
@@ -92,6 +106,11 @@ final class UpgradeService
 
         foreach ($data as $row) {
             if (!is_array($row) || !isset($row['id'])) {
+                continue;
+            }
+
+            $webFlag = $this->resolveWebBookableFlag($row);
+            if ($webFlag === false) {
                 continue;
             }
 
@@ -172,6 +191,15 @@ final class UpgradeService
                 $upgrade->setLabel($label);
             }
 
+            $configFlag = $this->resolveWebBookableFlag($upgrade->getMetadata());
+            $soapFlag = $this->resolveWebBookableFlag($row);
+            $webBookable = $soapFlag ?? $configFlag;
+
+            if ($webBookable === false) {
+                $collection->remove($id);
+                continue;
+            }
+
             if ($upgrade->getDescription() === null && isset($row['description'])) {
                 $upgrade->setDescription((string) $row['description']);
             }
@@ -197,11 +225,76 @@ final class UpgradeService
                 'price' => true,
                 'maxQuantity' => true,
                 'minQuantity' => true,
+                'webBookable' => true,
+                'webbookable' => true,
+                'isWebBookable' => true,
+                'isWebbookable' => true,
+                'webBooking' => true,
+                'webbooking' => true,
+                'allowWebBooking' => true,
+                'allowWeb' => true,
             ]);
+
+            if ($webBookable !== null) {
+                $metadata['webBookable'] = $webBookable;
+            }
+
             $upgrade->setMetadata(array_merge($upgrade->getMetadata(), $metadata));
 
             $collection->add($upgrade);
         }
+    }
+
+    private function resolveWebBookableFlag(array $source): ?bool
+    {
+        $normalized = array_change_key_case($source, CASE_LOWER);
+
+        foreach ([
+            'webbookable',
+            'iswebbookable',
+            'webbooking',
+            'allowwebbooking',
+            'allowweb',
+        ] as $key) {
+            if (!array_key_exists($key, $normalized)) {
+                continue;
+            }
+
+            $flag = $this->normalizeBoolean($normalized[$key]);
+            if ($flag !== null) {
+                return $flag;
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizeBoolean(mixed $value): ?bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            return ((int) $value) !== 0;
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+            if ($normalized === '') {
+                return null;
+            }
+
+            if (in_array($normalized, ['1', 'true', 'yes', 'on', 'y'], true)) {
+                return true;
+            }
+
+            if (in_array($normalized, ['0', 'false', 'no', 'off', 'n'], true)) {
+                return false;
+            }
+        }
+
+        return null;
     }
 
     private function resolveLookupDate(array $activityConfig): string

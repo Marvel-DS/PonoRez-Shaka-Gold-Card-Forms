@@ -26,8 +26,6 @@
   },
   "description": "",
   "dependencies": {
-    "@fontsource/inter": "^5.2.7",
-    "@fontsource/poppins": "^5.2.6",
     "heroicons": "^2.2.0"
   }
 }

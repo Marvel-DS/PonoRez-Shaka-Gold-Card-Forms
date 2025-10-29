@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 require __DIR__ . '/../controller/Setup.php';
 
-use PonoRez\SGCForms\Cache\FileCache;
-use PonoRez\SGCForms\Cache\NullCache;
 use PonoRez\SGCForms\Services\SoapClientBuilder;
 use PonoRez\SGCForms\Services\UpgradeService;
 use PonoRez\SGCForms\Support\ErrorHandler;
@@ -24,9 +22,7 @@ try {
         return;
     }
 
-    $cacheDirectory = UtilityService::projectRoot() . '/cache/upgrades';
-    $cache = is_writable(dirname($cacheDirectory)) ? new FileCache($cacheDirectory) : new NullCache();
-
+    $cache = UtilityService::createCache('cache/upgrades');
     $service = new UpgradeService($cache, new SoapClientBuilder());
     $collection = $service->fetch($params['supplier'], $params['activity']);
 

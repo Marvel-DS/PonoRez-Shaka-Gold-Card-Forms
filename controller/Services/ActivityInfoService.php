@@ -60,19 +60,56 @@ final class ActivityInfoService
         $normalizedCache = $this->normalizeCachedPayload($cached, $activityIds);
 
         if ($normalizedCache !== null && !$this->shouldRefresh($normalizedCache['checkedAt'] ?? null)) {
+            $this->persistSupplierActivityInfoCache(
+                $supplierSlug,
+                $activitySlug,
+                $normalizedCache['activities'] ?? []
+            );
+
             return $normalizedCache;
         }
 
         $fresh = $this->attemptRefresh($cacheKey, $supplierConfig, $activityIds, $normalizedCache);
         if ($fresh !== null) {
+            $this->persistSupplierActivityInfoCache(
+                $supplierSlug,
+                $activitySlug,
+                $fresh['activities'] ?? []
+            );
+
             return $fresh;
         }
 
-        return $normalizedCache ?? [
+        if ($normalizedCache !== null) {
+            $this->persistSupplierActivityInfoCache(
+                $supplierSlug,
+                $activitySlug,
+                $normalizedCache['activities'] ?? []
+            );
+
+            return $normalizedCache;
+        }
+
+        return [
             'activities' => [],
             'checkedAt' => null,
             'hash' => null,
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $activities
+     */
+    private function persistSupplierActivityInfoCache(
+        string $supplierSlug,
+        string $activitySlug,
+        array $activities
+    ): void {
+        if ($activities === []) {
+            return;
+        }
+
+        UtilityService::saveSupplierActivityInfoCache($supplierSlug, $activitySlug, $activities);
     }
 
     /**
@@ -132,7 +169,14 @@ final class ActivityInfoService
             return null;
         }
 
+        if ($freshActivities === null) {
+            return $cached;
+        }
+
         $payload = $this->buildCachePayload($freshActivities);
+        if ($payload === null) {
+            return $cached;
+        }
 
         if ($cached !== null && $cached['hash'] !== null && $payload['hash'] === $cached['hash']) {
             $updated = [
@@ -178,7 +222,7 @@ final class ActivityInfoService
     /**
      * @param array<int, array<string, mixed>>|null $activities
      */
-    private function buildCachePayload(?array $activities): array
+    private function buildCachePayload(?array $activities): ?array
     {
         $activities = $activities ?? [];
         $normalized = [];
@@ -189,6 +233,10 @@ final class ActivityInfoService
             }
 
             $normalized[(string) $id] = $this->formatActivityInfo((int) $id, $activity);
+        }
+
+        if ($normalized === []) {
+            return null;
         }
 
         return [

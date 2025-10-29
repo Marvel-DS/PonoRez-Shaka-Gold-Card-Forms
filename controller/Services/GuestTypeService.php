@@ -16,6 +16,7 @@ use Throwable;
 final class GuestTypeService
 {
     private const CACHE_TTL = 600;
+    private const BASELINE_CACHE_TTL = 3600;
 
     public function __construct(
         private readonly CacheInterface $cache,
@@ -31,16 +32,62 @@ final class GuestTypeService
         $collection = $this->buildCollectionFromConfig($activityConfig);
 
         $cacheKey = CacheKeyGenerator::fromParts('guest-types', $supplierSlug, $activitySlug, $date);
+        $baselineCacheKey = CacheKeyGenerator::fromParts('guest-types', $supplierSlug, $activitySlug, 'baseline');
+
         $cached = $this->cache->get($cacheKey);
+        if (!is_array($cached)) {
+            $cached = $this->cache->get($baselineCacheKey);
+        }
+
         if (is_array($cached)) {
-            return $this->mergeCollection($collection, $cached);
+            if ($cached !== []) {
+                UtilityService::saveSupplierGuestTypeCache($supplierSlug, $activitySlug, $cached);
+            }
+
+            return $this->applySupplierCacheFallback(
+                $this->mergeCollection($collection, $cached),
+                $supplierSlug,
+                $activitySlug
+            );
         }
 
         try {
             $data = $this->fetchFromSoap($supplierConfig, $activityConfig, $date, $guestCounts);
             $this->cache->set($cacheKey, $data, self::CACHE_TTL);
-            return $this->mergeCollection($collection, $data);
+            $this->cache->set($baselineCacheKey, $data, self::BASELINE_CACHE_TTL);
+
+            if ($data !== []) {
+                UtilityService::saveSupplierGuestTypeCache($supplierSlug, $activitySlug, $data);
+            }
+
+            return $this->applySupplierCacheFallback(
+                $this->mergeCollection($collection, $data),
+                $supplierSlug,
+                $activitySlug
+            );
         } catch (Throwable) {
+            $cached = $this->cache->get($baselineCacheKey);
+            if (is_array($cached)) {
+                if ($cached !== []) {
+                    UtilityService::saveSupplierGuestTypeCache($supplierSlug, $activitySlug, $cached);
+                }
+
+                return $this->applySupplierCacheFallback(
+                    $this->mergeCollection($collection, $cached),
+                    $supplierSlug,
+                    $activitySlug
+                );
+            }
+
+            $supplierCache = UtilityService::loadSupplierGuestTypeCache($supplierSlug, $activitySlug);
+            if (is_array($supplierCache)) {
+                return $this->applySupplierCacheFallback(
+                    $this->mergeCollection($collection, $supplierCache),
+                    $supplierSlug,
+                    $activitySlug
+                );
+            }
+
             return $collection;
         }
     }
@@ -73,6 +120,64 @@ final class GuestTypeService
                 max(0, $minQuantity),
                 max(0, $maxQuantity)
             ));
+        }
+
+        return $collection;
+    }
+
+    private function applySupplierCacheFallback(
+        GuestTypeCollection $collection,
+        string $supplierSlug,
+        string $activitySlug
+    ): GuestTypeCollection {
+        $fallback = UtilityService::loadSupplierGuestTypeCache($supplierSlug, $activitySlug);
+        if (!is_array($fallback) || $fallback === []) {
+            return $collection;
+        }
+
+        foreach ($fallback as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $id = (string) ($row['id'] ?? $row['guestTypeId'] ?? '');
+            if ($id === '') {
+                continue;
+            }
+
+            $guestType = $collection->get($id) ?? new GuestType($id, $id);
+
+            $currentLabel = trim($guestType->getLabel());
+            if ($currentLabel === '' || strcasecmp($currentLabel, $id) === 0) {
+                $fallbackLabel = self::firstNonEmptyString([
+                    $row['label'] ?? null,
+                    $row['name'] ?? null,
+                    $row['guestTypeName'] ?? null,
+                    $row['guestType'] ?? null,
+                ]);
+
+                if ($fallbackLabel !== null) {
+                    $guestType->setLabel($fallbackLabel);
+                }
+            }
+
+            $currentDescription = $guestType->getDescription();
+            if ($currentDescription === null || trim($currentDescription) === '') {
+                $fallbackDescription = self::firstNonEmptyString([
+                    $row['description'] ?? null,
+                    $row['guestTypeDescription'] ?? null,
+                ]);
+
+                if ($fallbackDescription !== null) {
+                    $guestType->setDescription($fallbackDescription);
+                }
+            }
+
+            if ($guestType->getPrice() === null && isset($row['price']) && is_numeric($row['price'])) {
+                $guestType->setPrice((float) $row['price']);
+            }
+
+            $collection->add($guestType);
         }
 
         return $collection;

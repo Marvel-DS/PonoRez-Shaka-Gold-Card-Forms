@@ -119,6 +119,15 @@ function mergeGuestTypeDetails(state, apiDetails) {
         return Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : fallback;
     };
 
+    const hasNumericValue = (value) => {
+        if (value === null || value === undefined || value === '') {
+            return false;
+        }
+
+        const numeric = Number(value);
+        return Number.isFinite(numeric);
+    };
+
     const buildFromEntry = (entry, detail) => {
         const id = String(entry.id);
         const minConfig = entry.minQuantity !== undefined && entry.minQuantity !== null
@@ -154,9 +163,12 @@ function mergeGuestTypeDetails(state, apiDetails) {
             ? entryDescriptionValue
             : detail && detail.description ? String(detail.description) : (entryDescriptionValue || null);
 
-        const price = Number.isFinite(Number(entry.price))
-            ? Number(entry.price)
-            : (detail && Number.isFinite(Number(detail.price)) ? Number(detail.price) : null);
+        let price = null;
+        if (hasNumericValue(entry.price)) {
+            price = Number(entry.price);
+        } else if (detail && hasNumericValue(detail.price)) {
+            price = Number(detail.price);
+        }
 
         return {
             id,
@@ -199,12 +211,11 @@ function mergeGuestTypeDetails(state, apiDetails) {
             max = min;
         }
 
-        const price = Number(detail.price);
         return {
             id: String(detail.id),
             label: detail.label ? String(detail.label) : String(detail.id),
             description: detail.description ? String(detail.description) : null,
-            price: Number.isFinite(price) ? price : null,
+            price: hasNumericValue(detail.price) ? Number(detail.price) : null,
             min,
             max,
         };
@@ -247,7 +258,6 @@ async function fetchGuestTypes() {
         }
         console.error('Unable to load guest types', error);
         showError(error.message || 'Unable to load guest type details.');
-        lastSignature = null;
     } finally {
         controller = null;
         updateLoading(false);

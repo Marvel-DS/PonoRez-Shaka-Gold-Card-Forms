@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace PonoRez\SGCForms;
 
+use PonoRez\SGCForms\Cache\CacheInterface;
+use PonoRez\SGCForms\Cache\FileCache;
+use PonoRez\SGCForms\Cache\NullCache;
 use RuntimeException;
+use Throwable;
 
 final class UtilityService
 {
@@ -23,6 +27,28 @@ final class UtilityService
     public static function projectRoot(): string
     {
         return defined('PONO_SGC_ROOT') ? PONO_SGC_ROOT : dirname(__DIR__);
+    }
+
+    public static function createCache(string $relativePath): CacheInterface
+    {
+        $normalized = trim(str_replace('\\', '/', $relativePath));
+        if ($normalized === '') {
+            return new NullCache();
+        }
+
+        $normalized = ltrim($normalized, '/');
+        $directory = self::projectRoot() . '/' . $normalized;
+
+        try {
+            return new FileCache($directory);
+        } catch (Throwable $exception) {
+            error_log(sprintf(
+                '[SGC Forms] Cache disabled for %s: %s',
+                $normalized,
+                $exception->getMessage()
+            ));
+            return new NullCache();
+        }
     }
 
     public static function loadJsonConfig(string $path): array
@@ -73,6 +99,66 @@ final class UtilityService
         $environment = self::getCurrentEnvironment();
         $environmentConfig = $config[$environment] ?? [];
         return $environmentConfig[$key] ?? $default;
+    }
+
+    public static function shouldDisableSoapCertificateVerification(): bool
+    {
+        foreach ([
+            getenv('PONO_SGC_DISABLE_SOAP_SSL_VERIFY') ?: null,
+            self::getEnvironmentSetting('disableSoapSslVerification', null),
+        ] as $source) {
+            $bool = self::boolOrNull($source);
+            if ($bool !== null) {
+                return $bool;
+            }
+        }
+
+        return false;
+    }
+
+    public static function shouldDisableAvailabilityCertificateVerification(): bool
+    {
+        foreach ([
+            getenv('PONO_SGC_DISABLE_AVAILABILITY_SSL_VERIFY') ?: null,
+            self::getEnvironmentSetting('disableAvailabilitySslVerification', null),
+        ] as $source) {
+            $bool = self::boolOrNull($source);
+            if ($bool !== null) {
+                return $bool;
+            }
+        }
+
+        return false;
+    }
+
+    public static function getTrustedCaBundlePath(): ?string
+    {
+        foreach ([
+            getenv('PONO_SGC_CA_BUNDLE') ?: null,
+            self::getEnvironmentSetting('trustedCaBundle', null),
+        ] as $candidate) {
+            if (!is_string($candidate)) {
+                continue;
+            }
+
+            $path = trim($candidate);
+            if ($path === '') {
+                continue;
+            }
+
+            if ($path[0] === '~') {
+                $home = getenv('HOME');
+                if ($home !== false && $home !== '') {
+                    $path = rtrim($home, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . ltrim(substr($path, 1), DIRECTORY_SEPARATOR);
+                }
+            }
+
+            if (is_file($path)) {
+                return $path;
+            }
+        }
+
+        return null;
     }
 
     public static function getSoapWsdl(): string
@@ -157,6 +243,128 @@ final class UtilityService
         );
 
         return $config;
+    }
+
+    public static function loadSupplierGuestTypeCache(string $supplierSlug, string $activitySlug): ?array
+    {
+        $path = self::supplierDirectory($supplierSlug) . '/cache/guest-types/' . $activitySlug . '.json';
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $contents = file_get_contents($path);
+        if ($contents === false) {
+            return null;
+        }
+
+        $data = json_decode($contents, true);
+        if (!is_array($data)) {
+            return null;
+        }
+
+        $normalized = [];
+        foreach ($data as $row) {
+            if (!is_array($row) || !isset($row['id'])) {
+                continue;
+            }
+
+            $normalized[] = $row;
+        }
+
+        return $normalized === [] ? null : $normalized;
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $guestTypes
+     */
+    public static function saveSupplierGuestTypeCache(string $supplierSlug, string $activitySlug, array $guestTypes): void
+    {
+        if ($guestTypes === []) {
+            return;
+        }
+
+        $directory = self::ensureSupplierCacheDirectory($supplierSlug, 'guest-types');
+        $path = $directory . '/' . $activitySlug . '.json';
+
+        try {
+            file_put_contents($path, json_encode($guestTypes, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+        } catch (Throwable $exception) {
+            error_log(sprintf('[SGC Forms] Unable to persist guest type cache for %s/%s: %s', $supplierSlug, $activitySlug, $exception->getMessage()));
+        }
+    }
+
+    public static function loadSupplierActivityInfoCache(string $supplierSlug, string $activitySlug): ?array
+    {
+        $path = self::supplierDirectory($supplierSlug) . '/cache/activity-info/' . $activitySlug . '.json';
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $contents = file_get_contents($path);
+        if ($contents === false) {
+            return null;
+        }
+
+        $data = json_decode($contents, true);
+        if (!is_array($data)) {
+            return null;
+        }
+
+        return $data;
+    }
+
+    public static function saveSupplierActivityInfoCache(string $supplierSlug, string $activitySlug, array $activityInfo): void
+    {
+        if ($activityInfo === []) {
+            return;
+        }
+
+        $directory = self::ensureSupplierCacheDirectory($supplierSlug, 'activity-info');
+        $path = $directory . '/' . $activitySlug . '.json';
+
+        try {
+            file_put_contents($path, json_encode($activityInfo, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+        } catch (Throwable $exception) {
+            error_log(sprintf('[SGC Forms] Unable to persist activity info cache for %s/%s: %s', $supplierSlug, $activitySlug, $exception->getMessage()));
+        }
+    }
+
+    private static function ensureSupplierCacheDirectory(string $supplierSlug, string $type): string
+    {
+        $base = self::supplierDirectory($supplierSlug) . '/cache/' . $type;
+        if (!is_dir($base) && !mkdir($base, 0775, true) && !is_dir($base)) {
+            throw new RuntimeException(sprintf('Unable to create supplier cache directory: %s', $base));
+        }
+
+        return $base;
+    }
+
+    private static function boolOrNull(mixed $value): ?bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            return (bool) $value;
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+            if ($normalized === '') {
+                return null;
+            }
+
+            if (in_array($normalized, ['1', 'true', 'yes', 'on'], true)) {
+                return true;
+            }
+
+            if (in_array($normalized, ['0', 'false', 'no', 'off'], true)) {
+                return false;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -780,7 +988,15 @@ final class UtilityService
         $searchPaths = [
             self::projectRoot() . '/' . $relative,
             self::projectRoot() . '/assets/icons/' . $relative,
+            self::projectRoot() . '/public/assets/icons/' . $relative,
         ];
+
+        // Support deployments that move the application into an "app/public" folder.
+        $appPublic = self::projectRoot() . '/app/public';
+        if (is_dir($appPublic)) {
+            $searchPaths[] = $appPublic . '/' . ltrim($relative, '/');
+            $searchPaths[] = $appPublic . '/assets/icons/' . $relative;
+        }
 
         $fullPath = null;
         foreach ($searchPaths as $candidate) {
