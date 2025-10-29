@@ -67,6 +67,7 @@ try {
             'code' => $result['code'],
             'numbers' => $result['numbers'],
             'source' => $result['source'] ?? 'ponorez',
+            'message' => $result['message'] ?? null,
         ],
         'raw' => $result['raw'] ?? null,
     ]);

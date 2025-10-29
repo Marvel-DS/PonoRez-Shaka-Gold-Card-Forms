@@ -51,9 +51,9 @@ final class GoldCardDiscountService
         );
 
         $responseBody = $this->performAvailabilityLookup($baseUrl, $query);
-        $code = $this->extractDiscountFromAvailabilityResponse($responseBody);
+        [$code, $message] = $this->parseAvailabilityResponse($responseBody);
 
-        if ($code === null) {
+        if ($code === null && $message === null) {
             throw new RuntimeException('Unable to resolve discount code from Ponorez response.');
         }
 
@@ -61,6 +61,7 @@ final class GoldCardDiscountService
             'code' => $code,
             'numbers' => $normalizedNumbers,
             'source' => 'availability',
+            'message' => $message,
         ];
     }
 
@@ -262,17 +263,34 @@ final class GoldCardDiscountService
         return $normalized;
     }
 
-    private function extractDiscountFromAvailabilityResponse(string $html): ?string
+    /**
+     * @return array{0:?string,1:?string}
+     */
+    private function parseAvailabilityResponse(string $html): array
     {
+        $code = null;
+        $message = null;
+
         if (preg_match('/setdiscount\\(([\'"])([a-f0-9]{8,})\\1\\)/i', $html, $matches)) {
-            return strtolower($matches[2]);
+            $code = strtolower($matches[2]);
+        } elseif (preg_match('/discountcode\\s*=\\s*([a-f0-9]{8,})/i', $html, $matches)) {
+            $code = strtolower($matches[1]);
         }
 
-        if (preg_match('/discountcode\\s*=\\s*([a-f0-9]{8,})/i', $html, $matches)) {
-            return strtolower($matches[1]);
+        if ($code === null) {
+            if (preg_match(
+                '/<div[^>]*class="[^"]*alert[^"]*alert-danger[^"]*"[^>]*>.*?<strong>(.*?)<\/strong>/is',
+                $html,
+                $alertMatches
+            )) {
+                $extracted = trim(strip_tags(html_entity_decode($alertMatches[1], ENT_QUOTES | ENT_HTML5)));
+                if ($extracted !== '') {
+                    $message = $extracted;
+                }
+            }
         }
 
-        return null;
+        return [$code, $message];
     }
 
     private function formatPonorezDate(string $iso): string

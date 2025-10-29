@@ -10,6 +10,7 @@ let root;
 let numberInput;
 let upsellCheckbox;
 let priceLabel;
+let errorMessage;
 
 function updateNumberValue(value) {
     const nextValue = typeof value === 'string' ? value : '';
@@ -84,6 +85,23 @@ function render(state) {
         const formatted = formatCurrencyForState(state, price);
         priceLabel.textContent = formatted ? `Add for ${formatted}` : '';
     }
+
+    if (errorMessage) {
+        const discountState = state.goldCardDiscount || null;
+        const errorText = discountState && typeof discountState.error === 'string'
+            ? discountState.error.trim()
+            : '';
+
+        if (errorText !== '') {
+            errorMessage.textContent = errorText;
+            errorMessage.classList.remove('hidden');
+        } else {
+            errorMessage.textContent = '';
+            if (!errorMessage.classList.contains('hidden')) {
+                errorMessage.classList.add('hidden');
+            }
+        }
+    }
 }
 
 export function initGoldCard() {
@@ -95,6 +113,7 @@ export function initGoldCard() {
     numberInput = qs('[data-goldcard-number]', root);
     upsellCheckbox = qs('[data-goldcard-upsell]', root);
     priceLabel = qs('[data-goldcard-price]', root);
+    errorMessage = qs('[data-goldcard-error]', root);
 
     if (numberInput) {
         numberInput.addEventListener('input', handleNumberInput);

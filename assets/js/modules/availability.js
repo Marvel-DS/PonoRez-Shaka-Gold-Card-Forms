@@ -1167,7 +1167,7 @@ function renderTimeslots(state) {
 
                 totalsWrapper.appendChild(createElement('span', {
                     className: 'mt-1 text-xs font-semibold text-[var(--sgc-brand-primary)]',
-                    text: `You can save ${formatCurrencyForState(state, discountSavings)} with Shaka Gold Card`,
+                    text: `Save ${formatCurrencyForState(state, discountSavings)} with Shaka Gold Card`,
                 }));
 
                 priceInfo.appendChild(totalsWrapper);

@@ -128,7 +128,7 @@ $acknowledgementLabel = 'I have read and agree to the cancellation policy.';
         </p>
     </header>
 
-    <div class="space-y-4">
+    <div class="space-y-4" data-cancellation-container>
         <?php if ($contentHtml !== null): ?>
             <p class="text-sm text-slate-600"><?= $contentHtml ?></p>
         <?php endif; ?>
@@ -152,6 +152,10 @@ $acknowledgementLabel = 'I have read and agree to the cancellation policy.';
                 <?= htmlspecialchars($linkLabel, ENT_QUOTES, 'UTF-8') ?>
             </a>
         <?php endif; ?>
+
+        <p class="hidden rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700"
+            data-cancellation-error
+            role="alert"></p>
 
         <label for="<?= htmlspecialchars($checkboxId, ENT_QUOTES, 'UTF-8') ?>" class="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
             <input

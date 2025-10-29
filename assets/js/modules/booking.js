@@ -11,6 +11,7 @@ let submitButton;
 let buttonLabel;
 let buttonSpinner;
 let cancellationCheckbox;
+let cancellationError;
 
 function updateCancellationState() {
     if (!cancellationCheckbox) {
@@ -20,6 +21,10 @@ function updateCancellationState() {
     setState({
         acknowledgedCancellationPolicy: Boolean(cancellationCheckbox.checked),
     });
+
+    if (cancellationCheckbox.checked) {
+        setCancellationError(null);
+    }
 }
 
 function setSubmitting(isSubmitting) {
@@ -39,6 +44,22 @@ function setSubmitting(isSubmitting) {
 
     if (buttonSpinner) {
         toggleHidden(buttonSpinner, !isSubmitting);
+    }
+}
+
+function setCancellationError(message) {
+    if (!cancellationError) {
+        return;
+    }
+
+    if (message && message.trim() !== '') {
+        cancellationError.textContent = message.trim();
+        cancellationError.classList.remove('hidden');
+    } else {
+        cancellationError.textContent = '';
+        if (!cancellationError.classList.contains('hidden')) {
+            cancellationError.classList.add('hidden');
+        }
     }
 }
 
@@ -196,14 +217,34 @@ async function fetchGoldCardDiscount(state, numbers, signature) {
         const discount = response.discount || {};
         const codeRaw = typeof discount.code === 'string' ? discount.code.trim() : '';
         const normalizedCode = codeRaw !== '' ? codeRaw : null;
+        const messageRaw = typeof discount.message === 'string' ? discount.message.trim() : '';
+        const normalizedMessage = messageRaw !== '' ? messageRaw : null;
+
+        const discountState = {
+            numbers,
+            signature,
+            fetchedAt: Date.now(),
+            source: typeof discount.source === 'string' ? discount.source : null,
+            message: normalizedMessage,
+        };
+
+        if (!normalizedCode) {
+            const errorMessage = normalizedMessage || 'The Shaka Gold Card number could not be validated.';
+            setState({
+                goldCardDiscount: {
+                    ...discountState,
+                    code: null,
+                    error: errorMessage,
+                },
+            });
+            throw new Error(errorMessage);
+        }
 
         setState({
             goldCardDiscount: {
+                ...discountState,
                 code: normalizedCode,
-                numbers,
-                signature,
-                fetchedAt: Date.now(),
-                source: typeof discount.source === 'string' ? discount.source : null,
+                error: null,
             },
         });
 
@@ -236,6 +277,9 @@ async function ensureGoldCardDiscount(state) {
     const cached = state.goldCardDiscount;
 
     if (cached && cached.signature === signature) {
+        if (cached.error) {
+            throw new Error(cached.error);
+        }
         return cached.code || null;
     }
 
@@ -342,8 +386,11 @@ function validateState(state) {
     }
 
     if (state.requiresCancellationAcknowledgement && !state.acknowledgedCancellationPolicy) {
+        setCancellationError('Please review and acknowledge the cancellation policy before continuing.');
         return 'Please review and acknowledge the cancellation policy before continuing.';
     }
+
+    setCancellationError(null);
 
     return null;
 }
@@ -395,6 +442,7 @@ export function initBooking() {
     buttonLabel = qs('[data-button-label]', submitButton);
     buttonSpinner = qs('[data-button-spinner]', submitButton);
     cancellationCheckbox = qs('[data-cancellation-acknowledgement]', form);
+    cancellationError = qs('[data-cancellation-error]', form);
 
     toggleHidden(buttonSpinner, true);
 
