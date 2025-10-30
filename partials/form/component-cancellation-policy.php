@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use PonoRez\SGCForms\UtilityService;
+
 $page = $pageContext ?? [];
 $bootstrap = $page['bootstrap'] ?? [];
 $activityConfig = $page['activity'] ?? [];
@@ -94,6 +96,13 @@ foreach (['items', 'points', 'bullets'] as $key) {
     }
 }
 
+if ($items !== []) {
+    $items = array_values(array_filter(array_map(static function ($item) use ($supplier) {
+        $formatted = UtilityService::formatSupplierContent($item, $supplier);
+        return str_replace(['<p>', '</p>'], '', $formatted);
+    }, $items)));
+}
+
 $linkUrl = $firstNonEmptyString([
     $policy['url'] ?? null,
     $policy['link'] ?? null,
@@ -112,7 +121,7 @@ if ($content === null && $items === [] && $linkUrl === null) {
 }
 
 $contentHtml = $content !== null
-    ? nl2br(htmlspecialchars($content, ENT_QUOTES, 'UTF-8'))
+    ? UtilityService::formatSupplierContent($content, $supplier)
     : null;
 
 $checkboxId = 'acknowledge-cancellation-policy';
@@ -129,14 +138,14 @@ $acknowledgementLabel = 'I have read and agree to the cancellation policy.';
     </header>
 
     <div class="space-y-4" data-cancellation-container>
-        <?php if ($contentHtml !== null): ?>
-            <p class="text-sm text-slate-600"><?= $contentHtml ?></p>
+        <?php if ($contentHtml !== null && $contentHtml !== ''): ?>
+            <div class="text-sm text-slate-600"><?= $contentHtml ?></div>
         <?php endif; ?>
 
         <?php if ($items !== []): ?>
             <ul class="list-disc space-y-2 pl-5 text-sm text-slate-600">
                 <?php foreach ($items as $item): ?>
-                    <li><?= htmlspecialchars($item, ENT_QUOTES, 'UTF-8') ?></li>
+                    <li><?= $item ?></li>
                 <?php endforeach; ?>
             </ul>
         <?php endif; ?>

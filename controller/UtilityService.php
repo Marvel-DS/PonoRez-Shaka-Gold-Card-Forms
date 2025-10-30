@@ -951,6 +951,51 @@ final class UtilityService
         return null;
     }
 
+    public static function formatSupplierContent(?string $content, array $supplier = []): string
+    {
+        $text = self::stringOrNull($content);
+        if ($text === null) {
+            return '';
+        }
+
+        $replacements = [
+            '[p]' => '<p>',
+            '[/p]' => '</p>',
+            '[b]' => '<strong>',
+            '[/b]' => '</strong>',
+        ];
+
+        $text = str_replace(array_keys($replacements), array_values($replacements), $text);
+
+        $links = $supplier['links'] ?? [];
+        $faqUrl = self::stringOrNull($links['faq'] ?? null);
+        $termsUrl = self::stringOrNull($links['terms'] ?? null);
+
+        $faqReplacement = $faqUrl !== null
+            ? sprintf(
+                '<a href="%s" target="_blank" rel="noopener">FAQ</a>',
+                htmlspecialchars($faqUrl, ENT_QUOTES, 'UTF-8')
+            )
+            : 'FAQ';
+
+        $termsReplacement = $termsUrl !== null
+            ? sprintf(
+                '<a href="%s" target="_blank" rel="noopener">Terms &amp; Conditions</a>',
+                htmlspecialchars($termsUrl, ENT_QUOTES, 'UTF-8')
+            )
+            : 'Terms &amp; Conditions';
+
+        $text = str_replace('[FAQ]', $faqReplacement, $text);
+        $text = str_replace('[TERMS]', $termsReplacement, $text);
+
+        $allowedTags = '<p><br><strong><em><ul><ol><li><a>';
+        $sanitized = strip_tags($text, $allowedTags);
+        $sanitized = preg_replace('/javascript\s*:/i', '', $sanitized ?? '') ?? '';
+        $sanitized = preg_replace('#<p>\s*</p>#', '', $sanitized) ?? '';
+
+        return trim($sanitized);
+    }
+
     public static function getPublicBasePath(): string
     {
         $scriptName = $_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? '';

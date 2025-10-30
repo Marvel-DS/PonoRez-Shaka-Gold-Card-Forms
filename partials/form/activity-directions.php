@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use PonoRez\SGCForms\UtilityService;
+
 /**
  * Render the activity directions info block.
  */
@@ -9,6 +11,7 @@ declare(strict_types=1);
 $page = $pageContext ?? [];
 $bootstrap = $page['bootstrap'] ?? [];
 $activity = $bootstrap['activity'] ?? [];
+$supplier = $bootstrap['supplier'] ?? [];
 $infoBlocks = $activity['infoBlocks'] ?? [];
 $details = $activity['details'] ?? [];
 
@@ -25,6 +28,11 @@ $content = $config['content'] ?? ($details['directions'] ?? null);
 if ($content === null) {
     return;
 }
+
+$sanitizedContent = UtilityService::formatSupplierContent((string) $content, $supplier);
+if ($sanitizedContent === '') {
+    return;
+}
 ?>
 
 <article class="space-y-0" data-info-block="directions">
@@ -36,7 +44,7 @@ if ($content === null) {
     </header>
 
     <div class="text-sm text-slate-700">
-        <?= $content ?>
+        <?= $sanitizedContent ?>
     </div>
 
 </article>

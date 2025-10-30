@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use PonoRez\SGCForms\UtilityService;
+
 /**
  * Render the activity highlights list.
  */
@@ -9,6 +11,7 @@ declare(strict_types=1);
 $page = $pageContext ?? [];
 $bootstrap = $page['bootstrap'] ?? [];
 $activity = $bootstrap['activity'] ?? [];
+$supplier = $bootstrap['supplier'] ?? [];
 $infoBlocks = $activity['infoBlocks'] ?? [];
 
 $config = $infoBlocks['highlights'] ?? [];
@@ -23,9 +26,10 @@ $highlightsTitle = $config['title'] ?? 'Highlights';
 $items = [];
 if (isset($config['items']) && is_array($config['items'])) {
     foreach ($config['items'] as $item) {
-        $stringItem = trim((string) $item);
-        if ($stringItem !== '') {
-            $items[] = $stringItem;
+        $formatted = UtilityService::formatSupplierContent((string) $item, $supplier);
+        $formatted = str_replace(['<p>', '</p>'], '', $formatted);
+        if ($formatted !== '') {
+            $items[] = $formatted;
         }
     }
 }
@@ -44,7 +48,7 @@ if ($items === []) {
 
     <ul class="list-disc list-inside text-sm text-slate-700 space-y-1">
         <?php foreach ($items as $item): ?>
-            <li><?= htmlspecialchars($item, ENT_QUOTES, 'UTF-8') ?></li>
+            <li><?= $item ?></li>
         <?php endforeach; ?>
     </ul>
 

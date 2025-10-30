@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use PonoRez\SGCForms\UtilityService;
+
 /**
  * Render the activity restrictions information block.
  */
@@ -9,6 +11,7 @@ declare(strict_types=1);
 $page = $pageContext ?? [];
 $bootstrap = $page['bootstrap'] ?? [];
 $activity = $bootstrap['activity'] ?? [];
+$supplier = $bootstrap['supplier'] ?? [];
 $infoBlocks = $activity['infoBlocks'] ?? [];
 $details = $activity['details'] ?? [];
 
@@ -26,10 +29,7 @@ if ($content === null) {
     return;
 }
 
-$allowedTags = '<p><br><strong><em><ul><ol><li><a>';
-$sanitizedContent = strip_tags((string) $content, $allowedTags);
-$sanitizedContent = preg_replace('/javascript:/i', '', $sanitizedContent ?? '') ?? '';
-
+$sanitizedContent = UtilityService::formatSupplierContent((string) $content, $supplier);
 if ($sanitizedContent === '') {
     return;
 }
