@@ -35,7 +35,7 @@ if ($sanitizedContent === '') {
 }
 ?>
 
-<article class="space-y-0" data-info-block="restrictions">
+<article class="space-y-2" data-info-block="restrictions">
 
     <header>
         <h3 class="text-lg font-semibold text-slate-900">

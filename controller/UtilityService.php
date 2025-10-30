@@ -864,6 +864,9 @@ final class UtilityService
             return '';
         }
 
+        $supplierSlug = self::stringOrNull($supplier['slug'] ?? $supplier['supplierSlug'] ?? null);
+        $supplierName = self::stringOrNull($supplier['name'] ?? $supplier['supplierName'] ?? null);
+
         $replacements = [
             '[p]' => '<p>',
             '[/p]' => '</p>',
@@ -872,6 +875,63 @@ final class UtilityService
         ];
 
         $text = str_replace(array_keys($replacements), array_values($replacements), $text);
+
+        $text = preg_replace_callback(
+            '/\[img\s+([^\]]+)\]/i',
+            static function (array $matches) use ($supplierSlug, $supplierName) {
+                if ($supplierSlug === null) {
+                    return '';
+                }
+
+                $raw = trim($matches[1]);
+                if ($raw === '') {
+                    return '';
+                }
+
+                $basename = basename($raw);
+                if ($basename === '' || str_contains($basename, '..')) {
+                    return '';
+                }
+
+                if (!preg_match('/^[a-z0-9._-]+$/i', $basename)) {
+                    return '';
+                }
+
+                $extension = strtolower(pathinfo($basename, PATHINFO_EXTENSION));
+                if ($extension === '' || !in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif'], true)) {
+                    return '';
+                }
+
+                $imagePath = self::supplierDirectory($supplierSlug)
+                    . DIRECTORY_SEPARATOR . 'images'
+                    . DIRECTORY_SEPARATOR . $basename;
+
+                if (!is_file($imagePath)) {
+                    return '';
+                }
+
+                $url = self::resolveSupplierAssetUrl($supplierSlug, 'images/' . $basename);
+
+                $derivedAlt = pathinfo($basename, PATHINFO_FILENAME) ?? '';
+                $derivedAlt = $derivedAlt !== ''
+                    ? ucwords(str_replace(['-', '_'], ' ', $derivedAlt))
+                    : 'Activity image';
+
+                $alt = $supplierName !== null
+                    ? trim($supplierName . ' ' . $derivedAlt)
+                    : $derivedAlt;
+
+                $urlEscaped = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
+                $altEscaped = htmlspecialchars($alt, ENT_QUOTES, 'UTF-8');
+
+                return sprintf(
+                    '<img src="%s" alt="%s" class="w-full h-auto rounded-xl mb-4" loading="lazy" decoding="async">',
+                    $urlEscaped,
+                    $altEscaped
+                );
+            },
+            $text
+        ) ?? $text;
 
         $links = $supplier['links'] ?? [];
         $faqUrl = self::stringOrNull($links['faq'] ?? null);
@@ -894,7 +954,7 @@ final class UtilityService
         $text = str_replace('[FAQ]', $faqReplacement, $text);
         $text = str_replace('[TERMS]', $termsReplacement, $text);
 
-        $allowedTags = '<p><br><strong><em><ul><ol><li><a>';
+        $allowedTags = '<p><br><strong><em><ul><ol><li><a><img>';
         $sanitized = strip_tags($text, $allowedTags);
         $sanitized = preg_replace('/javascript\s*:/i', '', $sanitized ?? '') ?? '';
         $sanitized = preg_replace('#<p>\s*</p>#', '', $sanitized) ?? '';

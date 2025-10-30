@@ -33,7 +33,7 @@ if ($sanitizedContent === '') {
     return;
 }
 ?>
-<article class="space-y-0" data-info-block="notes">
+<article class="space-y-2" data-info-block="notes">
     <header>
         <h3 class="text-lg font-semibold text-slate-900">
             <?= htmlspecialchars($notesTitle, ENT_QUOTES, 'UTF-8') ?>

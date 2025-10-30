@@ -38,7 +38,7 @@ if ($items === []) {
     return;
 }
 ?>
-<article class="space-y-0" data-info-block="highlights">
+<article class="space-y-2" data-info-block="highlights">
     
     <header>
         <h3 class="text-lg font-semibold text-slate-900">
