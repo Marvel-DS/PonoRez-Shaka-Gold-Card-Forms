@@ -9,39 +9,20 @@ use PonoRez\SGCForms\UtilityService;
 
 final class UtilityServiceTest extends TestCase
 {
-    public function testLoadSupplierActivityInfoCache(): void
+    public function testFormatSupplierContent(): void
     {
-        $supplierSlug = 'supplier-slug';
-        $activitySlug = 'activity-slug';
-
-        $supplierDir = UtilityService::supplierDirectory($supplierSlug);
-        $cacheDir = $supplierDir . '/cache/activity-info';
-
-        if (!is_dir($cacheDir) && !mkdir($cacheDir, 0775, true) && !is_dir($cacheDir)) {
-            self::fail('Unable to create supplier cache directory for test.');
-        }
-
-        $cacheFile = $cacheDir . '/' . $activitySlug . '.json';
-
-        $payload = [
-            ['id' => 123, 'times' => '7:30am Check In', 'name' => 'Test Activity'],
-            ['activityId' => '456', 'times' => '9:00am Check In'],
+        $supplier = [
+            'links' => [
+                'faq' => 'https://example.com/faq',
+                'terms' => 'https://example.com/terms',
+            ],
         ];
 
-        file_put_contents($cacheFile, json_encode($payload, JSON_THROW_ON_ERROR));
+        $input = '[p]Hello [b]World[/b][/p][FAQ] & [TERMS]';
+        $formatted = UtilityService::formatSupplierContent($input, $supplier);
 
-        try {
-            $result = UtilityService::loadSupplierActivityInfoCache($supplierSlug, $activitySlug);
-
-            self::assertIsArray($result);
-            self::assertArrayHasKey('123', $result);
-            self::assertSame('7:30am Check In', $result['123']['times']);
-            self::assertArrayHasKey('456', $result);
-        } finally {
-            @unlink($cacheFile);
-            @rmdir($cacheDir);
-            @rmdir($supplierDir . '/cache');
-        }
+        self::assertStringContainsString('<p>Hello <strong>World</strong></p>', $formatted);
+        self::assertStringContainsString('<a href="https://example.com/faq"', $formatted);
+        self::assertStringContainsString('Terms &amp; Conditions', $formatted);
     }
 }
-

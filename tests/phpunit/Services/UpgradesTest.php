@@ -99,18 +99,14 @@ final class UpgradesTest extends TestCase
         self::assertArrayHasKey('date', $payload);
         self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}$/', (string) $payload['date']);
 
-        self::assertCount(3, $collection);
-        $photos = $collection->get('upgrade-photos');
-        self::assertInstanceOf(Upgrade::class, $photos);
-        self::assertSame('Photo Package', $photos->getLabel());
-        self::assertSame('Digital photo bundle', $photos->getDescription());
-        self::assertSame(49.99, $photos->getPrice());
+        self::assertCount(2, $collection);
 
-        $snacks = $collection->get('upgrade-snacks');
-        self::assertInstanceOf(Upgrade::class, $snacks);
-        self::assertSame('Snack Pack', $snacks->getLabel());
-        self::assertSame(15.0, $snacks->getPrice());
-        self::assertSame(5, $snacks->getMaxQuantity());
+        $reschedule = $collection->get('3217');
+        self::assertInstanceOf(Upgrade::class, $reschedule);
+        self::assertSame('Reschedule Fee', $reschedule->getLabel());
+        self::assertSame('Reschedule you activity', $reschedule->getDescription());
+        self::assertSame(27.03, $reschedule->getPrice());
+        self::assertSame(10, $reschedule->getMaxQuantity());
 
         $videoUpgrade = $collection->get('upgrade-video');
         self::assertInstanceOf(Upgrade::class, $videoUpgrade);
@@ -118,6 +114,9 @@ final class UpgradesTest extends TestCase
         self::assertSame('High-def video package', $videoUpgrade->getDescription());
         self::assertSame(89.99, $videoUpgrade->getPrice());
         self::assertSame(2, $videoUpgrade->getMaxQuantity());
+
+        self::assertNull($collection->get('upgrade-photos'));
+        self::assertNull($collection->get('upgrade-snacks'));
 
         self::assertNotEmpty($cache->setCalls);
         $write = $cache->setCalls[0];
@@ -139,8 +138,9 @@ final class UpgradesTest extends TestCase
         self::assertSame([], $cache->setCalls);
         self::assertCount(2, $collection);
         self::assertNull($collection->get('upgrade-lunch'));
-        self::assertNotNull($collection->get('upgrade-photos'));
+        self::assertNotNull($collection->get('3217'));
         self::assertNotNull($collection->get('upgrade-video'));
+        self::assertNull($collection->get('upgrade-photos'));
     }
 
     public function testFetchReturnsEmptyCollectionWhenDisabled(): void
@@ -205,6 +205,56 @@ final class UpgradesTest extends TestCase
         }
     }
 
+    public function testFetchReturnsSoapUpgradesWhenConfigExplicitlyEmpty(): void
+    {
+        $primary = new stdClass();
+        $primary->upgradeId = 'upgrade-photos';
+        $primary->name = 'Photo Package';
+        $primary->price = 59.25;
+
+        $extra = new stdClass();
+        $extra->id = 'upgrade-snacks';
+        $extra->label = 'Snack Pack';
+        $extra->price = 15.00;
+        $extra->maxQuantity = 5;
+
+        $response = new stdClass();
+        $response->return = [$primary, $extra];
+
+        $client = new UpgradeRecordingSoapClient($response);
+        $factory = new UpgradeStubSoapClientFactory($client);
+        $cache = new UpgradeCacheSpy();
+
+        $service = new UpgradeService($cache, $factory);
+        $projectRoot = UtilityService::projectRoot();
+        $basePath = sprintf('%s/suppliers/%s/activity-slug.config', $projectRoot, self::SUPPLIER_SLUG);
+        $fixturePath = sprintf('%s/suppliers/%s/activity-upgrades-soap-only.config', $projectRoot, self::SUPPLIER_SLUG);
+
+        $baseConfigContents = file_get_contents($basePath);
+        self::assertNotFalse($baseConfigContents, 'Expected base activity config to be readable.');
+
+        $config = json_decode($baseConfigContents, true, 512, JSON_THROW_ON_ERROR);
+        $config['slug'] = 'activity-upgrades-soap-only';
+        $config['upgrades'] = [];
+
+        file_put_contents(
+            $fixturePath,
+            json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+        );
+
+        try {
+            $collection = $service->fetch(self::SUPPLIER_SLUG, 'activity-upgrades-soap-only');
+
+            self::assertSame(1, $factory->buildCount);
+            self::assertCount(1, $client->calls);
+            self::assertCount(2, $collection);
+            self::assertInstanceOf(Upgrade::class, $collection->get('upgrade-photos'));
+            self::assertInstanceOf(Upgrade::class, $collection->get('upgrade-snacks'));
+        } finally {
+            @unlink($fixturePath);
+        }
+    }
+
     public function testFetchRemovesSoapUpgradesNotWebBookable(): void
     {
         $nonWeb = new stdClass();
@@ -223,7 +273,7 @@ final class UpgradesTest extends TestCase
         $collection = $service->fetch(self::SUPPLIER_SLUG, self::ACTIVITY_SLUG);
 
         self::assertNull($collection->get('upgrade-video'));
-        self::assertNotNull($collection->get('upgrade-photos'));
+        self::assertNotNull($collection->get('3217'));
     }
 
     public function testConfigMarkedNotWebBookableIsExcluded(): void
@@ -292,7 +342,7 @@ final class UpgradesTest extends TestCase
         $service = new UpgradeService(new UpgradeCacheSpy(), new UpgradeStubSoapClientFactory());
         $mergeCollection = new ReflectionMethod($service, 'mergeCollection');
         $mergeCollection->setAccessible(true);
-        $mergeCollection->invoke($service, $collection, $soapData, []);
+        $mergeCollection->invoke($service, $collection, $soapData, [], true);
 
         $configuredUpgrade = $collection->get('upgrade-config');
         self::assertInstanceOf(Upgrade::class, $configuredUpgrade);

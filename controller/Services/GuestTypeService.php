@@ -40,15 +40,7 @@ final class GuestTypeService
         }
 
         if (is_array($cached)) {
-            if ($cached !== []) {
-                UtilityService::saveSupplierGuestTypeCache($supplierSlug, $activitySlug, $cached);
-            }
-
-            return $this->applySupplierCacheFallback(
-                $this->mergeCollection($collection, $cached),
-                $supplierSlug,
-                $activitySlug
-            );
+            return $this->mergeCollection($collection, $cached);
         }
 
         try {
@@ -56,36 +48,11 @@ final class GuestTypeService
             $this->cache->set($cacheKey, $data, self::CACHE_TTL);
             $this->cache->set($baselineCacheKey, $data, self::BASELINE_CACHE_TTL);
 
-            if ($data !== []) {
-                UtilityService::saveSupplierGuestTypeCache($supplierSlug, $activitySlug, $data);
-            }
-
-            return $this->applySupplierCacheFallback(
-                $this->mergeCollection($collection, $data),
-                $supplierSlug,
-                $activitySlug
-            );
+            return $this->mergeCollection($collection, $data);
         } catch (Throwable) {
             $cached = $this->cache->get($baselineCacheKey);
             if (is_array($cached)) {
-                if ($cached !== []) {
-                    UtilityService::saveSupplierGuestTypeCache($supplierSlug, $activitySlug, $cached);
-                }
-
-                return $this->applySupplierCacheFallback(
-                    $this->mergeCollection($collection, $cached),
-                    $supplierSlug,
-                    $activitySlug
-                );
-            }
-
-            $supplierCache = UtilityService::loadSupplierGuestTypeCache($supplierSlug, $activitySlug);
-            if (is_array($supplierCache)) {
-                return $this->applySupplierCacheFallback(
-                    $this->mergeCollection($collection, $supplierCache),
-                    $supplierSlug,
-                    $activitySlug
-                );
+                return $this->mergeCollection($collection, $cached);
             }
 
             return $collection;
@@ -116,68 +83,10 @@ final class GuestTypeService
                 $id,
                 isset($guestType['label']) ? (string) $guestType['label'] : $id,
                 isset($guestType['description']) ? $guestType['description'] : null,
-                isset($guestType['price']) && is_numeric($guestType['price']) ? (float) $guestType['price'] : null,
+                null,
                 max(0, $minQuantity),
                 max(0, $maxQuantity)
             ));
-        }
-
-        return $collection;
-    }
-
-    private function applySupplierCacheFallback(
-        GuestTypeCollection $collection,
-        string $supplierSlug,
-        string $activitySlug
-    ): GuestTypeCollection {
-        $fallback = UtilityService::loadSupplierGuestTypeCache($supplierSlug, $activitySlug);
-        if (!is_array($fallback) || $fallback === []) {
-            return $collection;
-        }
-
-        foreach ($fallback as $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-
-            $id = (string) ($row['id'] ?? $row['guestTypeId'] ?? '');
-            if ($id === '') {
-                continue;
-            }
-
-            $guestType = $collection->get($id) ?? new GuestType($id, $id);
-
-            $currentLabel = trim($guestType->getLabel());
-            if ($currentLabel === '' || strcasecmp($currentLabel, $id) === 0) {
-                $fallbackLabel = self::firstNonEmptyString([
-                    $row['label'] ?? null,
-                    $row['name'] ?? null,
-                    $row['guestTypeName'] ?? null,
-                    $row['guestType'] ?? null,
-                ]);
-
-                if ($fallbackLabel !== null) {
-                    $guestType->setLabel($fallbackLabel);
-                }
-            }
-
-            $currentDescription = $guestType->getDescription();
-            if ($currentDescription === null || trim($currentDescription) === '') {
-                $fallbackDescription = self::firstNonEmptyString([
-                    $row['description'] ?? null,
-                    $row['guestTypeDescription'] ?? null,
-                ]);
-
-                if ($fallbackDescription !== null) {
-                    $guestType->setDescription($fallbackDescription);
-                }
-            }
-
-            if ($guestType->getPrice() === null && isset($row['price']) && is_numeric($row['price'])) {
-                $guestType->setPrice((float) $row['price']);
-            }
-
-            $collection->add($guestType);
         }
 
         return $collection;
@@ -215,7 +124,8 @@ final class GuestTypeService
                 $row['guestType'] ?? null,
             ]);
 
-            if ($label !== null) {
+            $currentLabel = trim($guestType->getLabel());
+            if ($label !== null && ($currentLabel === '' || strcasecmp($currentLabel, $id) === 0)) {
                 $guestType->setLabel($label);
             }
 
@@ -224,7 +134,8 @@ final class GuestTypeService
                 $row['guestTypeDescription'] ?? null,
             ]);
 
-            if ($description !== null) {
+            $currentDescription = $guestType->getDescription();
+            if ($description !== null && ($currentDescription === null || trim($currentDescription) === '')) {
                 $guestType->setDescription($description);
             }
 

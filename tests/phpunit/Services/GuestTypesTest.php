@@ -10,7 +10,6 @@ use PonoRez\SGCForms\DTO\GuestType;
 use PonoRez\SGCForms\DTO\GuestTypeCollection;
 use PonoRez\SGCForms\Services\GuestTypeService;
 use PonoRez\SGCForms\Services\SoapClientFactory;
-use PonoRez\SGCForms\UtilityService;
 use RuntimeException;
 use SoapClient;
 use SoapFault;
@@ -45,8 +44,8 @@ final class GuestTypesTest extends TestCase
 
         $adult = $collection->get('345');
         self::assertInstanceOf(GuestType::class, $adult);
-        self::assertSame('Adult from cache', $adult->getLabel());
-        self::assertSame('Cached description', $adult->getDescription());
+        self::assertSame('Adult', $adult->getLabel());
+        self::assertSame('Ages 16+', $adult->getDescription());
         self::assertSame(123.45, $adult->getPrice());
         self::assertSame(1, $adult->getMin());
         self::assertSame(10, $adult->getMax());
@@ -55,7 +54,7 @@ final class GuestTypesTest extends TestCase
         self::assertInstanceOf(GuestType::class, $child);
         self::assertSame('Child', $child->getLabel());
         self::assertSame('Ages 2-16', $child->getDescription());
-        self::assertSame(75.0, $child->getPrice());
+        self::assertNull($child->getPrice());
     }
 
     public function testFetchCachesSoapResponseOnMiss(): void
@@ -112,17 +111,19 @@ final class GuestTypesTest extends TestCase
         self::assertCount(3, $collection);
         $adult = $collection->get('345');
         self::assertInstanceOf(GuestType::class, $adult);
-        self::assertSame('Adult from SOAP', $adult->getLabel());
-        self::assertSame('SOAP description', $adult->getDescription());
+        self::assertSame('Adult', $adult->getLabel());
+        self::assertSame('Ages 16+', $adult->getDescription());
         self::assertSame(150.55, $adult->getPrice());
 
         $infant = $collection->get('789');
         self::assertInstanceOf(GuestType::class, $infant);
         self::assertSame('Infant', $infant->getLabel());
+        self::assertNull($infant->getDescription());
 
         $child = $collection->get('456');
         self::assertInstanceOf(GuestType::class, $child);
         self::assertSame('Child', $child->getLabel());
+        self::assertSame('Ages 2-16', $child->getDescription());
 
         self::assertNotEmpty($cache->setCalls);
         self::assertSame('guest-types:supplier-slug:activity-slug:2024-01-01', $cache->setCalls[0]['key']);
@@ -165,44 +166,9 @@ final class GuestTypesTest extends TestCase
         self::assertSame(0, $builder->buildCount, 'SOAP client should not be built when baseline cache hits.');
         $adult = $collection->get('345');
         self::assertInstanceOf(GuestType::class, $adult);
-        self::assertSame('Adult from baseline', $adult->getLabel());
-        self::assertSame('Baseline description', $adult->getDescription());
+        self::assertSame('Adult', $adult->getLabel());
+        self::assertSame('Ages 16+', $adult->getDescription());
         self::assertSame(99.99, $adult->getPrice());
-    }
-
-    public function testFetchFallsBackToSupplierCacheWhenSoapFails(): void
-    {
-        $supplierDir = UtilityService::supplierDirectory(self::SUPPLIER_SLUG);
-        $cacheDir = $supplierDir . '/cache/guest-types';
-        if (!is_dir($cacheDir) && !mkdir($cacheDir, 0775, true) && !is_dir($cacheDir)) {
-            self::fail('Unable to create supplier guest type cache directory for test.');
-        }
-
-        $cacheFile = $cacheDir . '/' . self::ACTIVITY_SLUG . '.json';
-        $payload = [[
-            'id' => 345,
-            'name' => 'Adult from supplier cache',
-            'description' => 'Supplier cached description',
-            'price' => 88.0,
-        ]];
-
-        file_put_contents($cacheFile, json_encode($payload, JSON_THROW_ON_ERROR));
-
-        try {
-            $cache = new CacheSpy();
-            $builder = new StubSoapClientFactory(); // will throw when build() is called
-
-            $service = new GuestTypeService($cache, $builder);
-            $collection = $service->fetch(self::SUPPLIER_SLUG, self::ACTIVITY_SLUG, self::TRAVEL_DATE);
-
-            $guest = $collection->get('345');
-            self::assertInstanceOf(GuestType::class, $guest);
-            self::assertSame('Adult from supplier cache', $guest->getLabel());
-            self::assertSame('Supplier cached description', $guest->getDescription());
-            self::assertSame(88.0, $guest->getPrice());
-        } finally {
-            @unlink($cacheFile);
-        }
     }
 
     public function testFetchNormalizesSoapObjectResponse(): void
@@ -222,7 +188,8 @@ final class GuestTypesTest extends TestCase
 
         $child = $collection->get('456');
         self::assertInstanceOf(GuestType::class, $child);
-        self::assertSame('Child from SOAP', $child->getLabel());
+        self::assertSame('Child', $child->getLabel());
+        self::assertSame('Ages 2-16', $child->getDescription());
         self::assertSame(50.0, $child->getPrice());
     }
 

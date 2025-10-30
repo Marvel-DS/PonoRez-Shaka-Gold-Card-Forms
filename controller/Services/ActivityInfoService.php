@@ -60,33 +60,15 @@ final class ActivityInfoService
         $normalizedCache = $this->normalizeCachedPayload($cached, $activityIds);
 
         if ($normalizedCache !== null && !$this->shouldRefresh($normalizedCache['checkedAt'] ?? null)) {
-            $this->persistSupplierActivityInfoCache(
-                $supplierSlug,
-                $activitySlug,
-                $normalizedCache['activities'] ?? []
-            );
-
             return $normalizedCache;
         }
 
         $fresh = $this->attemptRefresh($cacheKey, $supplierConfig, $activityIds, $normalizedCache);
         if ($fresh !== null) {
-            $this->persistSupplierActivityInfoCache(
-                $supplierSlug,
-                $activitySlug,
-                $fresh['activities'] ?? []
-            );
-
             return $fresh;
         }
 
         if ($normalizedCache !== null) {
-            $this->persistSupplierActivityInfoCache(
-                $supplierSlug,
-                $activitySlug,
-                $normalizedCache['activities'] ?? []
-            );
-
             return $normalizedCache;
         }
 
@@ -95,21 +77,6 @@ final class ActivityInfoService
             'checkedAt' => null,
             'hash' => null,
         ];
-    }
-
-    /**
-     * @param array<string, mixed> $activities
-     */
-    private function persistSupplierActivityInfoCache(
-        string $supplierSlug,
-        string $activitySlug,
-        array $activities
-    ): void {
-        if ($activities === []) {
-            return;
-        }
-
-        UtilityService::saveSupplierActivityInfoCache($supplierSlug, $activitySlug, $activities);
     }
 
     /**

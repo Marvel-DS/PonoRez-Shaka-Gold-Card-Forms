@@ -320,16 +320,6 @@ $activityInfoById = is_array($activityInfoResult['activities'] ?? null)
     ? $activityInfoResult['activities']
     : [];
 
-if ($activityInfoById !== []) {
-    UtilityService::saveSupplierActivityInfoCache($supplierSlug, $activitySlug, $activityInfoById);
-} else {
-    $activityInfoFallback = UtilityService::loadSupplierActivityInfoCache($supplierSlug, $activitySlug);
-    if (is_array($activityInfoFallback) && $activityInfoFallback !== []) {
-        $activityInfoById = $activityInfoFallback;
-        $activityInfoResult['activities'] = $activityInfoById;
-    }
-}
-
 $currentDate = date('Y-m-d');
 
 $primaryActivityId = UtilityService::getPrimaryActivityId($activityConfig);
@@ -364,29 +354,8 @@ try {
         $guestTypeDetailMap[$id] = $detail;
     }
 
-    if ($guestTypeArray !== []) {
-        UtilityService::saveSupplierGuestTypeCache($supplierSlug, $activitySlug, $guestTypeArray);
-    }
 } catch (Throwable) {
     $guestTypeDetailMap = [];
-}
-
-if ($guestTypeDetailMap === []) {
-    $guestTypeCacheFallback = UtilityService::loadSupplierGuestTypeCache($supplierSlug, $activitySlug);
-    if (is_array($guestTypeCacheFallback)) {
-        foreach ($guestTypeCacheFallback as $detail) {
-            if (!is_array($detail) || !isset($detail['id'])) {
-                continue;
-            }
-
-            $fallbackId = (string) $detail['id'];
-            if ($fallbackId === '') {
-                continue;
-            }
-
-            $guestTypeDetailMap[$fallbackId] = $detail;
-        }
-    }
 }
 
 $upgradesConfigOriginal = [];
@@ -485,10 +454,10 @@ $normalizeGuestTypeEntry = static function (array $guestType, array $detailMap):
     }
 
     $price = null;
-    if (isset($guestType['price']) && $guestType['price'] !== '' && is_numeric($guestType['price'])) {
-        $price = (float) $guestType['price'];
-    } elseif (is_array($detail) && isset($detail['price']) && is_numeric($detail['price'])) {
+    if (is_array($detail) && isset($detail['price']) && is_numeric($detail['price'])) {
         $price = (float) $detail['price'];
+    } elseif (isset($guestType['price']) && $guestType['price'] !== '' && is_numeric($guestType['price'])) {
+        $price = (float) $guestType['price'];
     }
 
     $minQuantity = isset($guestType['minQuantity']) ? max(0, (int) $guestType['minQuantity']) : 0;

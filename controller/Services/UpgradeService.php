@@ -44,12 +44,14 @@ final class UpgradeService
             return new UpgradeCollection();
         }
 
-        [$collection, $disabledIds] = $this->buildCollectionFromConfig($activityConfig['upgrades'] ?? []);
+        [$collection, $disabledIds, $hasExplicitConfigUpgrades] = $this->buildCollectionFromConfig(
+            $activityConfig['upgrades'] ?? []
+        );
 
         try {
             $soapData = $this->fetchFromSoap($supplierConfig, $activityConfig);
             if ($soapData !== []) {
-                $this->mergeCollection($collection, $soapData, $disabledIds);
+                $this->mergeCollection($collection, $soapData, $disabledIds, $hasExplicitConfigUpgrades);
             }
             $this->cache->set($cacheKey, $collection->toArray(), self::CACHE_TTL);
         } catch (Throwable) {
@@ -61,17 +63,20 @@ final class UpgradeService
 
     /**
      * @param array<int, array<string, mixed>> $config
-     * @return array{0:UpgradeCollection,1:array<int,string>}
+     * @return array{0:UpgradeCollection,1:array<int,string>,2:bool}
      */
     private function buildCollectionFromConfig(array $config): array
     {
         $collection = new UpgradeCollection();
         $disabledIds = [];
+        $hasExplicitEntries = false;
 
         foreach ($config as $row) {
             if (!is_array($row)) {
                 continue;
             }
+
+            $hasExplicitEntries = true;
 
             $id = isset($row['id']) ? (string) $row['id'] : null;
             if ($id === null) {
@@ -97,7 +102,7 @@ final class UpgradeService
             $collection->add(new Upgrade($id, $label, $row));
         }
 
-        return [$collection, $disabledIds];
+        return [$collection, $disabledIds, $hasExplicitEntries];
     }
 
     private function hydrateCollection(array $data): UpgradeCollection
@@ -172,7 +177,12 @@ final class UpgradeService
      * @param array<int, array<string, mixed>> $soapData
      * @param array<int, string> $disabledIds
      */
-    private function mergeCollection(UpgradeCollection $collection, array $soapData, array $disabledIds): void
+    private function mergeCollection(
+        UpgradeCollection $collection,
+        array $soapData,
+        array $disabledIds,
+        bool $allowlistOnly
+    ): void
     {
         $disabledLookup = array_fill_keys($disabledIds, true);
 
@@ -186,6 +196,9 @@ final class UpgradeService
             $upgrade = $collection->get($id);
 
             if ($upgrade === null) {
+                if ($allowlistOnly) {
+                    continue;
+                }
                 $upgrade = new Upgrade($id, $label);
             } elseif ($upgrade->getLabel() === $upgrade->getId()) {
                 $upgrade->setLabel($label);
