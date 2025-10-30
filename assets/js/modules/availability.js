@@ -976,6 +976,8 @@ function renderTimeslots(state) {
     const hasTimeslots = Array.isArray(timeslots) && timeslots.length > 0;
     const guestBreakdown = computeGuestBreakdown(state);
     const pricingTotals = computePricingTotals(state);
+    const goldCardAmount = Math.max(0, pricingTotals.goldCard || 0);
+    const displayTotal = Math.max(0, pricingTotals.total - goldCardAmount);
     const hasGuestPricing = guestBreakdown.length > 0;
     const hasGuestDetails = Array.isArray(state.guestTypeDetails) && state.guestTypeDetails.length > 0;
     const feesAmount = pricingTotals.fees;
@@ -1110,24 +1112,6 @@ function renderTimeslots(state) {
                     list.appendChild(upgradesRow);
                 }
 
-                if (pricingTotals.goldCard > 0) {
-                    const goldCardRow = createElement('div', {
-                        className: 'flex items-center justify-between gap-6',
-                    });
-
-                    goldCardRow.appendChild(createElement('dt', {
-                        className: 'font-medium text-slate-700',
-                        text: 'Shaka Gold Card',
-                    }));
-
-                    goldCardRow.appendChild(createElement('dd', {
-                        className: 'font-semibold text-slate-900',
-                        text: formatCurrencyForState(state, pricingTotals.goldCard),
-                    }));
-
-                    list.appendChild(goldCardRow);
-                }
-
                 if (feesAmount > 0) {
                     const feesRow = createElement('div', {
                         className: 'flex items-center justify-between gap-6',
@@ -1149,7 +1133,7 @@ function renderTimeslots(state) {
                 breakdownWrapper.appendChild(list);
                 priceInfo.appendChild(breakdownWrapper);
 
-                const discountSavings = computeDiscountSavings(state, pricingTotals.total);
+                const discountSavings = computeDiscountSavings(state, displayTotal);
 
                 const totalsWrapper = createElement('div', {
                     className: 'flex flex-col items-start md:items-end gap-0 text-left md:text-right text-slate-900',
@@ -1157,7 +1141,7 @@ function renderTimeslots(state) {
 
                 totalsWrapper.appendChild(createElement('span', {
                     className: 'text-base font-semibold text-slate-900',
-                    text: `Total: ${formatCurrencyForState(state, pricingTotals.total)}`,
+                    text: `Total: ${formatCurrencyForState(state, displayTotal)}`,
                 }));
 
                 totalsWrapper.appendChild(createElement('span', {
