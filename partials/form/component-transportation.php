@@ -27,9 +27,6 @@ $defaultRouteId = $transportation['defaultRouteId'] ?? null;
         <?php foreach ($routes as $route): ?>
             <?php
             $id = (string) ($route['id'] ?? '');
-            if ($id === '') {
-                continue;
-            }
 
             $labelText = $route['label'] ?? $id;
             $description = $route['description'] ?? null;

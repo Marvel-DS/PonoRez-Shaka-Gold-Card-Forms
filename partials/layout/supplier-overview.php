@@ -65,17 +65,23 @@ $pageContext = [
 
                 <?php
                     $supplierDisplayName = $supplierName;
+                    $contactPhone = isset($supplier['contact']['phone']) && is_string($supplier['contact']['phone'])
+                        ? trim($supplier['contact']['phone'])
+                        : '';
+                    $contactEmail = isset($supplier['contact']['email']) && is_string($supplier['contact']['email'])
+                        ? trim($supplier['contact']['email'])
+                        : '';
                     $showHomeLink = false;
                     include __DIR__ . '/section-header.php';
-                    unset($showHomeLink);
+                    unset($showHomeLink, $contactPhone, $contactEmail);
                 ?>
-                
-                <?php if ($activities === []): ?>
-                    <section class="rounded-3xl border border-slate-200 bg-white/70 p-8 text-center shadow-sm backdrop-blur">
-                        <p class="text-sm text-slate-600 mb-0">
-                            Activities for this supplier are currently unavailable. Please check back later or contact support.
-                        </p>
-                    </section>
+
+<?php if ($activities === []): ?>
+    <section class="rounded-3xl border border-slate-200 bg-white/70 p-8 text-center shadow-sm backdrop-blur">
+        <p class="text-sm text-slate-600 mb-0">
+            Activities for this supplier are currently unavailable. Please check back later or contact support.
+        </p>
+    </section>
                 <?php else: ?>
                     <section class="grid gap-8 md:grid-cols-2">
                         <?php foreach ($activities as $activity): ?>

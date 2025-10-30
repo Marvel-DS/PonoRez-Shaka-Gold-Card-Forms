@@ -14,6 +14,8 @@ $supplierLogoUrl = $supplierLogoUrl ?? null;
 $supplierName = $supplierName ?? '';
 $homeLink = $homeLink ?? [];
 $showHomeLink = $showHomeLink ?? true;
+$contactPhone = isset($contactPhone) && is_string($contactPhone) ? trim($contactPhone) : '';
+$contactEmail = isset($contactEmail) && is_string($contactEmail) ? trim($contactEmail) : '';
 
 ?>
 
@@ -36,6 +38,20 @@ $showHomeLink = $showHomeLink ?? true;
            aria-label="View all discounted activities for <?= htmlspecialchars($supplierName, ENT_QUOTES, 'UTF-8') ?>">
             <?= htmlspecialchars($homeLink['label'], ENT_QUOTES, 'UTF-8') ?>
         </a>
+    <?php elseif (!$showHomeLink && ($contactPhone !== '' || $contactEmail !== '')): ?>
+        <div class="text-xs text-slate-600 text-center md:text-right">
+            <p class="mb-0">Need to get in touch?</p>
+            <?php if ($contactPhone !== ''): ?>
+                <p class="mb-0">Call us: <a href="tel:<?= htmlspecialchars($contactPhone, ENT_QUOTES, 'UTF-8') ?>" class="text-[var(--sgc-brand-primary)]">
+                    <?= htmlspecialchars($contactPhone, ENT_QUOTES, 'UTF-8') ?>
+                </a></p>
+            <?php endif; ?>
+            <?php if ($contactEmail !== ''): ?>
+                <p>Email us: <a href="mailto:<?= htmlspecialchars($contactEmail, ENT_QUOTES, 'UTF-8') ?>" class="text-[var(--sgc-brand-primary)]">
+                    <?= htmlspecialchars($contactEmail, ENT_QUOTES, 'UTF-8') ?>
+                </a></p>
+            <?php endif; ?>
+        </div>
     <?php endif; ?>
 
 </header>
